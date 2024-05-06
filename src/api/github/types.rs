@@ -40,6 +40,7 @@ pub struct PrMetadata {
     pub title: String,
     pub started: chrono::DateTime<chrono::Utc>,
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
+    pub full_id: String,
 }
 
 impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
@@ -61,6 +62,7 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
             pr.author_association,
             pr.created_at,
         ) {
+            let full_id = format!("{}/{}/{}", owner.login, repo, pr.number);
             Ok(Self {
                 owner: owner.login,
                 repo,
@@ -69,6 +71,7 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
                 title,
                 started: created_at,
                 merged: pr.merged_at,
+                full_id,
             })
         } else {
             Err(anyhow::anyhow!("Missing required fields"))
@@ -80,13 +83,19 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
 pub struct BotStarted {
     pub sender: String,
     pub pr_metadata: PrMetadata,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl BotStarted {
-    pub fn new(sender: String, pr_metadata: PrMetadata) -> Self {
+    pub fn new(
+        sender: String,
+        pr_metadata: PrMetadata,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
         Self {
             sender,
             pr_metadata,
+            timestamp,
         }
     }
 
@@ -100,14 +109,21 @@ pub struct BotScored {
     pub sender: User,
     pub pr_metadata: PrMetadata,
     pub score: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl BotScored {
-    pub fn new(sender: User, pr_metadata: PrMetadata, score: String) -> Self {
+    pub fn new(
+        sender: User,
+        pr_metadata: PrMetadata,
+        score: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
         Self {
             sender,
             pr_metadata,
             score,
+            timestamp,
         }
     }
 
@@ -130,6 +146,7 @@ impl BotScored {
 #[derive(Debug, Clone)]
 pub struct PullRequestMerged {
     pub pr_metadata: PrMetadata,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -137,4 +154,22 @@ pub enum Event {
     BotStarted(BotStarted),
     BotScored(BotScored),
     PullRequestMerged(PullRequestMerged),
+}
+
+impl Event {
+    pub fn pr(&self) -> &PrMetadata {
+        match self {
+            Event::BotStarted(event) => &event.pr_metadata,
+            Event::BotScored(event) => &event.pr_metadata,
+            Event::PullRequestMerged(event) => &event.pr_metadata,
+        }
+    }
+
+    pub fn timestamp(&self) -> &chrono::DateTime<chrono::Utc> {
+        match self {
+            Event::BotStarted(event) => &event.timestamp,
+            Event::BotScored(event) => &event.timestamp,
+            Event::PullRequestMerged(event) => &event.timestamp,
+        }
+    }
 }
