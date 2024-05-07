@@ -1,18 +1,12 @@
 use chrono::DateTime;
-use octocrab::{
-    models::{activity::Notification, pulls::PullRequest, Repository},
-    params::pulls::comments::Sort,
-};
+use octocrab::models::{activity::Notification, pulls::PullRequest};
 
-use types::Event;
+use crate::consts::{BOTUSER, SCORE_PHRASE, START_PHRASE};
 
-use crate::{
-    api::github::types::{BotScored, BotStarted, PullRequestMerged, User},
-    consts::{BOTUSER, SCORE_PHRASE, START_PHRASE},
-};
+mod types;
+pub use types::*;
 
-pub mod types;
-
+#[derive(Clone)]
 pub struct GithubClient {
     octocrab: octocrab::Octocrab,
 }
@@ -92,7 +86,6 @@ impl GithubClient {
             }
             let comments = comments.unwrap();
 
-            // TODO: process other pages if necessary
             for comment in comments.into_iter().rev() {
                 let body = comment
                     .body
@@ -108,6 +101,7 @@ impl GithubClient {
                     results.push(Event::BotStarted(BotStarted {
                         sender: comment.user.login,
                         pr_metadata: pr_metadata.clone(),
+                        timestamp: event.updated_at,
                     }));
                     break;
                 } else if body.starts_with(SCORE_PHRASE) {
@@ -115,6 +109,7 @@ impl GithubClient {
                         sender: User::new(comment.user.login, comment.author_association),
                         pr_metadata: pr_metadata.clone(),
                         score: body[SCORE_PHRASE.len()..].trim().to_string(),
+                        timestamp: event.updated_at,
                     }));
                     break;
                 }
@@ -126,7 +121,10 @@ impl GithubClient {
                 "state_change" => {
                     if pr_metadata.merged.is_some() {
                         println!("PR merged: {:#?}", event);
-                        results.push(Event::PullRequestMerged(PullRequestMerged { pr_metadata }));
+                        results.push(Event::PullRequestMerged(PullRequestMerged {
+                            pr_metadata,
+                            timestamp: event.updated_at,
+                        }));
                     }
                 }
                 _ => unreachable!("Checked in the filter above"),
