@@ -1,5 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+use near_workspaces::types::SecretKey;
 use serde::Deserialize;
 use slothrace::{
     api::{
@@ -17,6 +18,8 @@ use tokio::sync::{
 struct Env {
     github_token: String,
     contract: String,
+    secret_key: String,
+    is_mainnet: bool,
 }
 
 #[tokio::main]
@@ -31,7 +34,12 @@ async fn main() -> anyhow::Result<()> {
     let rx: Arc<Mutex<UnboundedReceiver<Vec<Event>>>> = Arc::new(Mutex::new(rx));
     let context: Arc<ContextStruct> = Arc::new(ContextStruct {
         github: github_api,
-        near: NearClient {},
+        near: NearClient::new(
+            env.contract,
+            SecretKey::from_str(&env.secret_key)?,
+            env.is_mainnet,
+        )
+        .await?,
     });
 
     // Spawn worker tasks

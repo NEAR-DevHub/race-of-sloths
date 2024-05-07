@@ -1,6 +1,9 @@
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 #[allow(deprecated)]
 use near_sdk::store::UnorderedMap;
+use near_sdk::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    Timestamp,
+};
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use types::{Organization, UserData, PR};
 
@@ -42,7 +45,7 @@ impl Contract {
         repo: String,
         user: String,
         pr_number: u64,
-        started_at: u64,
+        started_at: Timestamp,
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
@@ -77,7 +80,7 @@ impl Contract {
         self.finalize(&pr_id, pr);
     }
 
-    pub fn sloth_merged(&mut self, pr_id: String, merged_at: u64) {
+    pub fn sloth_merged(&mut self, pr_id: String, merged_at: Timestamp) {
         self.assert_sloth();
 
         let pr = self.prs.get(&pr_id).cloned();
@@ -154,16 +157,23 @@ impl Contract {
             .unwrap_or_else(|| UserData::new(user_handle))
     }
 
-    pub fn finalize(&mut self, pr_id: &str, pr: PR) {
+    pub fn finalize(&mut self, pr_id: &str, mut pr: PR) {
         if !pr.is_ready_to_move() {
             self.prs.insert(pr_id.to_string(), pr);
             return;
         }
 
+        if pr.accounted {
+            env::panic_str("PR already accounted")
+        }
+
         let mut user = self.get_user(pr.author.clone());
-        user.add_score(pr.score.expect("checked above"));
+        user.add_score(pr.score.expect("checked above"), pr.merged_at.unwrap());
         self.sloths.insert(user.handle.clone(), user);
 
-        self.prs.remove(pr_id);
+        // It might be good idea to remove PR from the list
+        // but we can keep it for now
+        pr.accounted = true;
+        self.prs.insert(pr_id.to_string(), pr);
     }
 }

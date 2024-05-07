@@ -3,9 +3,8 @@ use std::collections::{HashMap, HashSet};
 use chrono::{DateTime, Datelike};
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
-    env,
     serde::{Deserialize, Serialize},
-    AccountId, NearSchema,
+    AccountId, NearSchema, Timestamp,
 };
 
 type MonthYearCode = [u8; 6];
@@ -36,9 +35,8 @@ impl UserData {
         }
     }
 
-    pub fn add_score(&mut self, score: u32) {
-        let timestamp = env::block_timestamp();
-        let month_year_code = timestamp_to_code(timestamp);
+    pub fn add_score(&mut self, score: u32, merged_at: Timestamp) {
+        let month_year_code = timestamp_to_code(merged_at);
 
         self.score.insert(month_year_code, score);
         self.total_prs_merged += 1;
@@ -117,18 +115,6 @@ impl Organization {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_timestamp_to_code() {
-        let timestamp = 1625097600000000000; // 2021-07-01
-        let code = timestamp_to_code(timestamp);
-        assert_eq!(code, [b'0', b'7', b'2', b'0', b'2', b'1']);
-    }
-}
-
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
 )]
@@ -140,8 +126,9 @@ pub struct PR {
     pub number: u64,
     pub author: String,
     pub score: Option<u32>,
-    pub created_at: u64,
-    pub merged_at: Option<u64>,
+    pub created_at: Timestamp,
+    pub merged_at: Option<Timestamp>,
+    pub accounted: bool,
 }
 
 impl PR {
@@ -150,7 +137,7 @@ impl PR {
         repo: String,
         number: u64,
         author: String,
-        created_at: u64,
+        created_at: Timestamp,
     ) -> Self {
         Self {
             organization,
@@ -161,6 +148,7 @@ impl PR {
 
             score: None,
             merged_at: None,
+            accounted: false,
         }
     }
 
@@ -168,11 +156,23 @@ impl PR {
         self.score = Some(score);
     }
 
-    pub fn add_merge_info(&mut self, merged_at: u64) {
+    pub fn add_merge_info(&mut self, merged_at: Timestamp) {
         self.merged_at = Some(merged_at);
     }
 
     pub fn is_ready_to_move(&self) -> bool {
         self.score.is_some() && self.merged_at.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_timestamp_to_code() {
+        let timestamp = 1625097600000000000; // 2021-07-01
+        let code = timestamp_to_code(timestamp);
+        assert_eq!(code, [b'0', b'7', b'2', b'0', b'2', b'1']);
     }
 }
