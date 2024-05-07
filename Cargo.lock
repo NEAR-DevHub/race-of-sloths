@@ -2661,6 +2661,7 @@ dependencies = [
 name = "slothrace-storage-contract"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "near-sdk",
  "tokio",
 ]

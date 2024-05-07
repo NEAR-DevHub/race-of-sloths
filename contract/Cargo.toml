@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+chrono.workspace = true
 near-sdk.workspace = true
 
 [dev-dependencies]

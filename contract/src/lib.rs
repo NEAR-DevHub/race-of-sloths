@@ -1,58 +1,51 @@
-// Find all our documentation at https://docs.near.org
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
-use near_sdk::{log, near_bindgen};
+use near_sdk::store::{UnorderedMap, Vector};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
+use types::UserData;
 
-// Define the contract structure
+pub mod storage;
+pub mod types;
+pub mod views;
+
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Contract {
-    greeting: String,
+    sloth: AccountId,
+    racer_to_index: UnorderedMap<String, u32>,
+    racers: Vector<UserData>,
 }
 
-// Define the default, which automatically initializes the contract
-impl Default for Contract {
-    fn default() -> Self {
+#[near_bindgen]
+impl Contract {
+    pub fn new(sloth: AccountId) -> Contract {
         Self {
-            greeting: "Hello".to_string(),
+            sloth,
+            racer_to_index: UnorderedMap::new(storage::StorageKey::RacerToIndex),
+            racers: Vector::new(storage::StorageKey::Racers),
+        }
+    }
+
+    pub fn pr_merged(&mut self, handle: String, score: u64) {
+        self.assert_sloth();
+
+        let account_id = self.racer_to_index.get(&handle).copied();
+        if let Some(index) = account_id {
+            let user_data = self.racers.get_mut(index).expect("User data not found");
+            user_data.add_score(score);
+        } else {
+            let mut user_data = UserData::new(handle.clone());
+            user_data.add_score(score);
+            self.racer_to_index.insert(handle, self.racers.len());
+            self.racers.push(user_data);
         }
     }
 }
 
-// Implement the contract structure
-#[near_bindgen]
 impl Contract {
-    // Public method - returns the greeting saved, defaulting to DEFAULT_GREETING
-    pub fn get_greeting(&self) -> String {
-        self.greeting.clone()
-    }
-
-    // Public method - accepts a greeting, such as "howdy", and records it
-    pub fn set_greeting(&mut self, greeting: String) {
-        log!("Saving greeting: {greeting}");
-        self.greeting = greeting;
-    }
-}
-
-/*
- * The rest of this file holds the inline tests for the code above
- * Learn more about Rust tests: https://doc.rust-lang.org/book/ch11-01-writing-tests.html
- */
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn get_default_greeting() {
-        let contract = Contract::default();
-        // this test did not call set_greeting so should return the default "Hello" greeting
-        assert_eq!(contract.get_greeting(), "Hello");
-    }
-
-    #[test]
-    fn set_then_get_greeting() {
-        let mut contract = Contract::default();
-        contract.set_greeting("howdy".to_string());
-        assert_eq!(contract.get_greeting(), "howdy");
+    pub fn assert_sloth(&self) {
+        if env::predecessor_account_id() != self.sloth {
+            env::panic_str("Only sloth can call this method")
+        }
     }
 }
