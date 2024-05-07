@@ -1,0 +1,28 @@
+[package]
+name = "slothrace"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+envy.workspace = true
+hex.workspace = true
+octocrab.workspace = true
+dotenv.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+env_logger.workspace = true
+log.workspace = true
+async-trait.workspace = true
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

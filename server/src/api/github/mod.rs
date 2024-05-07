@@ -42,7 +42,6 @@ impl GithubClient {
         let events = self.octocrab.all_pages(page).await?;
         let interested_events = events.into_iter().filter(|notification| {
             updated_at = updated_at.max(notification.updated_at);
-            println!("Notification: {:#?}", notification);
 
             notification.subject.r#type == "PullRequest"
                 && (notification.reason == "mention" || notification.reason == "state_change")
@@ -120,7 +119,6 @@ impl GithubClient {
                 "mention" => {}
                 "state_change" => {
                     if pr_metadata.merged.is_some() {
-                        println!("PR merged: {:#?}", event);
                         results.push(Event::PullRequestMerged(PullRequestMerged {
                             pr_metadata,
                             timestamp: event.updated_at,
