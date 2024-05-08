@@ -1,7 +1,7 @@
 use chrono::DateTime;
 use octocrab::models::{activity::Notification, pulls::PullRequest};
 
-use crate::consts::{BOTUSER, SCORE_PHRASE, START_PHRASE};
+use crate::commands::BotCommand;
 
 mod types;
 pub use types::*;
@@ -9,15 +9,19 @@ pub use types::*;
 #[derive(Clone)]
 pub struct GithubClient {
     octocrab: octocrab::Octocrab,
+    pub user_handle: String,
 }
 
 impl GithubClient {
-    pub fn new(github_token: String) -> anyhow::Result<Self> {
+    pub fn new(github_token: String, user_handle: String) -> anyhow::Result<Self> {
         let octocrab = octocrab::Octocrab::builder()
             .personal_token(github_token)
             .build()?;
 
-        Ok(Self { octocrab })
+        Ok(Self {
+            octocrab,
+            user_handle,
+        })
     }
 
     pub async fn get_events(
@@ -42,7 +46,6 @@ impl GithubClient {
         let events = self.octocrab.all_pages(page).await?;
         let interested_events = events.into_iter().filter(|notification| {
             updated_at = updated_at.max(notification.updated_at);
-            println!("Notification: {:#?}", notification);
 
             notification.subject.r#type == "PullRequest"
                 && (notification.reason == "mention" || notification.reason == "state_change")
@@ -87,32 +90,16 @@ impl GithubClient {
             let comments = comments.unwrap();
 
             for comment in comments.into_iter().rev() {
-                let body = comment
-                    .body
-                    .or(comment.body_html)
-                    .or(comment.body_text)
-                    .unwrap_or_default();
-                if comment.user.login == BOTUSER {
+                if comment.user.login == self.user_handle {
                     // We have replied to last ask
                     break;
                 }
 
-                if body.starts_with(START_PHRASE) {
-                    results.push(Event::BotStarted(BotStarted {
-                        sender: comment.user.login,
-                        pr_metadata: pr_metadata.clone(),
-                        timestamp: event.updated_at,
-                    }));
-                    break;
-                } else if body.starts_with(SCORE_PHRASE) {
-                    results.push(Event::BotScored(BotScored {
-                        sender: User::new(comment.user.login, comment.author_association),
-                        pr_metadata: pr_metadata.clone(),
-                        score: body[SCORE_PHRASE.len()..].trim().to_string(),
-                        timestamp: event.updated_at,
-                    }));
-                    break;
+                let event = Event::parse_comment(&self.user_handle, &event, &pr_metadata, &comment);
+                if event.is_none() {
+                    continue;
                 }
+                results.push(event.unwrap());
             }
 
             match event.reason.as_str() {
@@ -120,7 +107,6 @@ impl GithubClient {
                 "mention" => {}
                 "state_change" => {
                     if pr_metadata.merged.is_some() {
-                        println!("PR merged: {:#?}", event);
                         results.push(Event::PullRequestMerged(PullRequestMerged {
                             pr_metadata,
                             timestamp: event.updated_at,
@@ -162,6 +148,35 @@ impl GithubClient {
         self.octocrab
             .issues(owner, repo)
             .create_comment(id, text)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn like_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        comment_id: u64,
+    ) -> anyhow::Result<()> {
+        self.octocrab
+            .issues(owner, repo)
+            .create_comment_reaction(
+                comment_id,
+                octocrab::models::reactions::ReactionContent::PlusOne,
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn like_pr(&self, owner: &str, repo: &str, pr_number: u64) -> anyhow::Result<()> {
+        self.octocrab
+            .issues(owner, repo)
+            .create_reaction(
+                pr_number,
+                octocrab::models::reactions::ReactionContent::PlusOne,
+            )
             .await?;
 
         Ok(())

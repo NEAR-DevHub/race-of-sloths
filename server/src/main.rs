@@ -1,12 +1,13 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+use near_workspaces::types::SecretKey;
 use serde::Deserialize;
 use slothrace::{
     api::{
         github::{Event, GithubClient},
         near::NearClient,
     },
-    commands::{Context, ContextStruct, Execute},
+    commands::{BotCommand, Context, ContextStruct},
 };
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
@@ -17,6 +18,9 @@ use tokio::sync::{
 struct Env {
     github_token: String,
     contract: String,
+    secret_key: String,
+    is_mainnet: bool,
+    bot_name: String,
 }
 
 #[tokio::main]
@@ -26,12 +30,17 @@ async fn main() -> anyhow::Result<()> {
 
     let env = envy::from_env::<Env>()?;
 
-    let github_api = GithubClient::new(env.github_token)?;
+    let github_api = GithubClient::new(env.github_token, env.bot_name)?;
     let (tx, rx) = mpsc::unbounded_channel::<Vec<Event>>();
     let rx: Arc<Mutex<UnboundedReceiver<Vec<Event>>>> = Arc::new(Mutex::new(rx));
     let context: Arc<ContextStruct> = Arc::new(ContextStruct {
         github: github_api,
-        near: NearClient {},
+        near: NearClient::new(
+            env.contract,
+            SecretKey::from_str(&env.secret_key)?,
+            env.is_mainnet,
+        )
+        .await?,
     });
 
     // Spawn worker tasks

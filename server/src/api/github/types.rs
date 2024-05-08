@@ -84,6 +84,7 @@ pub struct BotStarted {
     pub sender: String,
     pub pr_metadata: PrMetadata,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub comment_id: u64,
 }
 
 impl BotStarted {
@@ -91,11 +92,13 @@ impl BotStarted {
         sender: String,
         pr_metadata: PrMetadata,
         timestamp: chrono::DateTime<chrono::Utc>,
+        comment_id: u64,
     ) -> Self {
         Self {
             sender,
             pr_metadata,
             timestamp,
+            comment_id,
         }
     }
 
@@ -110,6 +113,7 @@ pub struct BotScored {
     pub pr_metadata: PrMetadata,
     pub score: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub comment_id: u64,
 }
 
 impl BotScored {
@@ -118,12 +122,14 @@ impl BotScored {
         pr_metadata: PrMetadata,
         score: String,
         timestamp: chrono::DateTime<chrono::Utc>,
+        comment_id: u64,
     ) -> Self {
         Self {
             sender,
             pr_metadata,
             score,
             timestamp,
+            comment_id,
         }
     }
 
