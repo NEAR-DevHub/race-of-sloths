@@ -1,5 +1,3 @@
-use tokio::{join, sync::futures};
-
 use self::api::github::{BotStarted, PrMetadata};
 
 use super::*;
@@ -9,9 +7,7 @@ fn msg(user: &str) -> String {
 }
 
 #[async_trait::async_trait]
-impl BotCommand for api::github::BotStarted {
-    type Command = api::github::BotStarted;
-
+impl Execute for api::github::BotStarted {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if info.exist || !info.allowed {
@@ -38,6 +34,10 @@ impl BotCommand for api::github::BotStarted {
             )
             .await
     }
+}
+
+impl ParseComment for api::github::BotStarted {
+    type Command = api::github::BotStarted;
 
     fn parse_comment(
         bot_name: &str,

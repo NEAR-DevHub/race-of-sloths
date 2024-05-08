@@ -20,13 +20,17 @@ pub struct Contract {
     sloths: UnorderedMap<String, UserData>,
     #[allow(deprecated)]
     organizations: UnorderedMap<String, Organization>,
+    // We need to think about removing PRs that are stale for a long time
     #[allow(deprecated)]
     prs: UnorderedMap<String, PR>,
+    #[allow(deprecated)]
+    executed_prs: UnorderedMap<String, PR>,
 }
 
 #[near_bindgen]
 impl Contract {
     #[init]
+    #[init(ignore_state)]
     pub fn new(sloth: AccountId) -> Self {
         Self {
             sloth,
@@ -36,6 +40,8 @@ impl Contract {
             organizations: UnorderedMap::new(storage::StorageKey::Organizations),
             #[allow(deprecated)]
             prs: UnorderedMap::new(storage::StorageKey::PRs),
+            #[allow(deprecated)]
+            executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
         }
     }
 
@@ -53,7 +59,8 @@ impl Contract {
         // Check if PR already exists
         let pr_id = format!("{organization}/{repo}/{pr_number}");
         let pr = self.prs.get(&pr_id);
-        if pr.is_some() {
+        let executed_pr = self.executed_prs.get(&pr_id);
+        if pr.is_some() || executed_pr.is_some() {
             env::panic_str("PR already exists: {pr_id}")
         }
 
@@ -71,7 +78,7 @@ impl Contract {
 
         let pr = self.prs.get(&pr_id).cloned();
         if pr.is_none() {
-            env::panic_str("PR doesn't exist")
+            env::panic_str("PR is not started or already executed")
         }
 
         let mut pr = pr.unwrap();
@@ -85,7 +92,7 @@ impl Contract {
 
         let pr = self.prs.get(&pr_id).cloned();
         if pr.is_none() {
-            env::panic_str("PR doesn't exist")
+            env::panic_str("PR is not started or already executed")
         }
 
         let mut pr = pr.unwrap();
@@ -157,23 +164,17 @@ impl Contract {
             .unwrap_or_else(|| UserData::new(user_handle))
     }
 
-    pub fn finalize(&mut self, pr_id: &str, mut pr: PR) {
+    pub fn finalize(&mut self, pr_id: &str, pr: PR) {
         if !pr.is_ready_to_move() {
             self.prs.insert(pr_id.to_string(), pr);
             return;
-        }
-
-        if pr.accounted {
-            env::panic_str("PR already accounted")
         }
 
         let mut user = self.get_user(pr.author.clone());
         user.add_score(pr.score().expect("checked above"), pr.merged_at.unwrap());
         self.sloths.insert(user.handle.clone(), user);
 
-        // It might be good idea to remove PR from the list
-        // but we can keep it for now
-        pr.accounted = true;
-        self.prs.insert(pr_id.to_string(), pr);
+        self.executed_prs.insert(pr_id.to_string(), pr);
+        self.prs.remove(pr_id);
     }
 }

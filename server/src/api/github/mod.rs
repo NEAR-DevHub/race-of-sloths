@@ -1,7 +1,7 @@
 use chrono::DateTime;
 use octocrab::models::{activity::Notification, pulls::PullRequest};
 
-use crate::commands::BotCommand;
+use crate::commands::ParseComment;
 
 mod types;
 pub use types::*;
@@ -27,7 +27,7 @@ impl GithubClient {
     pub async fn get_events(
         &self,
         since: chrono::DateTime<chrono::Utc>,
-    ) -> anyhow::Result<(Vec<Event>, DateTime<chrono::Utc>)> {
+    ) -> anyhow::Result<(Vec<Command>, DateTime<chrono::Utc>)> {
         log::debug!("Getting mentions since: {:?}", since);
         let page = self
             .octocrab
@@ -54,7 +54,12 @@ impl GithubClient {
         let mut results = Vec::new();
 
         for event in interested_events {
-            let pr = self.get_pull_request(&event).await;
+            if event.reason != "mention" {
+                // We are only interested in mentions
+                continue;
+            }
+
+            let pr = self.get_pull_request_from_notification(&event).await;
             if pr.is_err() {
                 log::warn!("Failed to get PR: {:?}", pr.err());
                 continue;
@@ -95,40 +100,24 @@ impl GithubClient {
                     break;
                 }
 
-                let event = Event::parse_comment(&self.user_handle, &event, &pr_metadata, &comment);
+                let event =
+                    Command::parse_comment(&self.user_handle, &event, &pr_metadata, &comment);
                 if event.is_none() {
                     continue;
                 }
                 results.push(event.unwrap());
-            }
-
-            match event.reason.as_str() {
-                // We already handled it above
-                "mention" => {}
-                "state_change" => {
-                    if pr_metadata.merged.is_some() {
-                        results.push(Event::PullRequestMerged(PullRequestMerged {
-                            pr_metadata,
-                            timestamp: event.updated_at,
-                        }));
-                    }
-                }
-                _ => unreachable!("Checked in the filter above"),
             }
         }
 
         Ok((results, updated_at))
     }
 
-    pub async fn get_pull_request(
+    pub async fn get_pull_request_from_notification(
         &self,
         notification: &Notification,
     ) -> anyhow::Result<PullRequest> {
         assert_eq!(notification.subject.r#type, "PullRequest");
-        log::debug!(
-            "Getting PR: {:?}",
-            notification.subject.url.as_ref().unwrap()
-        );
+
         let pull_request = self
             .octocrab
             .get(
@@ -140,6 +129,17 @@ impl GithubClient {
                 None::<&()>,
             )
             .await?;
+
+        Ok(pull_request)
+    }
+
+    pub async fn get_pull_request(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+    ) -> anyhow::Result<PullRequest> {
+        let pull_request = self.octocrab.pulls(owner, repo).get(number).await?;
 
         Ok(pull_request)
     }

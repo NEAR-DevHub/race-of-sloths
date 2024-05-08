@@ -138,7 +138,6 @@ pub struct PR {
     score: Vec<Score>,
     pub created_at: Timestamp,
     pub merged_at: Option<Timestamp>,
-    pub accounted: bool,
 }
 
 impl PR {
@@ -158,7 +157,6 @@ impl PR {
 
             score: vec![],
             merged_at: None,
-            accounted: false,
         }
     }
 

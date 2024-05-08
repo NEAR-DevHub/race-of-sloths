@@ -1,16 +1,12 @@
-use tokio::join;
-
 use self::api::github::{BotScored, PrMetadata, User};
 
 use super::*;
 
 #[async_trait::async_trait]
-impl BotCommand for api::github::BotScored {
-    type Command = api::github::BotScored;
-
+impl Execute for api::github::BotScored {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
-        if !info.allowed || !info.exist || info.finished {
+        if !info.allowed || !info.exist || info.executed {
             return Ok(());
         }
 
@@ -62,6 +58,10 @@ impl BotCommand for api::github::BotScored {
             )
             .await
     }
+}
+
+impl ParseComment for api::github::BotScored {
+    type Command = api::github::BotScored;
 
     fn parse_comment(
         bot_name: &str,

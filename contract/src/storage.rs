@@ -9,4 +9,5 @@ pub enum StorageKey {
     Sloths,
     Organizations,
     PRs,
+    MergedPRs,
 }
