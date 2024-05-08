@@ -120,12 +120,22 @@ impl Organization {
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
+pub struct Score {
+    pub user: String,
+    pub score: u32,
+}
+
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct PR {
     pub organization: String,
     pub repo: String,
     pub number: u64,
     pub author: String,
-    pub score: Option<u32>,
+    score: Vec<Score>,
     pub created_at: Timestamp,
     pub merged_at: Option<Timestamp>,
     pub accounted: bool,
@@ -146,14 +156,18 @@ impl PR {
             author,
             created_at,
 
-            score: None,
+            score: vec![],
             merged_at: None,
             accounted: false,
         }
     }
 
-    pub fn add_score(&mut self, score: u32) {
-        self.score = Some(score);
+    pub fn add_score(&mut self, user: String, score: u32) {
+        if let Some(user) = self.score.iter_mut().find(|s| s.user == user) {
+            user.score = score;
+        } else {
+            self.score.push(Score { user, score });
+        }
     }
 
     pub fn add_merge_info(&mut self, merged_at: Timestamp) {
@@ -161,7 +175,15 @@ impl PR {
     }
 
     pub fn is_ready_to_move(&self) -> bool {
-        self.score.is_some() && self.merged_at.is_some()
+        !self.score.is_empty() && self.merged_at.is_some()
+    }
+
+    pub fn score(&self) -> Option<u32> {
+        self.score
+            .iter()
+            .map(|s| s.score)
+            .sum::<u32>()
+            .checked_div(self.score.len() as u32)
     }
 }
 

@@ -7,7 +7,7 @@ use slothrace::{
         github::{Event, GithubClient},
         near::NearClient,
     },
-    commands::{Context, ContextStruct, Execute},
+    commands::{BotCommand, Context, ContextStruct},
 };
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
@@ -20,6 +20,7 @@ struct Env {
     contract: String,
     secret_key: String,
     is_mainnet: bool,
+    bot_name: String,
 }
 
 #[tokio::main]
@@ -29,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
 
     let env = envy::from_env::<Env>()?;
 
-    let github_api = GithubClient::new(env.github_token)?;
+    let github_api = GithubClient::new(env.github_token, env.bot_name)?;
     let (tx, rx) = mpsc::unbounded_channel::<Vec<Event>>();
     let rx: Arc<Mutex<UnboundedReceiver<Vec<Event>>>> = Arc::new(Mutex::new(rx));
     let context: Arc<ContextStruct> = Arc::new(ContextStruct {

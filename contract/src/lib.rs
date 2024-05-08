@@ -66,7 +66,7 @@ impl Contract {
         self.prs.insert(pr_id, pr);
     }
 
-    pub fn sloth_scored(&mut self, pr_id: String, score: u32) {
+    pub fn sloth_scored(&mut self, pr_id: String, user: String, score: u32) {
         self.assert_sloth();
 
         let pr = self.prs.get(&pr_id).cloned();
@@ -75,7 +75,7 @@ impl Contract {
         }
 
         let mut pr = pr.unwrap();
-        pr.add_score(score);
+        pr.add_score(user, score);
 
         self.finalize(&pr_id, pr);
     }
@@ -168,7 +168,7 @@ impl Contract {
         }
 
         let mut user = self.get_user(pr.author.clone());
-        user.add_score(pr.score.expect("checked above"), pr.merged_at.unwrap());
+        user.add_score(pr.score().expect("checked above"), pr.merged_at.unwrap());
         self.sloths.insert(user.handle.clone(), user);
 
         // It might be good idea to remove PR from the list
