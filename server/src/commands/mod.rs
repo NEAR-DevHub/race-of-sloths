@@ -18,10 +18,13 @@ pub struct ContextStruct {
 }
 
 #[async_trait::async_trait]
-pub trait BotCommand {
-    type Command: BotCommand;
-
+pub trait Execute {
     async fn execute(&self, context: Context) -> anyhow::Result<()>;
+}
+
+pub trait ParseComment {
+    type Command: Execute;
+
     fn parse_comment(
         bot_name: &str,
         notification: &Notification,
@@ -31,16 +34,17 @@ pub trait BotCommand {
 }
 
 #[async_trait::async_trait]
-impl BotCommand for api::github::Event {
-    type Command = api::github::Event;
-
+impl Execute for api::github::Command {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         match self {
-            api::github::Event::BotStarted(event) => event.execute(context).await,
-            api::github::Event::BotScored(event) => event.execute(context).await,
-            api::github::Event::PullRequestMerged(event) => event.execute(context).await,
+            api::github::Command::Include(event) => event.execute(context).await,
+            api::github::Command::Score(event) => event.execute(context).await,
         }
     }
+}
+
+impl ParseComment for api::github::Command {
+    type Command = api::github::Command;
 
     fn parse_comment(
         bot_name: &str,
@@ -51,17 +55,39 @@ impl BotCommand for api::github::Event {
         if let Some(command) =
             api::github::BotStarted::parse_comment(bot_name, notification, pr_metadata, comment)
         {
-            return Some(Self::Command::BotStarted(command));
+            return Some(Self::Command::Include(command));
         }
 
         if let Some(command) =
             api::github::BotScored::parse_comment(bot_name, notification, pr_metadata, comment)
         {
-            return Some(Self::Command::BotScored(command));
+            return Some(Self::Command::Score(command));
         }
 
-        // Pull request merged is a special case, because it doesn't require a comment
-
         None
+    }
+}
+
+pub enum Event {
+    Command(api::github::Command),
+    Merged(api::github::PullRequestMerged),
+}
+
+#[async_trait::async_trait]
+impl Execute for Event {
+    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+        match self {
+            Event::Command(command) => command.execute(context).await,
+            Event::Merged(event) => event.execute(context).await,
+        }
+    }
+}
+
+impl Event {
+    pub fn pr(&self) -> &PrMetadata {
+        match self {
+            Event::Command(command) => command.pr(),
+            Event::Merged(event) => &event.pr_metadata,
+        }
     }
 }

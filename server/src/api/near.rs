@@ -1,5 +1,5 @@
 use anyhow::bail;
-use near_workspaces::{network::Testnet, types::SecretKey, Contract, Worker};
+use near_workspaces::{types::SecretKey, Contract};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -7,21 +7,19 @@ use super::github::PrMetadata;
 
 #[derive(Clone)]
 pub struct NearClient {
-    worker: Worker<Testnet>,
     contract: Contract,
 }
 
 impl NearClient {
     pub async fn new(contract: String, sk: SecretKey, mainnet: bool) -> anyhow::Result<Self> {
         if mainnet {
-            bail!("Mainnet is not supported yet")
+            let mainnet = near_workspaces::mainnet().await?;
+            let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet);
+            return Ok(Self { contract });
         }
         let testnet = near_workspaces::testnet().await?;
         let contract = Contract::from_secret_key(contract.parse()?, sk, &testnet);
-        Ok(Self {
-            worker: testnet,
-            contract,
-        })
+        Ok(Self { contract })
     }
 
     pub async fn send_start(&self, pr: &PrMetadata) -> anyhow::Result<()> {
@@ -75,7 +73,6 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?;
-        let _ = tx.await?;
         Ok(())
     }
 
@@ -100,11 +97,52 @@ impl NearClient {
         let res: PRInfo = res.json()?;
         Ok(res)
     }
+
+    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRData>> {
+        let args = json!({
+            "page": page,
+            "limit": limit,
+        });
+
+        let res = self
+            .contract
+            .view("unmerged_prs")
+            .args_json(args)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call unmerged_prs: {:?}", e))?;
+        let res = res.json()?;
+
+        Ok(res)
+    }
+
+    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PRData>> {
+        let mut page = 0;
+        const LIMIT: u64 = 100;
+        let mut res = vec![];
+        loop {
+            let prs = self.unmerged_prs(page, LIMIT).await?;
+            if prs.is_empty() {
+                break;
+            }
+            res.extend(prs);
+            page += 1;
+        }
+        Ok(res)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct PRInfo {
     pub allowed: bool,
-    pub finished: bool,
     pub exist: bool,
+    pub merged: bool,
+    pub scored: bool,
+    pub executed: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PRData {
+    pub organization: String,
+    pub repo: String,
+    pub number: u64,
 }

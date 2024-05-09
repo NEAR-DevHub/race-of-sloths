@@ -1,7 +1,4 @@
-use crate::api::{
-    github::PrMetadata,
-    near::{NearClient, PRInfo},
-};
+use crate::api::{github::PrMetadata, near::PRInfo};
 
 use super::ContextStruct;
 
