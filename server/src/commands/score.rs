@@ -7,7 +7,10 @@ impl Execute for api::github::BotScored {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if !info.allowed || !info.exist || info.executed {
-            return Ok(());
+            return context
+                .github
+                .mark_notification_as_read(self.notification_id)
+                .await;
         }
 
         let score = self.score.parse::<u8>()?;
@@ -20,7 +23,10 @@ impl Execute for api::github::BotScored {
                     "Score should be between 1 and 10",
                 )
                 .await?;
-            return Ok(());
+            return context
+                .github
+                .mark_notification_as_read(self.notification_id)
+                .await;
         }
 
         if self.pr_metadata.author.login == self.sender.login || !self.sender.is_maintainer() {
@@ -32,7 +38,10 @@ impl Execute for api::github::BotScored {
                     "Only maintainers can score PRs, and you can't score your own PRs.",
                 )
                 .await?;
-            return Ok(());
+            return context
+                .github
+                .mark_notification_as_read(self.notification_id)
+                .await;
         }
 
         context
@@ -56,6 +65,10 @@ impl Execute for api::github::BotScored {
                 &self.pr_metadata.repo,
                 self.comment_id,
             )
+            .await?;
+        context
+            .github
+            .mark_notification_as_read(self.notification_id)
             .await
     }
 }
@@ -88,6 +101,7 @@ impl ParseComment for api::github::BotScored {
                 body[result + phrase.len()..].trim().to_string(),
                 notification.updated_at,
                 comment.id.0,
+                notification.id.0,
             ))
         } else {
             None

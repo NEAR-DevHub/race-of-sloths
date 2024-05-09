@@ -67,14 +67,17 @@ async fn main() -> anyhow::Result<()> {
     let mut merge_time = std::time::SystemTime::now();
     let tokio_duration = 60 * minute;
 
-    // TODO: load from database last time we checked
-    let mut updated_from = chrono::Utc::now() - chrono::Duration::days(1);
-
     loop {
         interval.tick().await;
 
-        let (events, max_time) = context.github.get_events(updated_from).await?;
-        log::info!("Got {} events", events.len());
+        let events = context.github.get_events().await;
+        if let Err(e) = events {
+            log::error!("Failed to get events: {}", e);
+            continue;
+        }
+        let events = events.unwrap();
+
+        log::info!("Received {} events.", events.len());
 
         let events_per_pr = events.into_iter().fold(
             std::collections::HashMap::new(),
@@ -104,8 +107,6 @@ async fn main() -> anyhow::Result<()> {
             }
             merge_time = current_time + tokio_duration;
         }
-
-        updated_from = max_time;
     }
 
     Ok(())
@@ -122,7 +123,7 @@ async fn execute(context: Context, events: Vec<Event>) {
 
 async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
     let prs = context.near.unmerged_prs_all().await.unwrap();
-    log::info!("Got {} unmerged PRs", prs.len());
+    log::info!("Received {} PRs for merge request check", prs.len());
     let mut results = vec![];
 
     for pr in prs {

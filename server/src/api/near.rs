@@ -1,5 +1,5 @@
 use anyhow::bail;
-use near_workspaces::{network::Testnet, types::SecretKey, Contract, Worker};
+use near_workspaces::{types::SecretKey, Contract};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -7,21 +7,19 @@ use super::github::PrMetadata;
 
 #[derive(Clone)]
 pub struct NearClient {
-    worker: Worker<Testnet>,
     contract: Contract,
 }
 
 impl NearClient {
     pub async fn new(contract: String, sk: SecretKey, mainnet: bool) -> anyhow::Result<Self> {
         if mainnet {
-            bail!("Mainnet is not supported yet")
+            let mainnet = near_workspaces::mainnet().await?;
+            let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet);
+            return Ok(Self { contract });
         }
         let testnet = near_workspaces::testnet().await?;
         let contract = Contract::from_secret_key(contract.parse()?, sk, &testnet);
-        Ok(Self {
-            worker: testnet,
-            contract,
-        })
+        Ok(Self { contract })
     }
 
     pub async fn send_start(&self, pr: &PrMetadata) -> anyhow::Result<()> {

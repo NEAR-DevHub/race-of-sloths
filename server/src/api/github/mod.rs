@@ -1,5 +1,4 @@
-use chrono::DateTime;
-use octocrab::models::{activity::Notification, pulls::PullRequest};
+use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
 
 use crate::commands::ParseComment;
 
@@ -24,29 +23,21 @@ impl GithubClient {
         })
     }
 
-    pub async fn get_events(
-        &self,
-        since: chrono::DateTime<chrono::Utc>,
-    ) -> anyhow::Result<(Vec<Command>, DateTime<chrono::Utc>)> {
-        log::debug!("Getting mentions since: {:?}", since);
+    pub async fn get_events(&self) -> anyhow::Result<Vec<Command>> {
         let page = self
             .octocrab
             .activity()
             .notifications()
             .list()
-            .all(true)
+            .all(false)
             .participating(true)
             .per_page(50)
-            .since(since)
             .page(0)
             .send()
             .await?;
 
-        let mut updated_at = since;
         let events = self.octocrab.all_pages(page).await?;
         let interested_events = events.into_iter().filter(|notification| {
-            updated_at = updated_at.max(notification.updated_at);
-
             notification.subject.r#type == "PullRequest"
                 && (notification.reason == "mention" || notification.reason == "state_change")
         });
@@ -109,7 +100,7 @@ impl GithubClient {
             }
         }
 
-        Ok((results, updated_at))
+        Ok(results)
     }
 
     pub async fn get_pull_request_from_notification(
@@ -179,6 +170,30 @@ impl GithubClient {
             )
             .await?;
 
+        Ok(())
+    }
+
+    pub async fn subscribe_to_repo(&self, owner: &str, repo: &str) -> anyhow::Result<()> {
+        let url = format!("/repos/{}/{}/subscription", owner, repo);
+        let _: serde_json::Value = self
+            .octocrab
+            .put(
+                &url,
+                Some(&serde_json::json!({"subscribed":true,"ignored":false})),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub async fn mark_notification_as_read(
+        &self,
+        id: impl Into<NotificationId>,
+    ) -> anyhow::Result<()> {
+        self.octocrab
+            .activity()
+            .notifications()
+            .mark_as_read(id.into())
+            .await?;
         Ok(())
     }
 }

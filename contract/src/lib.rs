@@ -5,7 +5,7 @@ use near_sdk::{
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
-use types::{Organization, UserData, PR};
+use types::{timestamp_to_month_string, MonthYearString, Organization, UserData, PR};
 
 pub mod storage;
 pub mod types;
@@ -18,6 +18,8 @@ pub struct Contract {
     sloth: AccountId,
     #[allow(deprecated)]
     sloths: UnorderedMap<String, UserData>,
+    #[allow(deprecated)]
+    sloths_per_month: UnorderedMap<(String, MonthYearString), u32>,
     #[allow(deprecated)]
     organizations: UnorderedMap<String, Organization>,
     // We need to think about removing PRs that are stale for a long time
@@ -36,6 +38,8 @@ impl Contract {
             sloth,
             #[allow(deprecated)]
             sloths: UnorderedMap::new(storage::StorageKey::Sloths),
+            #[allow(deprecated)]
+            sloths_per_month: UnorderedMap::new(storage::StorageKey::SlothsPerMonth),
             #[allow(deprecated)]
             organizations: UnorderedMap::new(storage::StorageKey::Organizations),
             #[allow(deprecated)]
@@ -171,8 +175,16 @@ impl Contract {
         }
 
         let mut user = self.get_user(pr.author.clone());
-        user.add_score(pr.score().expect("checked above"), pr.merged_at.unwrap());
+        let user_name = user.handle.clone();
+        let score = pr.score().expect("checked above");
+        user.add_score(score);
         self.sloths.insert(user.handle.clone(), user);
+
+        let merged_at = pr.merged_at.expect("checked above");
+        *self
+            .sloths_per_month
+            .entry((user_name, timestamp_to_month_string(merged_at)))
+            .or_default() += score;
 
         self.executed_prs.insert(pr_id.to_string(), pr);
         self.prs.remove(pr_id);

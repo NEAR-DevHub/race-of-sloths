@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use chrono::{DateTime, Datelike};
 use near_sdk::{
@@ -7,7 +7,7 @@ use near_sdk::{
     AccountId, NearSchema, Timestamp,
 };
 
-type MonthYearCode = [u8; 6];
+pub type MonthYearString = String;
 
 // We need to carefully think what we want to store in the contract storage
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
@@ -15,7 +15,6 @@ type MonthYearCode = [u8; 6];
 #[borsh(crate = "near_sdk::borsh")]
 pub struct UserData {
     pub handle: String,
-    pub score: HashMap<MonthYearCode, u32>,
     pub total_prs_merged: u32,
     pub total_prs_opened: u32,
     pub total_score: u32,
@@ -27,7 +26,6 @@ impl UserData {
     pub fn new(handle: String) -> Self {
         Self {
             handle,
-            score: HashMap::new(),
             total_prs_merged: 0,
             total_score: 0,
             total_prs_opened: 0,
@@ -35,10 +33,7 @@ impl UserData {
         }
     }
 
-    pub fn add_score(&mut self, score: u32, merged_at: Timestamp) {
-        let month_year_code = timestamp_to_code(merged_at);
-
-        self.score.insert(month_year_code, score);
+    pub fn add_score(&mut self, score: u32) {
         self.total_prs_merged += 1;
         self.total_score += score;
     }
@@ -48,16 +43,9 @@ impl UserData {
     }
 }
 
-fn timestamp_to_code(timestamp: u64) -> MonthYearCode {
+pub fn timestamp_to_month_string(timestamp: u64) -> MonthYearString {
     let date = DateTime::from_timestamp_nanos(timestamp as i64);
-
-    let month = date.month();
-    let year = date.year();
-    let code = format!("{:02}{:04}", month, year);
-    let code = code.as_bytes();
-    let mut month_year_code = [0u8; 6];
-    month_year_code.copy_from_slice(code);
-    month_year_code
+    format!("{:02}{:04}", date.month(), date.year())
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
@@ -192,7 +180,7 @@ mod tests {
     #[test]
     fn test_timestamp_to_code() {
         let timestamp = 1625097600000000000; // 2021-07-01
-        let code = timestamp_to_code(timestamp);
-        assert_eq!(code, [b'0', b'7', b'2', b'0', b'2', b'1']);
+        let code = timestamp_to_month_string(timestamp);
+        assert_eq!(code, "072021");
     }
 }

@@ -11,11 +11,18 @@ impl Execute for api::github::BotStarted {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if info.exist || !info.allowed {
-            return Ok(());
+            return context
+                .github
+                .mark_notification_as_read(self.notification_id)
+                .await;
         }
 
         context.near.send_start(&self.pr_metadata).await?;
 
+        context
+            .github
+            .subscribe_to_repo(&self.pr_metadata.owner, &self.pr_metadata.repo)
+            .await?;
         context
             .github
             .reply(
@@ -32,6 +39,10 @@ impl Execute for api::github::BotStarted {
                 &self.pr_metadata.repo,
                 self.comment_id,
             )
+            .await?;
+        context
+            .github
+            .mark_notification_as_read(self.notification_id)
             .await
     }
 }
@@ -59,6 +70,7 @@ impl ParseComment for api::github::BotStarted {
                 pr_metadata.clone(),
                 notification.updated_at,
                 comment.id.0,
+                notification.id.0,
             ))
         } else {
             None

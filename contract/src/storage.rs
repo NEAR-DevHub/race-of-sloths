@@ -7,6 +7,7 @@ use near_sdk::{
 #[borsh(crate = "near_sdk::borsh")]
 pub enum StorageKey {
     Sloths,
+    SlothsPerMonth,
     Organizations,
     PRs,
     MergedPRs,

@@ -16,6 +16,14 @@ pub struct PRInfo {
     executed: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UserWithMonthScore {
+    user: UserData,
+    score: u32,
+    month: MonthYearString,
+}
+
 #[derive(Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRData {
@@ -55,6 +63,31 @@ impl Contract {
                 organization: pr.organization,
                 repo: pr.repo,
                 number: pr.number,
+            })
+            .collect()
+    }
+
+    pub fn users(
+        &self,
+        limit: u64,
+        page: u64,
+        year_month_string: Option<String>,
+    ) -> Vec<UserWithMonthScore> {
+        let month =
+            year_month_string.unwrap_or_else(|| timestamp_to_month_string(env::block_timestamp()));
+
+        self.sloths
+            .values()
+            .skip((page * limit) as usize)
+            .take(limit as usize)
+            .map(|user| UserWithMonthScore {
+                user: user.clone(),
+                score: self
+                    .sloths_per_month
+                    .get(&(user.handle.clone(), month.clone()))
+                    .copied()
+                    .unwrap_or(0),
+                month: month.clone(),
             })
             .collect()
     }
