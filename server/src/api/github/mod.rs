@@ -12,10 +12,11 @@ pub struct GithubClient {
 }
 
 impl GithubClient {
-    pub fn new(github_token: String, user_handle: String) -> anyhow::Result<Self> {
+    pub async fn new(github_token: String) -> anyhow::Result<Self> {
         let octocrab = octocrab::Octocrab::builder()
             .personal_token(github_token)
             .build()?;
+        let user_handle = octocrab.current().user().await?.login;
 
         Ok(Self {
             octocrab,
