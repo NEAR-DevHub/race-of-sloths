@@ -1,3 +1,5 @@
+use tracing::{debug, info, instrument};
+
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -12,6 +14,7 @@ impl Execute for BotPaused {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if info.allowed_repo {
+            debug!("Paused PR {}", self.pr_metadata.full_id);
             context
                 .near
                 .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
@@ -64,9 +67,14 @@ pub struct BotUnpaused {
 
 #[async_trait::async_trait]
 impl Execute for BotUnpaused {
+    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if !info.allowed_org {
+            info!(
+                "Tried to unpause a PR from not allowed org: {}. Skipping",
+                self.pr_metadata.full_id
+            );
             return Ok(());
         }
 
@@ -75,6 +83,7 @@ impl Execute for BotUnpaused {
                 .near
                 .send_unpause(&self.pr_metadata.owner, &self.pr_metadata.repo)
                 .await?;
+            debug!("Unpaused PR {}", self.pr_metadata.full_id);
         }
 
         context

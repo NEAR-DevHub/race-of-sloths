@@ -1,3 +1,5 @@
+use tracing::{debug, instrument};
+
 use self::api::github::User;
 
 use super::*;
@@ -49,14 +51,21 @@ impl BotScored {
 
 #[async_trait::async_trait]
 impl Execute for BotScored {
+    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id, score = self.score))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if !info.allowed_repo || !info.exist || info.executed {
+            debug!(
+                "PR {} is not started or not allowed or already executed. Skipping.",
+                self.pr_metadata.full_id,
+            );
             return context
                 .github
                 .mark_notification_as_read(self.notification_id)
                 .await;
         }
+
+        debug!("Scoring PR {}", self.pr_metadata.full_id);
 
         let score = self.score.parse::<u8>()?;
         if score < 1 || score > 10 {

@@ -1,4 +1,5 @@
 use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
+use tracing::warn;
 
 use crate::commands::{Command, ParseCommand};
 
@@ -53,13 +54,13 @@ impl GithubClient {
 
             let pr = self.get_pull_request_from_notification(&event).await;
             if pr.is_err() {
-                log::warn!("Failed to get PR: {:?}", pr.err());
+                warn!("Failed to get PR: {:?}", pr.err());
                 continue;
             }
             let pr = pr.unwrap();
             let pr_metadata = types::PrMetadata::try_from(pr);
             if pr_metadata.is_err() {
-                log::warn!("Failed to convert PR: {:?}", pr_metadata.err());
+                warn!("Failed to convert PR: {:?}", pr_metadata.err());
                 continue;
             }
             let pr_metadata = pr_metadata.unwrap();
@@ -73,7 +74,7 @@ impl GithubClient {
                 .await;
 
             if comments.is_err() {
-                log::warn!("Failed to get comments: {:?}", comments.err());
+                warn!("Failed to get comments: {:?}", comments.err());
                 continue;
             }
             let comments = comments.unwrap();
@@ -81,7 +82,7 @@ impl GithubClient {
             // TODO: think if we can avoid this and just load from the last page
             let comments = self.octocrab.all_pages(comments).await;
             if comments.is_err() {
-                log::warn!("Failed to get all comments: {:?}", comments.err());
+                warn!("Failed to get all comments: {:?}", comments.err());
                 continue;
             }
             let comments = comments.unwrap();

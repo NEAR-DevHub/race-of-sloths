@@ -13,6 +13,7 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
     Mutex,
 };
+use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Deserialize)]
 struct Env {
@@ -43,12 +44,15 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Spawn worker tasks
-    for _ in 0..4 {
+    for i in 0..4 {
         let context = context.clone();
         let rx = Arc::clone(&rx);
         tokio::spawn(async move {
             loop {
-                let events = {
+                let span = tracing::span!(tracing::Level::DEBUG, "WORKER");
+                let _guard = span.enter();
+
+                let events: Option<Vec<Event>> = {
                     let mut rx = rx.lock().await;
                     rx.recv().await
                 };
@@ -71,12 +75,12 @@ async fn main() -> anyhow::Result<()> {
 
         let events = context.github.get_events().await;
         if let Err(e) = events {
-            log::error!("Failed to get events: {}", e);
+            error!("Failed to get events: {}", e);
             continue;
         }
         let events = events.unwrap();
 
-        log::info!("Received {} events.", events.len());
+        info!("Received {} events.", events.len());
 
         let events_per_pr = events.into_iter().fold(
             std::collections::HashMap::new(),
@@ -95,14 +99,14 @@ async fn main() -> anyhow::Result<()> {
                 .collect();
 
             if let Err(e) = tx.send(events) {
-                log::error!("Failed to send events from {}: {}", key, e);
+                error!("Failed to send events from {}: {}", key, e);
             }
         }
         let current_time = std::time::SystemTime::now();
         if current_time > merge_time {
             let events = merge_task(&context).await?;
             if let Err(e) = tx.send(events) {
-                log::error!("Failed to send merge events: {}", e);
+                error!("Failed to send merge events: {}", e);
             }
             merge_time = current_time + tokio_duration;
         }
@@ -112,17 +116,20 @@ async fn main() -> anyhow::Result<()> {
 }
 
 // Runs events from the same PR
+#[instrument(skip(context, events))]
 async fn execute(context: Context, events: Vec<Event>) {
+    debug!("Executing {} events", events.len());
     for event in events {
         if let Err(e) = event.execute(context.clone()).await {
-            log::error!("Failed to execute event for {}: {}", event.pr().full_id, e);
+            error!("Failed to execute event for {}: {e}", event.pr().full_id);
         }
     }
 }
 
+#[instrument(skip(context))]
 async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
     let prs = context.near.unmerged_prs_all().await.unwrap();
-    log::info!("Received {} PRs for merge request check", prs.len());
+    info!("Received {} PRs for merge request check", prs.len());
     let mut results = vec![];
 
     for pr in prs {
@@ -131,21 +138,24 @@ async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
             .get_pull_request(&pr.organization, &pr.repo, pr.number)
             .await;
         if let Err(e) = pr {
-            log::warn!("Failed to get PR: {}", e);
+            warn!("Failed to get PR: {e}");
             continue;
         }
         let pr = pr.unwrap();
 
         let pr_metadata = PrMetadata::try_from(pr);
 
-        if pr_metadata.is_err() {
+        if let Err(e) = pr_metadata {
+            warn!("Failed to convert PR: {e}");
             continue;
         }
 
         let pr_metadata = pr_metadata.unwrap();
         if pr_metadata.merged.is_none() {
+            trace!("PR {} is not merged", pr_metadata.full_id);
             continue;
         }
+        trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
         let timestamp = pr_metadata.merged.clone().unwrap();
         let event = Event::Merged(PullRequestMerged {
             pr_metadata: pr_metadata,
@@ -153,5 +163,6 @@ async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
         });
         results.push(event);
     }
+    info!("Finished merge task with {} events", results.len());
     Ok(results)
 }

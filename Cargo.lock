@@ -3668,12 +3668,12 @@ dependencies = [
  "env_logger 0.11.3",
  "envy",
  "hex",
- "log",
  "near-workspaces",
  "octocrab",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

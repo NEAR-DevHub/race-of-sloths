@@ -1,3 +1,5 @@
+use tracing::{debug, instrument};
+
 use super::*;
 
 fn msg(user: &str) -> String {
@@ -37,14 +39,21 @@ impl BotIncluded {
 
 #[async_trait::async_trait]
 impl Execute for BotIncluded {
+    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
         if info.exist || !info.allowed_repo {
+            debug!(
+                "PR {} already exists or not allowed. Skipping",
+                self.pr_metadata.full_id,
+            );
             return context
                 .github
                 .mark_notification_as_read(self.notification_id)
                 .await;
         }
+
+        debug!("Starting PR {}", self.pr_metadata.full_id);
 
         context.near.send_start(&self.pr_metadata).await?;
 
