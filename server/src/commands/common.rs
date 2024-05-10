@@ -1,6 +1,6 @@
-use crate::api::{github::PrMetadata, near::PRInfo};
+use self::api::near::PRInfo;
 
-use super::ContextStruct;
+use super::*;
 
 impl ContextStruct {
     pub(super) async fn check_info(&self, pr_metadata: &PrMetadata) -> anyhow::Result<PRInfo> {

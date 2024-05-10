@@ -1,6 +1,6 @@
 use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
 
-use crate::commands::ParseComment;
+use crate::commands::{Command, ParseCommand};
 
 mod types;
 pub use types::*;
@@ -93,7 +93,7 @@ impl GithubClient {
                 }
 
                 let event =
-                    Command::parse_comment(&self.user_handle, &event, &pr_metadata, &comment);
+                    Command::parse_command(&self.user_handle, &event, &pr_metadata, &comment);
                 if event.is_none() {
                     continue;
                 }

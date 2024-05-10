@@ -76,6 +76,30 @@ impl NearClient {
         Ok(())
     }
 
+    pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
+        self.contract
+            .call("exclude_repo")
+            .args_json(json!({
+                "organization": organization,
+                "repo": repo,}))
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?;
+        Ok(())
+    }
+
+    pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
+        self.contract
+            .call("include_repo")
+            .args_json(json!({
+                "organization": organization,
+                "repo": repo,}))
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?;
+        Ok(())
+    }
+
     pub async fn check_info(
         &self,
         organization: &str,
@@ -133,7 +157,8 @@ impl NearClient {
 
 #[derive(Serialize, Deserialize)]
 pub struct PRInfo {
-    pub allowed: bool,
+    pub allowed_org: bool,
+    pub allowed_repo: bool,
     pub exist: bool,
     pub merged: bool,
     pub scored: bool,

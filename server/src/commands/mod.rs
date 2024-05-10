@@ -4,8 +4,16 @@ use octocrab::models::{activity::Notification, issues::Comment};
 
 use crate::api::{self, github::PrMetadata};
 
+use self::{
+    merged::PullRequestMerged,
+    pause::{BotPaused, BotUnpaused},
+    score::BotScored,
+    start::BotIncluded,
+};
+
 pub(crate) mod common;
 pub mod merged;
+pub mod pause;
 pub mod score;
 pub mod start;
 
@@ -22,55 +30,84 @@ pub trait Execute {
     async fn execute(&self, context: Context) -> anyhow::Result<()>;
 }
 
-pub trait ParseComment {
-    type Command: Execute;
-
-    fn parse_comment(
+pub trait ParseCommand {
+    fn parse_command(
         bot_name: &str,
         notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
-    ) -> Option<Self::Command>;
+    ) -> Option<Command>;
 }
 
-#[async_trait::async_trait]
-impl Execute for api::github::Command {
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        match self {
-            api::github::Command::Include(event) => event.execute(context).await,
-            api::github::Command::Score(event) => event.execute(context).await,
-        }
-    }
-}
-
-impl ParseComment for api::github::Command {
-    type Command = api::github::Command;
-
-    fn parse_comment(
+impl ParseCommand for Command {
+    fn parse_command(
         bot_name: &str,
         notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
-    ) -> Option<Self::Command> {
-        if let Some(command) =
-            api::github::BotStarted::parse_comment(bot_name, notification, pr_metadata, comment)
-        {
-            return Some(Self::Command::Include(command));
-        }
+    ) -> Option<Command> {
+        type F = fn(&str, &Notification, &PrMetadata, &Comment) -> Option<Command>;
 
-        if let Some(command) =
-            api::github::BotScored::parse_comment(bot_name, notification, pr_metadata, comment)
-        {
-            return Some(Self::Command::Score(command));
+        let parse_command: [F; 4] = [
+            BotIncluded::parse_command,
+            BotScored::parse_command,
+            BotPaused::parse_command,
+            BotUnpaused::parse_command,
+        ];
+
+        for parse in parse_command.iter() {
+            if let Some(command) = parse(bot_name, notification, pr_metadata, comment) {
+                return Some(command);
+            }
         }
 
         None
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Command {
+    Include(BotIncluded),
+    Score(BotScored),
+    Pause(BotPaused),
+    Unpause(BotUnpaused),
+}
+
+impl Command {
+    pub fn pr(&self) -> &PrMetadata {
+        match self {
+            Command::Include(event) => &event.pr_metadata,
+            Command::Score(event) => &event.pr_metadata,
+            Command::Pause(event) => &event.pr_metadata,
+            Command::Unpause(event) => &event.pr_metadata,
+        }
+    }
+
+    pub fn timestamp(&self) -> &chrono::DateTime<chrono::Utc> {
+        match self {
+            Command::Include(event) => &event.timestamp,
+            Command::Score(event) => &event.timestamp,
+            Command::Pause(event) => &event.timestamp,
+            Command::Unpause(event) => &event.timestamp,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl Execute for Command {
+    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+        match self {
+            Command::Include(event) => event.execute(context).await,
+            Command::Score(event) => event.execute(context).await,
+            Command::Pause(event) => event.execute(context).await,
+            Command::Unpause(event) => event.execute(context).await,
+        }
+    }
+}
+
 pub enum Event {
-    Command(api::github::Command),
-    Merged(api::github::PullRequestMerged),
+    Command(Command),
+    Merged(PullRequestMerged),
 }
 
 #[async_trait::async_trait]

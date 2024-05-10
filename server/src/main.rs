@@ -4,10 +4,10 @@ use near_workspaces::types::SecretKey;
 use serde::Deserialize;
 use slothrace::{
     api::{
-        github::{Command, GithubClient, PrMetadata, PullRequestMerged},
+        github::{GithubClient, PrMetadata},
         near::NearClient,
     },
-    commands::{Context, ContextStruct, Event, Execute},
+    commands::{merged::PullRequestMerged, Command, Context, ContextStruct, Event, Execute},
 };
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
