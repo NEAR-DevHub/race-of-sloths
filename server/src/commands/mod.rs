@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use octocrab::models::{activity::Notification, issues::Comment};
+use octocrab::models::issues::Comment;
 
 use crate::api::{self, github::PrMetadata};
 
@@ -8,6 +8,7 @@ use self::{
     merged::PullRequestMerged,
     pause::{BotPaused, BotUnpaused},
     score::BotScored,
+    stale::PullRequestStale,
     start::BotIncluded,
 };
 
@@ -15,6 +16,7 @@ pub(crate) mod common;
 pub mod merged;
 pub mod pause;
 pub mod score;
+pub mod stale;
 pub mod start;
 
 pub type Context = Arc<ContextStruct>;
@@ -33,7 +35,6 @@ pub trait Execute {
 pub trait ParseCommand {
     fn parse_command(
         bot_name: &str,
-        notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
     ) -> Option<Command>;
@@ -42,11 +43,10 @@ pub trait ParseCommand {
 impl ParseCommand for Command {
     fn parse_command(
         bot_name: &str,
-        notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
     ) -> Option<Command> {
-        type F = fn(&str, &Notification, &PrMetadata, &Comment) -> Option<Command>;
+        type F = fn(&str, &PrMetadata, &Comment) -> Option<Command>;
 
         let parse_command: [F; 4] = [
             BotIncluded::parse_command,
@@ -56,7 +56,7 @@ impl ParseCommand for Command {
         ];
 
         for parse in parse_command.iter() {
-            if let Some(command) = parse(bot_name, notification, pr_metadata, comment) {
+            if let Some(command) = parse(bot_name, pr_metadata, comment) {
                 return Some(command);
             }
         }
@@ -108,6 +108,7 @@ impl Execute for Command {
 pub enum Event {
     Command(Command),
     Merged(PullRequestMerged),
+    Stale(PullRequestStale),
 }
 
 #[async_trait::async_trait]
@@ -116,6 +117,7 @@ impl Execute for Event {
         match self {
             Event::Command(command) => command.execute(context).await,
             Event::Merged(event) => event.execute(context).await,
+            Event::Stale(event) => event.execute(context).await,
         }
     }
 }
@@ -125,6 +127,7 @@ impl Event {
         match self {
             Event::Command(command) => command.pr(),
             Event::Merged(event) => &event.pr_metadata,
+            Event::Stale(event) => &event.pr_metadata,
         }
     }
 }

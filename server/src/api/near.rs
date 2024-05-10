@@ -2,6 +2,7 @@ use anyhow::bail;
 use near_workspaces::{types::SecretKey, Contract};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::{debug, instrument};
 
 use super::github::PrMetadata;
 
@@ -22,6 +23,7 @@ impl NearClient {
         Ok(Self { contract })
     }
 
+    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
     pub async fn send_start(&self, pr: &PrMetadata) -> anyhow::Result<()> {
         let args = json!({
             "organization": pr.owner,
@@ -40,6 +42,7 @@ impl NearClient {
         Ok(())
     }
 
+    #[instrument(skip(self), fields(pr = pr.full_id, user, score))]
     pub async fn send_scored(&self, pr: &PrMetadata, user: &str, score: u64) -> anyhow::Result<()> {
         let args = json!({
             "pr_id": pr.full_id,
@@ -56,6 +59,7 @@ impl NearClient {
         Ok(())
     }
 
+    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
     pub async fn send_merge(&self, pr: &PrMetadata) -> anyhow::Result<()> {
         if pr.merged.is_none() {
             bail!("PR is not merged")
@@ -76,6 +80,7 @@ impl NearClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
         self.contract
             .call("exclude_repo")
@@ -88,6 +93,7 @@ impl NearClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
         self.contract
             .call("include_repo")
@@ -152,6 +158,38 @@ impl NearClient {
             page += 1;
         }
         Ok(res)
+    }
+
+    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    pub async fn send_stale(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+        let args = json!({
+            "pr_id": pr.full_id,
+        });
+
+        self.contract
+            .call("sloth_stale")
+            .args_json(args)
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn finalize_prs(&self) -> anyhow::Result<()> {
+        let result: bool = self.contract.view("should_finalize").await?.json()?;
+
+        if !result {
+            debug!("No PRs to finalize");
+            // Nothing to finalize
+            return Ok(());
+        }
+        self.contract
+            .call("sloth_finalize")
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?;
+        Ok(())
     }
 }
 

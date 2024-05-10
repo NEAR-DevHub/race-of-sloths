@@ -80,29 +80,25 @@ impl Contract {
     pub fn sloth_scored(&mut self, pr_id: String, user: String, score: u32) {
         self.assert_sloth();
 
-        let pr = self.prs.get(&pr_id).cloned();
+        let pr = self.prs.get_mut(&pr_id);
         if pr.is_none() {
             env::panic_str("PR is not started or already executed")
         }
 
-        let mut pr = pr.unwrap();
+        let pr = pr.unwrap();
         pr.add_score(user, score);
-
-        self.finalize(&pr_id, pr);
     }
 
     pub fn sloth_merged(&mut self, pr_id: String, merged_at: Timestamp) {
         self.assert_sloth();
 
-        let pr = self.prs.get(&pr_id).cloned();
+        let pr = self.prs.get_mut(&pr_id);
         if pr.is_none() {
             env::panic_str("PR is not started or already executed")
         }
 
-        let mut pr = pr.unwrap();
+        let pr = pr.unwrap();
         pr.add_merge_info(merged_at);
-
-        self.finalize(&pr_id, pr);
     }
 
     pub fn allow_organization(&mut self, organization: String) {
@@ -141,6 +137,52 @@ impl Contract {
         let org = org.unwrap();
         org.include(&repo);
     }
+
+    pub fn sloth_stale(&mut self, pr_id: String) {
+        self.assert_sloth();
+
+        let pr = self.prs.get(&pr_id);
+        if pr.is_none() {
+            env::panic_str("PR is not started or already executed")
+        }
+        let pr = pr.unwrap();
+
+        self.sloths.get_mut(&pr.author).map(|user| {
+            user.total_prs_opened -= 1;
+            user
+        });
+        self.prs.remove(&pr_id);
+    }
+
+    pub fn sloth_finalize(&mut self) {
+        self.assert_sloth();
+
+        let current_block_timestamp = env::block_timestamp();
+        let prs: Vec<_> = self
+            .prs
+            .values()
+            .filter(|pr| pr.is_ready_to_move(current_block_timestamp))
+            .cloned()
+            .collect();
+        for pr in prs {
+            // Reward with zero score if PR wasn't scored to track the number of merged PRs
+            let score = pr.score().unwrap_or_default();
+            let mut user = self.get_user(pr.author.clone());
+            let user_name = user.handle.clone();
+
+            user.add_score(score);
+            self.sloths.insert(user.handle.clone(), user);
+
+            *self
+                .sloths_per_month
+                .entry((user_name, timestamp_to_month_string(pr.merged_at.unwrap())))
+                .or_default() += score;
+
+            let full_id = pr.full_id();
+            self.prs.remove(&full_id);
+            self.executed_prs.insert(full_id, pr);
+        }
+    }
 }
 
 impl Contract {
@@ -166,27 +208,5 @@ impl Contract {
             .get(&user_handle)
             .cloned()
             .unwrap_or_else(|| UserData::new(user_handle))
-    }
-
-    pub fn finalize(&mut self, pr_id: &str, pr: PR) {
-        if !pr.is_ready_to_move() {
-            self.prs.insert(pr_id.to_string(), pr);
-            return;
-        }
-
-        let mut user = self.get_user(pr.author.clone());
-        let user_name = user.handle.clone();
-        let score = pr.score().expect("checked above");
-        user.add_score(score);
-        self.sloths.insert(user.handle.clone(), user);
-
-        let merged_at = pr.merged_at.expect("checked above");
-        *self
-            .sloths_per_month
-            .entry((user_name, timestamp_to_month_string(merged_at)))
-            .or_default() += score;
-
-        self.executed_prs.insert(pr_id.to_string(), pr);
-        self.prs.remove(pr_id);
     }
 }

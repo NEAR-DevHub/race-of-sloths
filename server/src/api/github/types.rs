@@ -40,6 +40,7 @@ pub struct PrMetadata {
     pub title: String,
     pub started: chrono::DateTime<chrono::Utc>,
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
     pub full_id: String,
 }
 
@@ -55,12 +56,14 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
             Some(title),
             Some(author_association),
             Some(created_at),
+            Some(updated_at),
         ) = (
             repo,
             pr.user,
             pr.title,
             pr.author_association,
             pr.created_at,
+            pr.updated_at,
         ) {
             let full_id = format!("{}/{}/{}", owner.login, repo, pr.number);
             Ok(Self {
@@ -71,6 +74,7 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
                 title,
                 started: created_at,
                 merged: pr.merged_at,
+                updated_at,
                 full_id,
             })
         } else {

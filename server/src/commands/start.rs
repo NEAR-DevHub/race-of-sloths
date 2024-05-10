@@ -3,7 +3,7 @@ use tracing::{debug, instrument};
 use super::*;
 
 fn msg(user: &str) -> String {
-    format!("This pull request is a part of Sloth race now. Dear maintainer, please use `@{user} score [1-10]` to rate it, or `@{user} pause` to stop the sloth for the repository.")
+    format!("This pull request is a part of Sloth race now. Dear maintainer, please use `@{user} [1,2,3,5,8,13]` to rate it, or `@{user} pause` to stop the sloth for the repository.")
 }
 
 #[derive(Debug, Clone)]
@@ -12,7 +12,6 @@ pub struct BotIncluded {
     pub pr_metadata: PrMetadata,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: u64,
-    pub notification_id: u64,
 }
 
 impl BotIncluded {
@@ -21,19 +20,13 @@ impl BotIncluded {
         pr_metadata: PrMetadata,
         timestamp: chrono::DateTime<chrono::Utc>,
         comment_id: u64,
-        notification_id: u64,
     ) -> Self {
         Self {
             sender,
             pr_metadata,
             timestamp,
             comment_id,
-            notification_id,
         }
-    }
-
-    pub fn is_accepted(&self) -> bool {
-        self.pr_metadata.author.is_participant()
     }
 }
 
@@ -47,10 +40,7 @@ impl Execute for BotIncluded {
                 "PR {} already exists or not allowed. Skipping",
                 self.pr_metadata.full_id,
             );
-            return context
-                .github
-                .mark_notification_as_read(self.notification_id)
-                .await;
+            return Ok(());
         }
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
@@ -62,25 +52,13 @@ impl Execute for BotIncluded {
             .subscribe_to_repo(&self.pr_metadata.owner, &self.pr_metadata.repo)
             .await?;
         context
-            .github
             .reply(
                 &self.pr_metadata.owner,
                 &self.pr_metadata.repo,
                 self.pr_metadata.number,
+                self.comment_id,
                 &msg(&context.github.user_handle),
             )
-            .await?;
-        context
-            .github
-            .like_comment(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.comment_id,
-            )
-            .await?;
-        context
-            .github
-            .mark_notification_as_read(self.notification_id)
             .await
     }
 }
@@ -88,7 +66,6 @@ impl Execute for BotIncluded {
 impl ParseCommand for BotIncluded {
     fn parse_command(
         bot_name: &str,
-        notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
     ) -> Option<Command> {
@@ -102,9 +79,8 @@ impl ParseCommand for BotIncluded {
             Some(Command::Include(BotIncluded::new(
                 comment.user.login.clone(),
                 pr_metadata.clone(),
-                notification.updated_at,
+                comment.created_at.clone(),
                 comment.id.0,
-                notification.id.0,
             )))
         } else {
             None

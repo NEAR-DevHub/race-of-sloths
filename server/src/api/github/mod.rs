@@ -1,5 +1,5 @@
 use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
-use tracing::warn;
+use tracing::{instrument, warn};
 
 use crate::commands::{Command, ParseCommand};
 
@@ -25,6 +25,7 @@ impl GithubClient {
         })
     }
 
+    #[instrument(skip(self))]
     pub async fn get_events(&self) -> anyhow::Result<Vec<Command>> {
         let page = self
             .octocrab
@@ -93,18 +94,21 @@ impl GithubClient {
                     break;
                 }
 
-                let event =
-                    Command::parse_command(&self.user_handle, &event, &pr_metadata, &comment);
+                let event = Command::parse_command(&self.user_handle, &pr_metadata, &comment);
                 if event.is_none() {
                     continue;
                 }
                 results.push(event.unwrap());
+            }
+            if let Err(_) = self.mark_notification_as_read(event.id).await {
+                warn!("Failed to mark notification as read");
             }
         }
 
         Ok(results)
     }
 
+    #[instrument(skip(self), fields(notification = notification.id.0))]
     pub async fn get_pull_request_from_notification(
         &self,
         notification: &Notification,
@@ -126,6 +130,7 @@ impl GithubClient {
         Ok(pull_request)
     }
 
+    #[instrument(skip(self))]
     pub async fn get_pull_request(
         &self,
         owner: &str,
@@ -137,6 +142,7 @@ impl GithubClient {
         Ok(pull_request)
     }
 
+    #[instrument(skip(self, text))]
     pub async fn reply(&self, owner: &str, repo: &str, id: u64, text: &str) -> anyhow::Result<()> {
         self.octocrab
             .issues(owner, repo)
@@ -146,6 +152,7 @@ impl GithubClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn like_comment(
         &self,
         owner: &str,
@@ -163,6 +170,7 @@ impl GithubClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn like_pr(&self, owner: &str, repo: &str, pr_number: u64) -> anyhow::Result<()> {
         self.octocrab
             .issues(owner, repo)
@@ -175,6 +183,7 @@ impl GithubClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn subscribe_to_repo(&self, owner: &str, repo: &str) -> anyhow::Result<()> {
         let url = format!("/repos/{}/{}/subscription", owner, repo);
         let _: serde_json::Value = self

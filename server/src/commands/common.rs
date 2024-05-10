@@ -9,6 +9,18 @@ impl ContextStruct {
             .await
     }
 
+    pub(super) async fn reply(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+        comment_id: u64,
+        text: &str,
+    ) -> anyhow::Result<()> {
+        self.github.reply(owner, repo, number, text).await?;
+        self.github.like_comment(owner, repo, comment_id).await
+    }
+
     pub(super) async fn reply_with_error(
         &self,
         owner: &str,

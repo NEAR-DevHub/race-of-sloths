@@ -7,7 +7,10 @@ use slothrace::{
         github::{GithubClient, PrMetadata},
         near::NearClient,
     },
-    commands::{merged::PullRequestMerged, Command, Context, ContextStruct, Event, Execute},
+    commands::{
+        merged::PullRequestMerged, stale::PullRequestStale, Command, Context, ContextStruct, Event,
+        Execute,
+    },
 };
 use tokio::sync::{
     mpsc::{self, UnboundedReceiver},
@@ -44,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Spawn worker tasks
-    for i in 0..4 {
+    for _ in 0..4 {
         let context = context.clone();
         let rx = Arc::clone(&rx);
         tokio::spawn(async move {
@@ -68,7 +71,10 @@ async fn main() -> anyhow::Result<()> {
     let minute = tokio::time::Duration::from_secs(60);
     let mut interval: tokio::time::Interval = tokio::time::interval(minute);
     let mut merge_time = std::time::SystemTime::now();
-    let tokio_duration = 60 * minute;
+    let merge_interval = 60 * minute;
+
+    let mut finalize_time = std::time::SystemTime::now();
+    let finalize_interval = minute * 60 * 24;
 
     loop {
         interval.tick().await;
@@ -108,7 +114,15 @@ async fn main() -> anyhow::Result<()> {
             if let Err(e) = tx.send(events) {
                 error!("Failed to send merge events: {}", e);
             }
-            merge_time = current_time + tokio_duration;
+            merge_time = current_time + merge_interval;
+        }
+
+        if current_time > finalize_time {
+            let res = context.near.finalize_prs().await;
+            if let Err(e) = res {
+                error!("Failed to finalize PRs: {}", e);
+            }
+            finalize_time = current_time + finalize_interval;
         }
     }
 
@@ -152,17 +166,34 @@ async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
 
         let pr_metadata = pr_metadata.unwrap();
         if pr_metadata.merged.is_none() {
-            trace!("PR {} is not merged", pr_metadata.full_id);
+            trace!(
+                "PR {} is not merged. Checking for stale",
+                pr_metadata.full_id
+            );
+            if check_for_stale_pr(&pr_metadata) {
+                info!("PR {} is stale. Creating an event", pr_metadata.full_id);
+                results.push(Event::Stale(PullRequestStale { pr_metadata }));
+            }
             continue;
         }
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
-        let timestamp = pr_metadata.merged.clone().unwrap();
-        let event = Event::Merged(PullRequestMerged {
-            pr_metadata: pr_metadata,
-            timestamp: timestamp,
-        });
+        let event = Event::Merged(PullRequestMerged { pr_metadata });
         results.push(event);
     }
     info!("Finished merge task with {} events", results.len());
     Ok(results)
+}
+
+fn check_for_stale_pr(pr: &PrMetadata) -> bool {
+    if pr.merged.is_some() {
+        return false;
+    }
+
+    let now = chrono::Utc::now();
+    let stale = now - pr.updated_at;
+    if stale.num_days() > 14 {
+        true
+    } else {
+        false
+    }
 }
