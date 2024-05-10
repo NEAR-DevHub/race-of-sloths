@@ -160,8 +160,12 @@ impl PR {
         self.merged_at = Some(merged_at);
     }
 
-    pub fn is_ready_to_move(&self) -> bool {
-        !self.score.is_empty() && self.merged_at.is_some()
+    pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
+        const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 1 * 24 * 60 * 60;
+        const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
+
+        self.merged_at.is_some()
+            && (timestamp - self.merged_at.unwrap()) > SCORE_TIMEOUT_IN_NANOSECONDS
     }
 
     pub fn score(&self) -> Option<u32> {
@@ -170,6 +174,10 @@ impl PR {
             .map(|s| s.score)
             .sum::<u32>()
             .checked_div(self.score.len() as u32)
+    }
+
+    pub fn full_id(&self) -> String {
+        format!("{}/{}/{}", self.organization, self.repo, self.number)
     }
 }
 

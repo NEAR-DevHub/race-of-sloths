@@ -8,10 +8,9 @@ use super::*;
 pub struct BotScored {
     pub sender: User,
     pub pr_metadata: PrMetadata,
-    pub score: String,
+    score: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: u64,
-    pub notification_id: u64,
 }
 
 impl BotScored {
@@ -21,7 +20,6 @@ impl BotScored {
         score: String,
         timestamp: chrono::DateTime<chrono::Utc>,
         comment_id: u64,
-        notification_id: u64,
     ) -> Self {
         Self {
             sender,
@@ -29,23 +27,15 @@ impl BotScored {
             score,
             timestamp,
             comment_id,
-            notification_id,
         }
     }
 
-    pub fn is_valid_score(&self) -> bool {
-        if let Ok(number) = self.score.parse::<u8>() {
-            (1..=5).contains(&number)
-        } else {
-            false
+    pub fn score(&self) -> Option<u8> {
+        let score = self.score.parse::<u8>().ok()?;
+        match score {
+            1 | 2 | 3 | 5 | 8 | 13 => Some(score),
+            _ => None,
         }
-    }
-
-    pub fn is_accepted(&self) -> bool {
-        self.pr_metadata.author.is_participant()
-            && self.sender.is_maintainer()
-            && self.is_valid_score()
-            && self.pr_metadata.author.login != self.sender.login
     }
 }
 
@@ -59,42 +49,53 @@ impl Execute for BotScored {
                 "PR {} is not started or not allowed or already executed. Skipping.",
                 self.pr_metadata.full_id,
             );
-            return context
-                .github
-                .mark_notification_as_read(self.notification_id)
-                .await;
+            return Ok(());
         }
 
-        debug!("Scoring PR {}", self.pr_metadata.full_id);
-
-        let score = self.score.parse::<u8>()?;
-        if score < 1 || score > 10 {
-            context
+        let score = self.score();
+        if score.is_none() {
+            debug!(
+                "Invalid score for PR {}. Skipping.",
+                self.pr_metadata.full_id,
+            );
+            return context
                 .reply_with_error(
                     &self.pr_metadata.owner,
                     &self.pr_metadata.repo,
                     self.pr_metadata.number,
-                    "Score should be between 1 and 10",
+                    "Score should be a fibonacci number: 1, 2, 3, 5, 8, or 13.",
                 )
-                .await?;
-            return context
-                .github
-                .mark_notification_as_read(self.notification_id)
                 .await;
         }
+        let score = score.unwrap();
 
-        if self.pr_metadata.author.login == self.sender.login || !self.sender.is_maintainer() {
-            context
+        if self.pr_metadata.author.login == self.sender.login {
+            debug!(
+                "Author tried to score their own PR {}. Skipping.",
+                self.pr_metadata.full_id,
+            );
+            return context
                 .reply_with_error(
                     &self.pr_metadata.owner,
                     &self.pr_metadata.repo,
                     self.pr_metadata.number,
-                    "Only maintainers can score PRs, and you can't score your own PRs.",
+                    "You can't score your own PR.",
                 )
-                .await?;
+                .await;
+        }
+
+        if !self.sender.is_maintainer() {
+            debug!(
+                "Non-maintainer tried to score PR {}. Skipping.",
+                self.pr_metadata.full_id,
+            );
             return context
-                .github
-                .mark_notification_as_read(self.notification_id)
+                .reply_with_error(
+                    &self.pr_metadata.owner,
+                    &self.pr_metadata.repo,
+                    self.pr_metadata.number,
+                    "Only maintainers can score PRs.",
+                )
                 .await;
         }
 
@@ -104,25 +105,13 @@ impl Execute for BotScored {
             .await?;
 
         context
-            .github
             .reply(
                 &self.pr_metadata.owner,
                 &self.pr_metadata.repo,
                 self.pr_metadata.number,
+                self.comment_id,
                 "Thanks for submitting your score for the Sloth race.",
             )
-            .await?;
-        context
-            .github
-            .like_comment(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.comment_id,
-            )
-            .await?;
-        context
-            .github
-            .mark_notification_as_read(self.notification_id)
             .await
     }
 }
@@ -130,7 +119,6 @@ impl Execute for BotScored {
 impl ParseCommand for BotScored {
     fn parse_command(
         bot_name: &str,
-        notification: &Notification,
         pr_metadata: &PrMetadata,
         comment: &Comment,
     ) -> Option<Command> {
@@ -149,9 +137,8 @@ impl ParseCommand for BotScored {
                 },
                 pr_metadata.clone(),
                 body[result + phrase.len()..].trim().to_string(),
-                notification.updated_at,
+                comment.created_at.clone(),
                 comment.id.0,
-                notification.id.0,
             )))
         } else {
             None

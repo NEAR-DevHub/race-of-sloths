@@ -92,4 +92,9 @@ impl Contract {
             })
             .collect()
     }
+
+    pub fn should_finalize(&self) -> bool {
+        let time: u64 = env::block_timestamp();
+        self.prs.iter().any(|(_, pr)| pr.is_ready_to_move(time))
+    }
 }
