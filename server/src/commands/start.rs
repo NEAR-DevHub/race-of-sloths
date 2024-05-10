@@ -48,10 +48,6 @@ impl Execute for BotIncluded {
         context.near.send_start(&self.pr_metadata).await?;
 
         context
-            .github
-            .subscribe_to_repo(&self.pr_metadata.owner, &self.pr_metadata.repo)
-            .await?;
-        context
             .reply(
                 &self.pr_metadata.owner,
                 &self.pr_metadata.repo,
@@ -79,7 +75,7 @@ impl ParseCommand for BotIncluded {
             Some(Command::Include(BotIncluded::new(
                 comment.user.login.clone(),
                 pr_metadata.clone(),
-                comment.created_at.clone(),
+                comment.created_at,
                 comment.id.0,
             )))
         } else {

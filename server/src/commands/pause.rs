@@ -54,7 +54,7 @@ impl ParseCommand for BotPaused {
                     login: comment.user.login.clone(),
                     contributor_type: comment.author_association.clone(),
                 },
-                timestamp: comment.created_at.clone(),
+                timestamp: comment.created_at,
                 comment_id: comment.id.0,
             }));
         }
@@ -139,7 +139,7 @@ impl ParseCommand for BotUnpaused {
                     login: comment.user.login.clone(),
                     contributor_type: comment.author_association.clone(),
                 },
-                timestamp: comment.created_at.clone(),
+                timestamp: comment.created_at,
                 comment_id: comment.id.0,
             }));
         }
