@@ -9,7 +9,8 @@ use super::*;
 #[derive(Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
-    allowed: bool,
+    allowed_org: bool,
+    allowed_repo: bool,
     exist: bool,
     merged: bool,
     scored: bool,
@@ -38,10 +39,10 @@ impl Contract {
         let pr_id = format!("{}/{}/{}", organization, repo, issue_id);
         let pr = self.prs.get(&pr_id);
         let executed_pr = self.executed_prs.get(&pr_id);
+        let organization = self.organizations.get(&organization);
         PRInfo {
-            allowed: self
-                .organizations
-                .get(&organization)
+            allowed_org: organization.is_some(),
+            allowed_repo: organization
                 .map(|org| org.is_allowed(&repo))
                 .unwrap_or_default(),
             exist: pr.is_some() || executed_pr.is_some(),

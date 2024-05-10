@@ -1,6 +1,7 @@
 use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
+use tracing::warn;
 
-use crate::commands::ParseComment;
+use crate::commands::{Command, ParseCommand};
 
 mod types;
 pub use types::*;
@@ -12,10 +13,11 @@ pub struct GithubClient {
 }
 
 impl GithubClient {
-    pub fn new(github_token: String, user_handle: String) -> anyhow::Result<Self> {
+    pub async fn new(github_token: String) -> anyhow::Result<Self> {
         let octocrab = octocrab::Octocrab::builder()
             .personal_token(github_token)
             .build()?;
+        let user_handle = octocrab.current().user().await?.login;
 
         Ok(Self {
             octocrab,
@@ -52,13 +54,13 @@ impl GithubClient {
 
             let pr = self.get_pull_request_from_notification(&event).await;
             if pr.is_err() {
-                log::warn!("Failed to get PR: {:?}", pr.err());
+                warn!("Failed to get PR: {:?}", pr.err());
                 continue;
             }
             let pr = pr.unwrap();
             let pr_metadata = types::PrMetadata::try_from(pr);
             if pr_metadata.is_err() {
-                log::warn!("Failed to convert PR: {:?}", pr_metadata.err());
+                warn!("Failed to convert PR: {:?}", pr_metadata.err());
                 continue;
             }
             let pr_metadata = pr_metadata.unwrap();
@@ -72,7 +74,7 @@ impl GithubClient {
                 .await;
 
             if comments.is_err() {
-                log::warn!("Failed to get comments: {:?}", comments.err());
+                warn!("Failed to get comments: {:?}", comments.err());
                 continue;
             }
             let comments = comments.unwrap();
@@ -80,7 +82,7 @@ impl GithubClient {
             // TODO: think if we can avoid this and just load from the last page
             let comments = self.octocrab.all_pages(comments).await;
             if comments.is_err() {
-                log::warn!("Failed to get all comments: {:?}", comments.err());
+                warn!("Failed to get all comments: {:?}", comments.err());
                 continue;
             }
             let comments = comments.unwrap();
@@ -92,7 +94,7 @@ impl GithubClient {
                 }
 
                 let event =
-                    Command::parse_comment(&self.user_handle, &event, &pr_metadata, &comment);
+                    Command::parse_command(&self.user_handle, &event, &pr_metadata, &comment);
                 if event.is_none() {
                     continue;
                 }
