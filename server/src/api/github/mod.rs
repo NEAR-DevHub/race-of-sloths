@@ -183,19 +183,6 @@ impl GithubClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn subscribe_to_repo(&self, owner: &str, repo: &str) -> anyhow::Result<()> {
-        let url = format!("/repos/{}/{}/subscription", owner, repo);
-        let _: serde_json::Value = self
-            .octocrab
-            .put(
-                &url,
-                Some(&serde_json::json!({"subscribed":true,"ignored":false})),
-            )
-            .await?;
-        Ok(())
-    }
-
     pub async fn mark_notification_as_read(
         &self,
         id: impl Into<NotificationId>,

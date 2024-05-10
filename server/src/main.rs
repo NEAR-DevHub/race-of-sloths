@@ -12,10 +12,6 @@ use slothrace::{
         Execute,
     },
 };
-use tokio::sync::{
-    mpsc::{self, UnboundedReceiver},
-    Mutex,
-};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 #[derive(Deserialize)]
@@ -34,8 +30,7 @@ async fn main() -> anyhow::Result<()> {
     let env = envy::from_env::<Env>()?;
 
     let github_api = GithubClient::new(env.github_token).await?;
-    let (tx, rx) = mpsc::unbounded_channel::<Vec<Event>>();
-    let rx: Arc<Mutex<UnboundedReceiver<Vec<Event>>>> = Arc::new(Mutex::new(rx));
+    let (tx, rx) = async_channel::unbounded::<Vec<Event>>();
     let context: Arc<ContextStruct> = Arc::new(ContextStruct {
         github: github_api,
         near: NearClient::new(
@@ -47,22 +42,22 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Spawn worker tasks
-    for _ in 0..4 {
+    for _ in 0..3 {
         let context = context.clone();
-        let rx = Arc::clone(&rx);
+        let rx = rx.clone();
         tokio::spawn(async move {
             loop {
                 let span = tracing::span!(tracing::Level::DEBUG, "WORKER");
                 let _guard = span.enter();
 
-                let events: Option<Vec<Event>> = {
-                    let mut rx = rx.lock().await;
-                    rx.recv().await
-                };
-                if let Some(events) = events {
-                    execute(context.clone(), events).await;
-                } else {
-                    break;
+                match rx.recv().await {
+                    Ok(events) => {
+                        execute(context.clone(), events).await;
+                    }
+                    Err(_) => {
+                        info!("Received close signal. Exiting.");
+                        break;
+                    }
                 }
             }
         });
@@ -77,56 +72,97 @@ async fn main() -> anyhow::Result<()> {
     let finalize_interval = minute * 60 * 24;
 
     loop {
-        interval.tick().await;
-
-        let events = context.github.get_events().await;
-        if let Err(e) = events {
-            error!("Failed to get events: {}", e);
-            continue;
-        }
-        let events = events.unwrap();
-
-        info!("Received {} events.", events.len());
-
-        let events_per_pr = events.into_iter().fold(
-            std::collections::HashMap::new(),
-            |mut map: HashMap<String, Vec<Command>>, event| {
-                let pr = event.pr();
-                map.entry(pr.full_id.clone()).or_default().push(event);
-                map
-            },
-        );
-
-        for (key, mut events) in events_per_pr.into_iter() {
-            events.sort_by_key(|event| *event.timestamp());
-            let events = events
-                .into_iter()
-                .map(|event| Event::Command(event))
-                .collect();
-
-            if let Err(e) = tx.send(events) {
-                error!("Failed to send events from {}: {}", key, e);
-            }
-        }
         let current_time = std::time::SystemTime::now();
-        if current_time > merge_time {
-            let events = merge_task(&context).await?;
-            if let Err(e) = tx.send(events) {
-                error!("Failed to send merge events: {}", e);
-            }
-            merge_time = current_time + merge_interval;
-        }
-
-        if current_time > finalize_time {
-            let res = context.near.finalize_prs().await;
-            if let Err(e) = res {
-                error!("Failed to finalize PRs: {}", e);
-            }
-            finalize_time = current_time + finalize_interval;
-        }
+        let (_, _, merge_time, finalize_time) = tokio::join!(
+            interval.tick(),
+            event_task(context.clone(), tx.clone()),
+            merge_task(
+                context.clone(),
+                tx.clone(),
+                current_time,
+                merge_time,
+                merge_interval
+            ),
+            finalize_task(
+                context.clone(),
+                current_time,
+                finalize_time,
+                finalize_interval
+            ),
+        );
     }
 
     Ok(())
+}
+
+async fn event_task(context: Arc<ContextStruct>, tx: async_channel::Sender<Vec<Event>>) {
+    let events = context.github.get_events().await;
+    if let Err(e) = events {
+        error!("Failed to get events: {}", e);
+        return;
+    }
+    let events = events.unwrap();
+
+    info!("Received {} events.", events.len());
+
+    let events_per_pr = events.into_iter().fold(
+        std::collections::HashMap::new(),
+        |mut map: HashMap<String, Vec<Command>>, event| {
+            let pr = event.pr();
+            map.entry(pr.full_id.clone()).or_default().push(event);
+            map
+        },
+    );
+
+    for (key, mut events) in events_per_pr.into_iter() {
+        events.sort_by_key(|event| *event.timestamp());
+        let events = events.into_iter().map(Event::Command).collect();
+
+        if let Err(e) = tx.send(events).await {
+            error!("Failed to send events from {}: {}", key, e);
+        }
+    }
+}
+
+async fn merge_task(
+    context: Arc<ContextStruct>,
+    tx: async_channel::Sender<Vec<Event>>,
+    current_time: std::time::SystemTime,
+    merge_time: std::time::SystemTime,
+    merge_interval: std::time::Duration,
+) -> std::time::SystemTime {
+    if current_time < merge_time {
+        return merge_time;
+    }
+
+    let events = merge_events(&context).await;
+    if let Err(e) = events {
+        error!("Failed to get merge events: {}", e);
+        return merge_time;
+    }
+
+    let events = events.unwrap();
+    if let Err(e) = tx.send(events).await {
+        error!("Failed to send merge events: {}", e);
+    }
+    return current_time + merge_interval;
+}
+
+async fn finalize_task(
+    context: Arc<ContextStruct>,
+    current_time: std::time::SystemTime,
+    finalize_time: std::time::SystemTime,
+    finalize_interval: std::time::Duration,
+) -> std::time::SystemTime {
+    if current_time < finalize_time {
+        return finalize_time;
+    }
+
+    let res = context.near.finalize_prs().await;
+    if let Err(e) = res {
+        error!("Failed to finalize PRs: {}", e);
+    }
+    return current_time + finalize_interval;
 }
 
 // Runs events from the same PR
@@ -141,7 +177,7 @@ async fn execute(context: Context, events: Vec<Event>) {
 }
 
 #[instrument(skip(context))]
-async fn merge_task(context: &Context) -> anyhow::Result<Vec<Event>> {
+async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
     let prs = context.near.unmerged_prs_all().await.unwrap();
     info!("Received {} PRs for merge request check", prs.len());
     let mut results = vec![];
@@ -191,9 +227,5 @@ fn check_for_stale_pr(pr: &PrMetadata) -> bool {
 
     let now = chrono::Utc::now();
     let stale = now - pr.updated_at;
-    if stale.num_days() > 14 {
-        true
-    } else {
-        false
-    }
+    stale.num_days() > 14
 }

@@ -129,19 +129,15 @@ impl ParseCommand for BotScored {
             .or(comment.body_text.as_ref())?;
 
         let phrase = format!("@{} score", bot_name);
-        if let Some(result) = body.find(&phrase) {
-            Some(Command::Score(BotScored::new(
+        body.find(&phrase).map(|result| Command::Score(BotScored::new(
                 User {
                     login: comment.user.login.clone(),
                     contributor_type: comment.author_association.clone(),
                 },
                 pr_metadata.clone(),
                 body[result + phrase.len()..].trim().to_string(),
-                comment.created_at.clone(),
+                comment.created_at,
                 comment.id.0,
             )))
-        } else {
-            None
-        }
     }
 }
