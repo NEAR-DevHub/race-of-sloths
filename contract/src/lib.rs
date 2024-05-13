@@ -2,11 +2,13 @@
 use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
+    store::LookupSet,
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use types::{timestamp_to_month_string, MonthYearString, Organization, UserData, PR};
 
+pub mod migration;
 pub mod storage;
 pub mod types;
 pub mod views;
@@ -27,6 +29,7 @@ pub struct Contract {
     prs: UnorderedMap<String, PR>,
     #[allow(deprecated)]
     executed_prs: UnorderedMap<String, PR>,
+    excluded_prs: LookupSet<String>,
 }
 
 #[near_bindgen]
@@ -46,22 +49,32 @@ impl Contract {
             prs: UnorderedMap::new(storage::StorageKey::PRs),
             #[allow(deprecated)]
             executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
+            excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
         }
     }
 
-    pub fn sloth_called(
+    pub fn sloth_include(
         &mut self,
         organization: String,
         repo: String,
         user: String,
         pr_number: u64,
         started_at: Timestamp,
+        override_exclude: bool,
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
 
-        // Check if PR already exists
         let pr_id = format!("{organization}/{repo}/{pr_number}");
+
+        if self.excluded_prs.contains(&pr_id) {
+            if !override_exclude {
+                env::panic_str("Excluded PR cannot be included without override flag")
+            }
+            self.excluded_prs.remove(&pr_id);
+        }
+
+        // Check if PR already exists
         let pr = self.prs.get(&pr_id);
         let executed_pr = self.executed_prs.get(&pr_id);
         if pr.is_some() || executed_pr.is_some() {
@@ -99,6 +112,13 @@ impl Contract {
 
         let pr = pr.unwrap();
         pr.add_merge_info(merged_at);
+    }
+
+    pub fn sloth_exclude(&mut self, pr_id: String) {
+        self.assert_sloth();
+
+        self.prs.remove(&pr_id);
+        self.excluded_prs.insert(pr_id);
     }
 
     pub fn allow_organization(&mut self, organization: String) {

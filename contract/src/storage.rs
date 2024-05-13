@@ -11,4 +11,5 @@ pub enum StorageKey {
     Organizations,
     PRs,
     MergedPRs,
+    ExcludedPRs,
 }

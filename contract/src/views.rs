@@ -15,6 +15,7 @@ pub struct PRInfo {
     merged: bool,
     scored: bool,
     executed: bool,
+    excluded: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, NearSchema)]
@@ -50,6 +51,7 @@ impl Contract {
                 || pr.map(|pr| pr.merged_at.is_some()).unwrap_or_default(),
             scored: executed_pr.is_some() || pr.map(|pr| pr.score().is_some()).unwrap_or_default(),
             executed: executed_pr.is_some(),
+            excluded: self.excluded_prs.contains(&pr_id),
         }
     }
 

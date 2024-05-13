@@ -24,21 +24,22 @@ impl NearClient {
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_start(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+    pub async fn send_start(&self, pr: &PrMetadata, is_maintainer: bool) -> anyhow::Result<()> {
         let args = json!({
             "organization": pr.owner,
             "repo": pr.repo,
             "pr_number": pr.number,
             "user": pr.author.login,
             "started_at": pr.started.timestamp_nanos_opt().unwrap_or(0),
+            "override_exclude": is_maintainer,
         });
 
         self.contract
-            .call("sloth_called")
+            .call("sloth_include")
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_called: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?;
         Ok(())
     }
 
@@ -191,6 +192,21 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?;
         Ok(())
     }
+
+    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    pub async fn send_exclude(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+        let args = json!({
+            "pr_id": pr.full_id,
+        });
+
+        self.contract
+            .call("sloth_exclude")
+            .args_json(args)
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?;
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -201,6 +217,7 @@ pub struct PRInfo {
     pub merged: bool,
     pub scored: bool,
     pub executed: bool,
+    pub excluded: bool,
 }
 
 #[derive(Serialize, Deserialize)]

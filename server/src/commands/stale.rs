@@ -2,6 +2,7 @@ use tracing::{debug, instrument};
 
 use super::*;
 
+#[derive(Debug, Clone)]
 pub struct PullRequestStale {
     pub pr_metadata: PrMetadata,
 }
