@@ -194,4 +194,32 @@ impl GithubClient {
             .await?;
         Ok(())
     }
+
+    pub async fn edit_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        comment_id: u64,
+        text: &str,
+    ) -> anyhow::Result<()> {
+        self.octocrab
+            .issues(owner, repo)
+            .update_comment(comment_id, text)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        comment_id: u64,
+    ) -> anyhow::Result<octocrab::models::issues::Comment> {
+        let comment = self
+            .octocrab
+            .issues(owner, repo)
+            .get_comment(comment_id)
+            .await?;
+        Ok(comment)
+    }
 }
