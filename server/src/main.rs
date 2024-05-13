@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         let current_time = std::time::SystemTime::now();
-        let (_, _, merge_time, finalize_time) = tokio::join!(
+        (_, _, merge_time, finalize_time) = tokio::join!(
             interval.tick(),
             event_task(context.clone(), tx.clone()),
             merge_task(

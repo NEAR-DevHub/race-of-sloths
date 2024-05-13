@@ -35,9 +35,9 @@ impl Execute for BotIncluded {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
-        if info.exist || !info.allowed_repo {
+        if info.exist {
             debug!(
-                "PR {} already exists or not allowed. Skipping",
+                "Sloth is already included in {}. Skipping",
                 self.pr_metadata.full_id,
             );
             return Ok(());

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use octocrab::models::issues::Comment;
+use tracing::info;
 
 use crate::api::{self, github::PrMetadata};
 
@@ -96,6 +97,35 @@ impl Command {
 #[async_trait::async_trait]
 impl Execute for Command {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
+        let pr = self.pr();
+        let check_info = context.check_info(pr).await?;
+        if !check_info.allowed_org {
+            info!(
+                "Sloth called for a PR from not allowed org: {}. Skipping",
+                pr.full_id
+            );
+            context
+                .github
+                .reply(
+                    &pr.owner,
+                    &pr.repo,
+                    pr.number,
+                    "The organization is not a part of the allowed organizations.",
+                )
+                .await?;
+
+            return Ok(());
+        }
+
+        if !check_info.allowed_repo && !matches!(&self, Command::Unpause(_)) {
+            info!(
+                "Sloth called for a PR from paused repo: {}. Skipping",
+                pr.full_id
+            );
+
+            return Ok(());
+        }
+
         match self {
             Command::Include(event) => event.execute(context).await,
             Command::Score(event) => event.execute(context).await,
