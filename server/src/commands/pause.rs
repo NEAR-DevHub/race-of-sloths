@@ -15,21 +15,21 @@ pub struct BotPaused {
 #[async_trait::async_trait]
 impl Execute for BotPaused {
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        let info = context.check_info(&self.pr_metadata).await?;
-        if info.allowed_repo {
-            debug!("Paused PR {}", self.pr_metadata.full_id);
-            context
-                .near
-                .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
-                .await?;
-            context.reply(
+        debug!(
+            "Pausing the repository in the PR: {}",
+            self.pr_metadata.full_id
+        );
+        context
+            .near
+            .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
+            .await?;
+        context.reply(
                 &self.pr_metadata.owner,
                 &self.pr_metadata.repo,
                 self.pr_metadata.number,
                 self.comment_id,
                 "We've paused this repository. From now on, we won't participate in this repository PRs but already scored PRs will be accepted after the merge",
             ).await?;
-        }
         Ok(())
     }
 }
@@ -76,13 +76,6 @@ impl Execute for BotUnpaused {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
-        if !info.allowed_org {
-            info!(
-                "Tried to unpause a PR from not allowed org: {}. Skipping",
-                self.pr_metadata.full_id
-            );
-            return Ok(());
-        }
 
         if !self.sender.is_maintainer() {
             info!(

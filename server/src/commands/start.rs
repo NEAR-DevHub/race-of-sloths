@@ -1,5 +1,7 @@
 use tracing::{debug, instrument};
 
+use self::api::github::User;
+
 use super::*;
 
 fn msg(user: &str) -> String {
@@ -8,7 +10,7 @@ fn msg(user: &str) -> String {
 
 #[derive(Debug, Clone)]
 pub struct BotIncluded {
-    pub sender: String,
+    pub sender: User,
     pub pr_metadata: PrMetadata,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: u64,
@@ -16,7 +18,7 @@ pub struct BotIncluded {
 
 impl BotIncluded {
     pub fn new(
-        sender: String,
+        sender: User,
         pr_metadata: PrMetadata,
         timestamp: chrono::DateTime<chrono::Utc>,
         comment_id: u64,
@@ -35,9 +37,9 @@ impl Execute for BotIncluded {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
-        if info.exist || !info.allowed_repo {
+        if info.exist {
             debug!(
-                "PR {} already exists or not allowed. Skipping",
+                "Sloth is already included in {}. Skipping",
                 self.pr_metadata.full_id,
             );
             return Ok(());
@@ -45,7 +47,10 @@ impl Execute for BotIncluded {
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
 
-        context.near.send_start(&self.pr_metadata).await?;
+        context
+            .near
+            .send_start(&self.pr_metadata, self.sender.is_maintainer())
+            .await?;
 
         context
             .reply(
@@ -73,7 +78,10 @@ impl ParseCommand for BotIncluded {
 
         if body.contains(format!("@{} include", bot_name).as_str()) {
             Some(Command::Include(BotIncluded::new(
-                comment.user.login.clone(),
+                User::new(
+                    comment.user.login.clone(),
+                    comment.author_association.clone(),
+                ),
                 pr_metadata.clone(),
                 comment.created_at,
                 comment.id.0,

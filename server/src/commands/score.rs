@@ -44,9 +44,9 @@ impl Execute for BotScored {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id, score = self.score))]
     async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let info = context.check_info(&self.pr_metadata).await?;
-        if !info.allowed_repo || !info.exist || info.executed {
+        if !info.exist || info.executed {
             debug!(
-                "PR {} is not started or not allowed or already executed. Skipping.",
+                "Sloth is not included before or PR is already executed in: {}. Skipping.",
                 self.pr_metadata.full_id,
             );
             return Ok(());
@@ -129,7 +129,8 @@ impl ParseCommand for BotScored {
             .or(comment.body_text.as_ref())?;
 
         let phrase = format!("@{} score", bot_name);
-        body.find(&phrase).map(|result| Command::Score(BotScored::new(
+        body.find(&phrase).map(|result| {
+            Command::Score(BotScored::new(
                 User {
                     login: comment.user.login.clone(),
                     contributor_type: comment.author_association.clone(),
@@ -138,6 +139,7 @@ impl ParseCommand for BotScored {
                 body[result + phrase.len()..].trim().to_string(),
                 comment.created_at,
                 comment.id.0,
-            )))
+            ))
+        })
     }
 }

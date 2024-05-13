@@ -1,4 +1,4 @@
-use octocrab::models::{activity::Notification, pulls::PullRequest, NotificationId};
+use octocrab::models::{activity::Notification, pulls::PullRequest, CommentId, NotificationId};
 use tracing::{instrument, warn};
 
 use crate::commands::{Command, ParseCommand};
@@ -191,6 +191,20 @@ impl GithubClient {
             .activity()
             .notifications()
             .mark_as_read(id.into())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn edit_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        comment_id: u64,
+        text: &str,
+    ) -> anyhow::Result<()> {
+        self.octocrab
+            .issues(owner, repo)
+            .update_comment(CommentId(comment_id), text)
             .await?;
         Ok(())
     }
