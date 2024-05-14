@@ -113,32 +113,17 @@ impl BotScored {
             .await?;
         Ok(())
     }
-}
 
-impl ParseCommand for BotScored {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        let body = comment
-            .body
-            .as_ref()
-            .or(comment.body_html.as_ref())
-            .or(comment.body_text.as_ref())?;
-
-        let phrase = format!("@{} score", bot_name);
-        body.find(&phrase).map(|result| {
-            Command::Score(BotScored::new(
-                User {
-                    login: comment.user.login.clone(),
-                    contributor_type: comment.author_association.clone(),
-                },
-                pr_metadata.clone(),
-                body[result + phrase.len()..].trim().to_string(),
-                comment.created_at,
-                comment.id.0,
-            ))
-        })
+    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment, input: String) -> Command {
+        Command::Score(BotScored::new(
+            User {
+                login: comment.user.login.clone(),
+                contributor_type: comment.author_association.clone(),
+            },
+            pr_metadata.clone(),
+            input,
+            comment.created_at,
+            comment.id.0,
+        ))
     }
 }

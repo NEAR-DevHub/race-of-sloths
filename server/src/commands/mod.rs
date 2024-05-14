@@ -28,40 +28,6 @@ pub struct Context {
     pub near: Arc<api::near::NearClient>,
 }
 
-pub trait ParseCommand {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command>;
-}
-
-impl ParseCommand for Command {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        type F = fn(&str, &PrMetadata, &Comment) -> Option<Command>;
-
-        let parse_command: [F; 5] = [
-            BotIncluded::parse_command,
-            BotScored::parse_command,
-            BotPaused::parse_command,
-            BotUnpaused::parse_command,
-            BotExcluded::parse_command,
-        ];
-
-        for parse in parse_command.iter() {
-            if let Some(command) = parse(bot_name, pr_metadata, comment) {
-                return Some(command);
-            }
-        }
-
-        None
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Command {
     Include(BotIncluded),
@@ -72,6 +38,29 @@ pub enum Command {
 }
 
 impl Command {
+    pub fn parse_command(
+        bot_name: &str,
+        pr_metadata: &PrMetadata,
+        comment: &Comment,
+    ) -> Option<Command> {
+        let (command, arg) = common::extract_command_with_args(bot_name, comment)?;
+
+        Some(match command.as_str() {
+            "score" => BotScored::construct(pr_metadata, comment, arg),
+            "pause" => BotPaused::construct(pr_metadata, comment),
+            "unpause" => BotUnpaused::construct(pr_metadata, comment),
+            "exclude" => BotExcluded::construct(pr_metadata, comment),
+            "include" | "in" | "start" | "join" => BotIncluded::construct(pr_metadata, comment),
+            _ => {
+                info!(
+                    "Unknown command: {} for PR: {}",
+                    command, pr_metadata.full_id
+                );
+                return None;
+            }
+        })
+    }
+
     pub fn pr(&self) -> &PrMetadata {
         match self {
             Command::Include(event) => &event.pr_metadata,

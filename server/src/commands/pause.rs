@@ -32,34 +32,17 @@ impl BotPaused {
             ).await?;
         Ok(())
     }
-}
 
-impl ParseCommand for BotPaused {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        let body = comment
-            .body
-            .as_ref()
-            .or(comment.body_html.as_ref())
-            .or(comment.body_text.as_ref())?;
-        let command = format!("@{} pause", bot_name);
-
-        if body.contains(&command) {
-            return Some(Command::Pause(BotPaused {
-                pr_metadata: pr_metadata.clone(),
-                sender: User {
-                    login: comment.user.login.clone(),
-                    contributor_type: comment.author_association.clone(),
-                },
-                timestamp: comment.created_at,
-                comment_id: comment.id.0,
-            }));
-        }
-
-        None
+    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
+        return Command::Pause(BotPaused {
+            pr_metadata: pr_metadata.clone(),
+            sender: User {
+                login: comment.user.login.clone(),
+                contributor_type: comment.author_association.clone(),
+            },
+            timestamp: comment.created_at,
+            comment_id: comment.id.0,
+        });
     }
 }
 
@@ -109,33 +92,16 @@ impl BotUnpaused {
             Ok(())
         }
     }
-}
 
-impl ParseCommand for BotUnpaused {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        let body = comment
-            .body
-            .as_ref()
-            .or(comment.body_html.as_ref())
-            .or(comment.body_text.as_ref())?;
-        let command = format!("@{} unpause", bot_name);
-
-        if body.contains(&command) {
-            return Some(Command::Unpause(BotUnpaused {
-                pr_metadata: pr_metadata.clone(),
-                sender: User {
-                    login: comment.user.login.clone(),
-                    contributor_type: comment.author_association.clone(),
-                },
-                timestamp: comment.created_at,
-                comment_id: comment.id.0,
-            }));
-        }
-
-        None
+    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
+        return Command::Unpause(BotUnpaused {
+            pr_metadata: pr_metadata.clone(),
+            sender: User {
+                login: comment.user.login.clone(),
+                contributor_type: comment.author_association.clone(),
+            },
+            timestamp: comment.created_at,
+            comment_id: comment.id.0,
+        });
     }
 }

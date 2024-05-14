@@ -1,9 +1,10 @@
+use futures::future::join_all;
 use octocrab::models::{
     activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
 };
 use tracing::{instrument, warn};
 
-use crate::commands::{Command, ParseCommand};
+use crate::commands::Command;
 
 mod types;
 pub use types::*;
@@ -47,24 +48,18 @@ impl GithubClient {
                 && (notification.reason == "mention" || notification.reason == "state_change")
         });
 
-        let mut results = Vec::new();
-
-        for event in interested_events {
-            if event.reason != "mention" {
-                // We are only interested in mentions
-                continue;
-            }
-
+        let fetch_pr_futures = interested_events.map(|event| async move {
             let pr = self.get_pull_request_from_notification(&event).await;
-            if pr.is_err() {
-                warn!("Failed to get PR: {:?}", pr.err());
-                continue;
+            if let Err(e) = pr {
+                warn!("Failed to get PR: {:?}", e);
+                return None;
             }
             let pr = pr.unwrap();
+
             let pr_metadata = types::PrMetadata::try_from(pr);
-            if pr_metadata.is_err() {
-                warn!("Failed to convert PR: {:?}", pr_metadata.err());
-                continue;
+            if let Err(e) = pr_metadata {
+                warn!("Failed to convert PR: {:?}", e);
+                return None;
             }
             let pr_metadata = pr_metadata.unwrap();
 
@@ -76,37 +71,44 @@ impl GithubClient {
                 .send()
                 .await;
 
-            if comments.is_err() {
-                warn!("Failed to get comments: {:?}", comments.err());
-                continue;
+            if let Err(e) = comments {
+                warn!("Failed to get comments: {:?}", e);
+                return None;
             }
             let comments = comments.unwrap();
 
-            // TODO: think if we can avoid this and just load from the last page
             let comments = self.octocrab.all_pages(comments).await;
-            if comments.is_err() {
-                warn!("Failed to get all comments: {:?}", comments.err());
-                continue;
+            if let Err(e) = comments {
+                warn!("Failed to get all comments: {:?}", e);
+                return None;
             }
             let comments = comments.unwrap();
 
+            let mut results = Vec::new();
             for comment in comments.into_iter().rev() {
                 if comment.user.login == self.user_handle {
-                    // We have replied to last ask
                     break;
                 }
 
                 let event = Command::parse_command(&self.user_handle, &pr_metadata, &comment);
-                if event.is_none() {
-                    continue;
+                if let Some(event) = event {
+                    results.push(event);
                 }
-                results.push(event.unwrap());
             }
+
             if let Err(_) = self.mark_notification_as_read(event.id).await {
                 warn!("Failed to mark notification as read");
             }
-        }
 
+            Some(results)
+        });
+
+        let results = join_all(fetch_pr_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .flatten()
+            .collect();
         Ok(results)
     }
 
