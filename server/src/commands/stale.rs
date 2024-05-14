@@ -7,10 +7,9 @@ pub struct PullRequestStale {
     pub pr_metadata: PrMetadata,
 }
 
-#[async_trait::async_trait]
-impl Execute for PullRequestStale {
+impl PullRequestStale {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, pr_info: PRInfo) -> anyhow::Result<()> {
         debug!("Staling PR {}", self.pr_metadata.full_id);
         context.near.send_stale(&self.pr_metadata).await?;
 

@@ -7,11 +7,9 @@ pub struct PullRequestMerged {
     pub pr_metadata: PrMetadata,
 }
 
-#[async_trait::async_trait]
-impl Execute for PullRequestMerged {
+impl PullRequestMerged {
     #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        let info = context.check_info(&self.pr_metadata).await?;
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
         if !info.allowed_repo || !info.exist || self.pr_metadata.merged.is_none() {
             error!(
                 "PR {} is not started or not allowed. Skipping",

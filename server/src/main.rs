@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
+use futures::future::join_all;
 use near_workspaces::types::SecretKey;
 use serde::Deserialize;
 use slothrace::{
@@ -7,10 +8,7 @@ use slothrace::{
         github::{GithubClient, PrMetadata},
         near::NearClient,
     },
-    commands::{
-        merged::PullRequestMerged, stale::PullRequestStale, Command, Context, ContextStruct, Event,
-        Execute,
-    },
+    commands::{merged::PullRequestMerged, stale::PullRequestStale, Command, Context, Event},
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -29,39 +27,19 @@ async fn main() -> anyhow::Result<()> {
 
     let env = envy::from_env::<Env>()?;
 
-    let github_api = GithubClient::new(env.github_token).await?;
-    let (tx, rx) = async_channel::unbounded::<Vec<Event>>();
-    let context: Arc<ContextStruct> = Arc::new(ContextStruct {
-        github: github_api,
-        near: NearClient::new(
+    let github_api = Arc::new(GithubClient::new(env.github_token).await?);
+    let near_api = Arc::new(
+        NearClient::new(
             env.contract,
             SecretKey::from_str(&env.secret_key)?,
             env.is_mainnet,
         )
         .await?,
-    });
-
-    // Spawn worker tasks
-    for _ in 0..3 {
-        let context = context.clone();
-        let rx = rx.clone();
-        tokio::spawn(async move {
-            loop {
-                let span = tracing::span!(tracing::Level::DEBUG, "WORKER");
-                let _guard = span.enter();
-
-                match rx.recv().await {
-                    Ok(events) => {
-                        execute(context.clone(), events).await;
-                    }
-                    Err(_) => {
-                        info!("Received close signal. Exiting.");
-                        break;
-                    }
-                }
-            }
-        });
-    }
+    );
+    let context = Context {
+        github: github_api,
+        near: near_api,
+    };
 
     let minute = tokio::time::Duration::from_secs(60);
     let mut interval: tokio::time::Interval = tokio::time::interval(minute);
@@ -75,14 +53,8 @@ async fn main() -> anyhow::Result<()> {
         let current_time = std::time::SystemTime::now();
         (_, _, merge_time, finalize_time) = tokio::join!(
             interval.tick(),
-            event_task(context.clone(), tx.clone()),
-            merge_task(
-                context.clone(),
-                tx.clone(),
-                current_time,
-                merge_time,
-                merge_interval
-            ),
+            event_task(context.clone()),
+            merge_task(context.clone(), current_time, merge_time, merge_interval),
             finalize_task(
                 context.clone(),
                 current_time,
@@ -95,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn event_task(context: Arc<ContextStruct>, tx: async_channel::Sender<Vec<Event>>) {
+async fn event_task(context: Context) {
     let events = context.github.get_events().await;
     if let Err(e) = events {
         error!("Failed to get events: {}", e);
@@ -114,19 +86,17 @@ async fn event_task(context: Arc<ContextStruct>, tx: async_channel::Sender<Vec<E
         },
     );
 
-    for (key, mut events) in events_per_pr.into_iter() {
-        events.sort_by_key(|event| *event.timestamp());
-        let events = events.into_iter().map(Event::Command).collect();
+    let futures = events_per_pr.into_iter().map(|(key, events)| {
+        debug!("Received {} events for PR {}", events.len(), key);
+        let events: Vec<_> = events.into_iter().map(Event::Command).collect();
+        execute(context.clone(), events)
+    });
 
-        if let Err(e) = tx.send(events).await {
-            error!("Failed to send events from {}: {}", key, e);
-        }
-    }
+    join_all(futures).await;
 }
 
 async fn merge_task(
-    context: Arc<ContextStruct>,
-    tx: async_channel::Sender<Vec<Event>>,
+    context: Context,
     current_time: std::time::SystemTime,
     merge_time: std::time::SystemTime,
     merge_interval: std::time::Duration,
@@ -142,14 +112,13 @@ async fn merge_task(
     }
 
     let events = events.unwrap();
-    if let Err(e) = tx.send(events).await {
-        error!("Failed to send merge events: {}", e);
-    }
+    execute(context.clone(), events).await;
+
     return current_time + merge_interval;
 }
 
 async fn finalize_task(
-    context: Arc<ContextStruct>,
+    context: Context,
     current_time: std::time::SystemTime,
     finalize_time: std::time::SystemTime,
     finalize_interval: std::time::Duration,
@@ -168,11 +137,33 @@ async fn finalize_task(
 // Runs events from the same PR
 #[instrument(skip(context, events))]
 async fn execute(context: Context, events: Vec<Event>) {
+    if events.is_empty() {
+        return;
+    }
+
     debug!("Executing {} events", events.len());
-    for event in events {
+    for event in &events {
         if let Err(e) = event.execute(context.clone()).await {
             error!("Failed to execute event for {}: {e}", event.pr().full_id);
         }
+    }
+
+    debug!("Finished executing events");
+    debug!("Updating status comment");
+    let pr = events[0].pr();
+    let info = context.check_info(&pr).await;
+    if let Err(e) = info {
+        error!("Failed to get PR info for {}: {e}", pr.full_id);
+        return;
+    }
+    let info = info.unwrap();
+
+    if let Err(e) = context
+        .github
+        .edit_comment(&pr.owner, &pr.repo, info.comment_id, &info.status_message())
+        .await
+    {
+        error!("Failed to update status comment for {}: {e}", pr.full_id);
     }
 }
 

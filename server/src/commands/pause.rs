@@ -12,9 +12,9 @@ pub struct BotPaused {
     pub comment_id: u64,
 }
 
-#[async_trait::async_trait]
-impl Execute for BotPaused {
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+impl BotPaused {
+    #[instrument(skip(self, context, _check_info), fields(pr = self.pr_metadata.full_id))]
+    pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<()> {
         debug!(
             "Pausing the repository in the PR: {}",
             self.pr_metadata.full_id
@@ -71,12 +71,9 @@ pub struct BotUnpaused {
     pub comment_id: u64,
 }
 
-#[async_trait::async_trait]
-impl Execute for BotUnpaused {
-    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        let info = context.check_info(&self.pr_metadata).await?;
-
+impl BotUnpaused {
+    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
         if !self.sender.is_maintainer() {
             info!(
                 "Tried to unpause a PR from not maintainer: {}. Skipping",
@@ -97,7 +94,8 @@ impl Execute for BotUnpaused {
                 self.pr_metadata.number,
                 self.comment_id,
                 "We've unpaused this repository. Please, start us to include us in the given PR.",
-            ).await
+            ).await?;
+            Ok(())
         } else {
             context
                 .reply(
@@ -107,7 +105,8 @@ impl Execute for BotUnpaused {
                     self.comment_id,
                     "Already unpaused.",
                 )
-                .await
+                .await?;
+            Ok(())
         }
     }
 }

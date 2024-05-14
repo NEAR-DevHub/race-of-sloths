@@ -5,7 +5,7 @@ use self::api::github::User;
 use super::*;
 
 fn msg(user: &str) -> String {
-    format!("This pull request is a part of Sloth race now. Dear maintainer, please use `@{user} [1,2,3,5,8,13]` to rate it, or `@{user} pause` to stop the sloth for the repository.")
+    format!("This pull request is a part of Sloth race now.")
 }
 
 #[derive(Debug, Clone)]
@@ -32,11 +32,9 @@ impl BotIncluded {
     }
 }
 
-#[async_trait::async_trait]
-impl Execute for BotIncluded {
-    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        let info = context.check_info(&self.pr_metadata).await?;
+impl BotIncluded {
+    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
         if info.exist {
             debug!(
                 "Sloth is already included in {}. Skipping",
@@ -47,12 +45,7 @@ impl Execute for BotIncluded {
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
 
-        context
-            .near
-            .send_start(&self.pr_metadata, self.sender.is_maintainer())
-            .await?;
-
-        context
+        let comment = context
             .reply(
                 &self.pr_metadata.owner,
                 &self.pr_metadata.repo,
@@ -60,6 +53,11 @@ impl Execute for BotIncluded {
                 self.comment_id,
                 &msg(&context.github.user_handle),
             )
+            .await?;
+
+        context
+            .near
+            .send_start(&self.pr_metadata, self.sender.is_maintainer(), comment.id.0)
             .await
     }
 }

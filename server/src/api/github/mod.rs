@@ -1,4 +1,6 @@
-use octocrab::models::{activity::Notification, pulls::PullRequest, CommentId, NotificationId};
+use octocrab::models::{
+    activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
+};
 use tracing::{instrument, warn};
 
 use crate::commands::{Command, ParseCommand};
@@ -6,7 +8,7 @@ use crate::commands::{Command, ParseCommand};
 mod types;
 pub use types::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GithubClient {
     octocrab: octocrab::Octocrab,
     pub user_handle: String,
@@ -143,13 +145,18 @@ impl GithubClient {
     }
 
     #[instrument(skip(self, text))]
-    pub async fn reply(&self, owner: &str, repo: &str, id: u64, text: &str) -> anyhow::Result<()> {
-        self.octocrab
+    pub async fn reply(
+        &self,
+        owner: &str,
+        repo: &str,
+        id: u64,
+        text: &str,
+    ) -> anyhow::Result<Comment> {
+        Ok(self
+            .octocrab
             .issues(owner, repo)
             .create_comment(id, text)
-            .await?;
-
-        Ok(())
+            .await?)
     }
 
     #[instrument(skip(self))]
@@ -195,6 +202,7 @@ impl GithubClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn edit_comment(
         &self,
         owner: &str,

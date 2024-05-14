@@ -53,6 +53,7 @@ impl Contract {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn sloth_include(
         &mut self,
         organization: String,
@@ -61,6 +62,7 @@ impl Contract {
         pr_number: u64,
         started_at: Timestamp,
         override_exclude: bool,
+        comment_id: u64,
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
@@ -86,7 +88,7 @@ impl Contract {
         user_data.add_opened_pr();
         self.sloths.insert(user_data.handle.clone(), user_data);
 
-        let pr = PR::new(organization, repo, pr_number, user, started_at);
+        let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
         self.prs.insert(pr_id, pr);
     }
 
