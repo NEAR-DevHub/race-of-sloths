@@ -3,7 +3,7 @@ use std::sync::Arc;
 use octocrab::models::issues::Comment;
 use tracing::{info, instrument};
 
-use crate::api::{self, github::PrMetadata};
+use crate::api::{self, github::PrMetadata, near::PRInfo};
 
 use self::{
     exclude::BotExcluded,
@@ -22,17 +22,10 @@ pub mod score;
 pub mod stale;
 pub mod start;
 
-pub type Context = Arc<ContextStruct>;
-
-#[derive(Clone)]
-pub struct ContextStruct {
-    pub github: api::github::GithubClient,
-    pub near: api::near::NearClient,
-}
-
-#[async_trait::async_trait]
-pub trait Execute {
-    async fn execute(&self, context: Context) -> anyhow::Result<()>;
+#[derive(Clone, Debug)]
+pub struct Context {
+    pub github: Arc<api::github::GithubClient>,
+    pub near: Arc<api::near::NearClient>,
 }
 
 pub trait ParseCommand {
@@ -100,10 +93,28 @@ impl Command {
     }
 }
 
-#[async_trait::async_trait]
-impl Execute for Command {
+impl Command {
     #[instrument(skip(self, context), fields(pr = self.pr().full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<()> {
+        match self {
+            Command::Include(event) => event.execute(context, check_info).await,
+            Command::Score(event) => event.execute(context, check_info).await,
+            Command::Pause(event) => event.execute(context, check_info).await,
+            Command::Unpause(event) => event.execute(context, check_info).await,
+            Command::Excluded(event) => event.execute(context, check_info).await,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Event {
+    Command(Command),
+    Merged(PullRequestMerged),
+    Stale(PullRequestStale),
+}
+
+impl Event {
+    pub async fn execute(&self, context: Context) -> anyhow::Result<()> {
         let pr = self.pr();
         let check_info = context.check_info(pr).await?;
         if !check_info.allowed_org {
@@ -133,7 +144,7 @@ impl Execute for Command {
             return Ok(());
         }
 
-        if !check_info.allowed_repo && !matches!(&self, Command::Unpause(_)) {
+        if !check_info.allowed_repo && !matches!(&self, Event::Command(Command::Unpause(_))) {
             info!(
                 "Sloth called for a PR from paused repo: {}. Skipping",
                 pr.full_id
@@ -142,7 +153,7 @@ impl Execute for Command {
             return Ok(());
         }
 
-        if check_info.excluded && !matches!(self, Command::Include(_)) {
+        if check_info.excluded && !matches!(self, Event::Command(Command::Include(_))) {
             info!(
                 "Sloth called for a PR from excluded repo: {}. Skipping",
                 pr.full_id
@@ -152,30 +163,12 @@ impl Execute for Command {
         }
 
         match self {
-            Command::Include(event) => event.execute(context).await,
-            Command::Score(event) => event.execute(context).await,
-            Command::Pause(event) => event.execute(context).await,
-            Command::Unpause(event) => event.execute(context).await,
-            Command::Excluded(event) => event.execute(context).await,
-        }
-    }
-}
+            Event::Command(command) => command.execute(context, check_info).await,
+            Event::Merged(event) => event.execute(context, check_info).await,
+            Event::Stale(event) => event.execute(context, check_info).await,
+        }?;
 
-#[derive(Debug, Clone)]
-pub enum Event {
-    Command(Command),
-    Merged(PullRequestMerged),
-    Stale(PullRequestStale),
-}
-
-#[async_trait::async_trait]
-impl Execute for Event {
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        match self {
-            Event::Command(command) => command.execute(context).await,
-            Event::Merged(event) => event.execute(context).await,
-            Event::Stale(event) => event.execute(context).await,
-        }
+        Ok(())
     }
 }
 

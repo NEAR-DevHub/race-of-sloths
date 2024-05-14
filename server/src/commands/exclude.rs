@@ -12,10 +12,9 @@ pub struct BotExcluded {
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
-#[async_trait::async_trait]
-impl Execute for BotExcluded {
-    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
+impl BotExcluded {
+    #[instrument(skip(self, context, _check_info), fields(pr = self.pr_metadata.full_id))]
+    pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<()> {
         if !self.author.is_maintainer() {
             info!(
                 "Tried to exclude a PR from not maintainer: {}. Skipping",

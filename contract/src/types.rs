@@ -123,9 +123,10 @@ pub struct PR {
     pub repo: String,
     pub number: u64,
     pub author: String,
-    score: Vec<Score>,
+    pub score: Vec<Score>,
     pub created_at: Timestamp,
     pub merged_at: Option<Timestamp>,
+    pub comment_id: u64,
 }
 
 impl PR {
@@ -135,6 +136,7 @@ impl PR {
         number: u64,
         author: String,
         created_at: Timestamp,
+        comment_id: u64,
     ) -> Self {
         Self {
             organization,
@@ -142,6 +144,7 @@ impl PR {
             number,
             author,
             created_at,
+            comment_id,
 
             score: vec![],
             merged_at: None,

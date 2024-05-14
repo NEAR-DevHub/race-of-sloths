@@ -1,6 +1,6 @@
 use tracing::{debug, instrument};
 
-use self::api::github::User;
+use self::api::{github::User, near::PRInfo};
 
 use super::*;
 
@@ -39,11 +39,9 @@ impl BotScored {
     }
 }
 
-#[async_trait::async_trait]
-impl Execute for BotScored {
-    #[instrument(skip(self, context), fields(pr = self.pr_metadata.full_id, score = self.score))]
-    async fn execute(&self, context: Context) -> anyhow::Result<()> {
-        let info = context.check_info(&self.pr_metadata).await?;
+impl BotScored {
+    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id, score = self.score))]
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
         if !info.exist || info.executed {
             debug!(
                 "Sloth is not included before or PR is already executed in: {}. Skipping.",
@@ -112,7 +110,8 @@ impl Execute for BotScored {
                 self.comment_id,
                 "Thanks for submitting your score for the Sloth race.",
             )
-            .await
+            .await?;
+        Ok(())
     }
 }
 

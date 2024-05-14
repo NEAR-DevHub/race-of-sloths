@@ -6,7 +6,7 @@ use tracing::{debug, instrument};
 
 use super::github::PrMetadata;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NearClient {
     contract: Contract,
 }
@@ -24,7 +24,12 @@ impl NearClient {
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_start(&self, pr: &PrMetadata, is_maintainer: bool) -> anyhow::Result<()> {
+    pub async fn send_start(
+        &self,
+        pr: &PrMetadata,
+        is_maintainer: bool,
+        comment_id: u64,
+    ) -> anyhow::Result<()> {
         let args = json!({
             "organization": pr.owner,
             "repo": pr.repo,
@@ -32,6 +37,7 @@ impl NearClient {
             "user": pr.author.login,
             "started_at": pr.started.timestamp_nanos_opt().unwrap_or(0),
             "override_exclude": is_maintainer,
+            "comment_id": comment_id,
         });
 
         self.contract
@@ -39,7 +45,9 @@ impl NearClient {
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -56,7 +64,9 @@ impl NearClient {
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -71,13 +81,14 @@ impl NearClient {
             "merged_at": pr.merged.unwrap().timestamp_nanos_opt().unwrap_or(0),
         });
 
-        let tx = self
-            .contract
+        self.contract
             .call("sloth_merged")
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -90,7 +101,9 @@ impl NearClient {
                 "repo": repo,}))
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -103,7 +116,9 @@ impl NearClient {
                 "repo": repo,}))
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -172,7 +187,9 @@ impl NearClient {
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -189,7 +206,9 @@ impl NearClient {
             .call("sloth_finalize")
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 
@@ -204,13 +223,23 @@ impl NearClient {
             .args_json(args)
             .transact_async()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?
+            .await?
+            .into_result()?;
         Ok(())
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Score {
+    pub user: String,
+    pub score: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PRInfo {
+    pub comment_id: u64,
+    pub votes: Vec<Score>,
     pub allowed_org: bool,
     pub allowed_repo: bool,
     pub exist: bool,

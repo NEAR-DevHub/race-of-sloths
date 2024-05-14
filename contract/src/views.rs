@@ -4,11 +4,15 @@ use near_sdk::{
     NearSchema,
 };
 
+use self::types::Score;
+
 use super::*;
 
 #[derive(Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
+    comment_id: u64,
+    votes: Vec<Score>,
     allowed_org: bool,
     allowed_repo: bool,
     exist: bool,
@@ -52,6 +56,8 @@ impl Contract {
             scored: executed_pr.is_some() || pr.map(|pr| pr.score().is_some()).unwrap_or_default(),
             executed: executed_pr.is_some(),
             excluded: self.excluded_prs.contains(&pr_id),
+            votes: pr.map(|pr| pr.score.clone()).unwrap_or_default(),
+            comment_id: pr.map(|pr| pr.comment_id).unwrap_or_default(),
         }
     }
 

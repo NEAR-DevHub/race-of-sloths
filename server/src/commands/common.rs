@@ -2,26 +2,26 @@ use self::api::near::PRInfo;
 
 use super::*;
 
-impl ContextStruct {
-    pub(super) async fn check_info(&self, pr_metadata: &PrMetadata) -> anyhow::Result<PRInfo> {
+impl Context {
+    pub async fn check_info(&self, pr_metadata: &PrMetadata) -> anyhow::Result<PRInfo> {
         self.near
             .check_info(&pr_metadata.owner, &pr_metadata.repo, pr_metadata.number)
             .await
     }
 
-    pub(super) async fn reply(
+    pub async fn reply(
         &self,
         owner: &str,
         repo: &str,
         number: u64,
         comment_id: u64,
         text: &str,
-    ) -> anyhow::Result<()> {
-        self.github.reply(owner, repo, number, text).await?;
-        self.github.like_comment(owner, repo, comment_id).await
+    ) -> anyhow::Result<Comment> {
+        self.github.like_comment(owner, repo, comment_id).await?;
+        self.github.reply(owner, repo, number, text).await
     }
 
-    pub(super) async fn reply_with_error(
+    pub async fn reply_with_error(
         &self,
         owner: &str,
         repo: &str,
@@ -35,6 +35,7 @@ impl ContextStruct {
                 number,
                 &format!("Hey, I'm sorry, but I can't process that: {}", error),
             )
-            .await
+            .await?;
+        Ok(())
     }
 }
