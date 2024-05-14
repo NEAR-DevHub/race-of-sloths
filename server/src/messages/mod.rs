@@ -2,15 +2,15 @@ use crate::api::near::PRInfo;
 
 impl PRInfo {
     pub fn status_message(&self) -> String {
-        let mut message = String::from("### 🏆 Slothrace Status Update 🏆\n\n");
+        let mut message = String::from("### 🏆 Race of Sloths Status Update 🏆\n\n");
 
         if self.excluded {
-            message.push_str("Hey there! 🚫 Your PR has been excluded from the Slothrace. If you think this is a mistake, please reach out to the maintainers. 🙏\n\n");
+            message.push_str("Hey there! 🚫 Your PR has been excluded from the Race of Sloths. If you think this is a mistake, please reach out to the maintainers. 🙏\n\n");
             return message;
         }
 
         message.push_str(
-            "Hey there! 🎉 Your PR is now part of the Slothrace. Thanks for contributing! 🙌\n\n",
+            "Hey there! 🎉 Your PR is now part of the Race of Sloths. Thanks for contributing! 🙌\n\n",
         );
 
         message.push_str("**Current Status:**\n\n");

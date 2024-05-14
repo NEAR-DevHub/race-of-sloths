@@ -60,32 +60,16 @@ impl BotIncluded {
             .send_start(&self.pr_metadata, self.sender.is_maintainer(), comment.id.0)
             .await
     }
-}
 
-impl ParseCommand for BotIncluded {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        let body = comment
-            .body
-            .as_ref()
-            .or(comment.body_html.as_ref())
-            .or(comment.body_text.as_ref())?;
-
-        if body.contains(format!("@{} include", bot_name).as_str()) {
-            Some(Command::Include(BotIncluded::new(
-                User::new(
-                    comment.user.login.clone(),
-                    comment.author_association.clone(),
-                ),
-                pr_metadata.clone(),
-                comment.created_at,
-                comment.id.0,
-            )))
-        } else {
-            None
-        }
+    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
+        Command::Include(BotIncluded::new(
+            User::new(
+                comment.user.login.clone(),
+                comment.author_association.clone(),
+            ),
+            pr_metadata.clone(),
+            comment.created_at,
+            comment.id.0,
+        ))
     }
 }

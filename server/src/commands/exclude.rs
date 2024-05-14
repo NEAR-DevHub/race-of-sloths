@@ -35,35 +35,19 @@ impl BotExcluded {
         ).await?;
         Ok(())
     }
-}
 
-impl ParseCommand for BotExcluded {
-    fn parse_command(
-        bot_name: &str,
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-    ) -> Option<Command> {
-        let body = comment
-            .body
-            .as_ref()
-            .or(comment.body_html.as_ref())
-            .or(comment.body_text.as_ref())?;
-
-        if !body.contains(&format!("@{} reject", bot_name)) {
-            return None;
-        }
-
+    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
         let author = User::new(
             comment.user.login.clone(),
             comment.author_association.clone(),
         );
         let timestamp = comment.created_at;
 
-        Some(Command::Excluded(BotExcluded {
+        Command::Excluded(BotExcluded {
             pr_metadata: pr_metadata.clone(),
             author,
             comment_id: comment.id.0,
             timestamp,
-        }))
+        })
     }
 }
