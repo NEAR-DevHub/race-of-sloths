@@ -25,7 +25,7 @@ impl Context {
                 &pr_metadata.owner,
                 &pr_metadata.repo,
                 pr_metadata.number,
-                text,
+                &format!("#### {text}"),
             )
             .await
     }
@@ -40,7 +40,7 @@ impl Context {
                 &pr_metadata.owner,
                 &pr_metadata.repo,
                 pr_metadata.number,
-                &format!("Hey, I'm sorry, but I can't process that: {}", error),
+                &format!("#### {error}"),
             )
             .await?;
         Ok(())
@@ -61,6 +61,10 @@ pub fn extract_command_with_args(bot_name: &str, comment: &Comment) -> Option<(S
     let commands = body[position + bot_name.len()..]
         .split_whitespace()
         .collect::<Vec<&str>>();
+
+    if commands.is_empty() {
+        return Some((String::new(), String::new()));
+    }
 
     let command = commands[0].to_string();
     let args = commands[1..].join(" ");
