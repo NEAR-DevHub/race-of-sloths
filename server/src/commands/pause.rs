@@ -1,5 +1,7 @@
 use tracing::{debug, info, instrument};
 
+use crate::consts::{MAINTAINER_ONLY, PAUSE_ALREADY_UNPAUSED, PAUSE_MESSAGE, UNPAUSE_MESSAGE};
+
 use self::api::github::User;
 
 use super::*;
@@ -21,7 +23,7 @@ impl BotPaused {
                 self.pr_metadata.full_id
             );
             return context
-                .reply_with_error(&self.pr_metadata, "Only maintainers can pause the bot.")
+                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
                 .await;
         }
 
@@ -33,11 +35,9 @@ impl BotPaused {
             .near
             .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
             .await?;
-        context.reply(
-                &self.pr_metadata,
-                self.comment_id,
-                "We've paused this repository. From now on, we won't participate in this repository PRs but already scored PRs will be accepted after the merge",
-            ).await?;
+        context
+            .reply(&self.pr_metadata, self.comment_id, PAUSE_MESSAGE)
+            .await?;
         Ok(())
     }
 
@@ -79,15 +79,13 @@ impl BotUnpaused {
                 .send_unpause(&self.pr_metadata.owner, &self.pr_metadata.repo)
                 .await?;
             debug!("Unpaused PR {}", self.pr_metadata.full_id);
-            context.reply(
-                &self.pr_metadata,
-                self.comment_id,
-                "We've unpaused this repository. Please, start us to include us in the given PR.",
-            ).await?;
+            context
+                .reply(&self.pr_metadata, self.comment_id, UNPAUSE_MESSAGE)
+                .await?;
             Ok(())
         } else {
             context
-                .reply(&self.pr_metadata, self.comment_id, "Already unpaused.")
+                .reply(&self.pr_metadata, self.comment_id, PAUSE_ALREADY_UNPAUSED)
                 .await?;
             Ok(())
         }

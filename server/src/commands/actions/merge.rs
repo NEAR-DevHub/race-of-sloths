@@ -3,6 +3,7 @@ use tracing::instrument;
 use crate::{
     api::{github::PrMetadata, near::PRInfo},
     commands::Context,
+    consts::MERGE_MESSAGE,
 };
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,7 @@ impl PullRequestMerge {
                     &self.pr_metadata.owner,
                     &self.pr_metadata.repo,
                     self.pr_metadata.number,
-                    "The PR has been merged, but it was not scored. The score process will be closed after 24 hours automatically.",
+                    MERGE_MESSAGE,
                 )
                 .await?;
         }
