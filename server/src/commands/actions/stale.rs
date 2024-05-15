@@ -22,7 +22,7 @@ impl PullRequestStale {
 
         if check_info.allowed_repo {
             context.github.reply(&self.pr_metadata.owner, &self.pr_metadata.repo, self.pr_metadata.number, 
-                "The PR has been inactive for two weeks. We are staling it now. If you want to continue, please restart the bot with `include` command"
+                "The PR has been inactive for two weeks. Marking it as stale. To continue, please restart the bot with the `include` command."
             ).await?;
         }
         Ok(())
