@@ -1,4 +1,5 @@
 use octocrab::models::AuthorAssociation;
+use shared_types::PR;
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -42,6 +43,27 @@ pub struct PrMetadata {
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub full_id: String,
+}
+
+impl From<PR> for PrMetadata {
+    fn from(pr: PR) -> Self {
+        let full_id = format!("{}/{}/{}", pr.organization, pr.repo, pr.number);
+        Self {
+            owner: pr.organization,
+            repo: pr.repo,
+            number: pr.number,
+            author: User::new(pr.author, AuthorAssociation::None),
+            title: Default::default(),
+            started: chrono::DateTime::from_timestamp_nanos(pr.created_at as i64),
+            merged: pr
+                .merged_at
+                .map(|e| chrono::DateTime::from_timestamp_nanos(e as i64)),
+            updated_at: chrono::DateTime::from_timestamp_nanos(
+                pr.merged_at.unwrap_or(pr.created_at) as i64,
+            ),
+            full_id,
+        }
+    }
 }
 
 impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {

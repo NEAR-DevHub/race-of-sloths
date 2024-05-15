@@ -204,7 +204,7 @@ impl GithubClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, text))]
     pub async fn edit_comment(
         &self,
         owner: &str,

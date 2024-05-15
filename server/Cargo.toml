@@ -20,3 +20,4 @@ async-trait.workspace = true
 near-workspaces.workspace = true
 serde_json.workspace = true
 futures.workspace = true
+shared-types.workspace = true

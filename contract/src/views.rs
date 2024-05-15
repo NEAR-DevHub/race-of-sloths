@@ -1,42 +1,7 @@
-use near_sdk::{
-    near_bindgen,
-    serde::{Deserialize, Serialize},
-    NearSchema,
-};
-
-use self::types::Score;
+use near_sdk::near_bindgen;
+use shared_types::{PRInfo, UserWithMonthScore};
 
 use super::*;
-
-#[derive(Serialize, Deserialize, NearSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct PRInfo {
-    comment_id: u64,
-    votes: Vec<Score>,
-    allowed_org: bool,
-    allowed_repo: bool,
-    exist: bool,
-    merged: bool,
-    scored: bool,
-    executed: bool,
-    excluded: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, NearSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct UserWithMonthScore {
-    user: UserData,
-    score: u32,
-    month: MonthYearString,
-}
-
-#[derive(Serialize, Deserialize, NearSchema)]
-#[serde(crate = "near_sdk::serde")]
-pub struct PRData {
-    pub organization: String,
-    pub repo: String,
-    pub number: u64,
-}
 
 #[near_bindgen]
 impl Contract {
@@ -61,18 +26,24 @@ impl Contract {
         }
     }
 
-    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PRData> {
+    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PR> {
         self.prs
             .values()
             .filter(|pr| pr.merged_at.is_none())
             .skip((page * limit) as usize)
             .take(limit as usize)
             .cloned()
-            .map(|pr| PRData {
-                organization: pr.organization,
-                repo: pr.repo,
-                number: pr.number,
-            })
+            .collect()
+    }
+
+    pub fn unfinalized_prs(&self, page: u64, limit: u64) -> Vec<PR> {
+        let timestamp = env::block_timestamp();
+        self.prs
+            .values()
+            .filter(|pr| pr.is_ready_to_move(timestamp))
+            .skip((page * limit) as usize)
+            .take(limit as usize)
+            .cloned()
             .collect()
     }
 
@@ -99,10 +70,5 @@ impl Contract {
                 month: month.clone(),
             })
             .collect()
-    }
-
-    pub fn should_finalize(&self) -> bool {
-        let time: u64 = env::block_timestamp();
-        self.prs.iter().any(|(_, pr)| pr.is_ready_to_move(time))
     }
 }

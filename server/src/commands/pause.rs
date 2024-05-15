@@ -15,6 +15,16 @@ pub struct BotPaused {
 impl BotPaused {
     #[instrument(skip(self, context, _check_info), fields(pr = self.pr_metadata.full_id))]
     pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<()> {
+        if !self.sender.is_maintainer() {
+            info!(
+                "Tried to pause a PR from not maintainer: {}. Skipping",
+                self.pr_metadata.full_id
+            );
+            return context
+                .reply_with_error(&self.pr_metadata, "Only maintainers can pause the bot.")
+                .await;
+        }
+
         debug!(
             "Pausing the repository in the PR: {}",
             self.pr_metadata.full_id
@@ -24,9 +34,7 @@ impl BotPaused {
             .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
             .await?;
         context.reply(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.pr_metadata.number,
+                &self.pr_metadata,
                 self.comment_id,
                 "We've paused this repository. From now on, we won't participate in this repository PRs but already scored PRs will be accepted after the merge",
             ).await?;
@@ -72,22 +80,14 @@ impl BotUnpaused {
                 .await?;
             debug!("Unpaused PR {}", self.pr_metadata.full_id);
             context.reply(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.pr_metadata.number,
+                &self.pr_metadata,
                 self.comment_id,
                 "We've unpaused this repository. Please, start us to include us in the given PR.",
             ).await?;
             Ok(())
         } else {
             context
-                .reply(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
-                    self.comment_id,
-                    "Already unpaused.",
-                )
+                .reply(&self.pr_metadata, self.comment_id, "Already unpaused.")
                 .await?;
             Ok(())
         }

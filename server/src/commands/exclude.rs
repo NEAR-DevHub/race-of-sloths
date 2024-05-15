@@ -27,9 +27,7 @@ impl BotExcluded {
 
         context.near.send_exclude(&self.pr_metadata).await?;
         context.reply(
-            &self.pr_metadata.owner,
-            &self.pr_metadata.repo,
-            self.pr_metadata.number,
+            &self.pr_metadata,
             self.comment_id,
             "The PR has been excluded. If you want to include it again, please restart the bot with `include` command",
         ).await?;

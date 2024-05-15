@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 near-sdk.workspace = true
 chrono = { workspace = true, default-features = false }
+shared-types.workspace = true
 
 [dev-dependencies]
 near-sdk = { version = "5.0.0", features = ["unit-testing"] }
