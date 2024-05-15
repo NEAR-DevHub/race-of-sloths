@@ -1,10 +1,11 @@
 use anyhow::bail;
 use near_workspaces::{types::SecretKey, Contract};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{debug, instrument};
+use tracing::instrument;
 
 use super::github::PrMetadata;
+
+pub use shared_types::*;
 
 #[derive(Clone, Debug)]
 pub struct NearClient {
@@ -144,7 +145,7 @@ impl NearClient {
         Ok(res)
     }
 
-    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRData>> {
+    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
         let args = json!({
             "page": page,
             "limit": limit,
@@ -161,12 +162,46 @@ impl NearClient {
         Ok(res)
     }
 
-    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PRData>> {
+    #[instrument(skip(self))]
+    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PR>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];
         loop {
             let prs = self.unmerged_prs(page, LIMIT).await?;
+            if prs.is_empty() {
+                break;
+            }
+            res.extend(prs);
+            page += 1;
+        }
+        Ok(res)
+    }
+
+    pub async fn unfinalized_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
+        let args = json!({
+            "page": page,
+            "limit": limit,
+        });
+
+        let res = self
+            .contract
+            .view("unfinalized_prs")
+            .args_json(args)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call unfinalized_prs: {:?}", e))?;
+        let res = res.json()?;
+
+        Ok(res)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn unfinalized_prs_all(&self) -> anyhow::Result<Vec<PR>> {
+        let mut page = 0;
+        const LIMIT: u64 = 100;
+        let mut res = vec![];
+        loop {
+            let prs = self.unfinalized_prs(page, LIMIT).await?;
             if prs.is_empty() {
                 break;
             }
@@ -193,25 +228,6 @@ impl NearClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn finalize_prs(&self) -> anyhow::Result<()> {
-        let result: bool = self.contract.view("should_finalize").await?.json()?;
-
-        if !result {
-            debug!("No PRs to finalize");
-            // Nothing to finalize
-            return Ok(());
-        }
-        self.contract
-            .call("sloth_finalize")
-            .transact_async()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(())
-    }
-
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
     pub async fn send_exclude(&self, pr: &PrMetadata) -> anyhow::Result<()> {
         let args = json!({
@@ -228,30 +244,19 @@ impl NearClient {
             .into_result()?;
         Ok(())
     }
-}
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Score {
-    pub user: String,
-    pub score: u32,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct PRInfo {
-    pub comment_id: u64,
-    pub votes: Vec<Score>,
-    pub allowed_org: bool,
-    pub allowed_repo: bool,
-    pub exist: bool,
-    pub merged: bool,
-    pub scored: bool,
-    pub executed: bool,
-    pub excluded: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PRData {
-    pub organization: String,
-    pub repo: String,
-    pub number: u64,
+    #[instrument(skip(self))]
+    pub async fn send_finalize(&self, pr_id: &str) -> anyhow::Result<()> {
+        self.contract
+            .call("sloth_finalize")
+            .args_json(json!({
+                "pr_id": pr_id,
+            }))
+            .transact_async()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
+            .await?
+            .into_result()?;
+        Ok(())
+    }
 }

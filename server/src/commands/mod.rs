@@ -3,24 +3,26 @@ use std::sync::Arc;
 use octocrab::models::issues::Comment;
 use tracing::{info, instrument};
 
-use crate::api::{self, github::PrMetadata, near::PRInfo};
+use crate::{
+    api::{self, github::PrMetadata, near::PRInfo},
+    commands::unknown::UnknownCommand,
+};
 
 use self::{
+    actions::{PullRequestFinalize, PullRequestMerge, PullRequestStale},
     exclude::BotExcluded,
-    merged::PullRequestMerged,
     pause::{BotPaused, BotUnpaused},
     score::BotScored,
-    stale::PullRequestStale,
     start::BotIncluded,
 };
 
+pub mod actions;
 pub(crate) mod common;
 pub mod exclude;
-pub mod merged;
 pub mod pause;
 pub mod score;
-pub mod stale;
 pub mod start;
+pub mod unknown;
 
 #[derive(Clone, Debug)]
 pub struct Context {
@@ -35,6 +37,7 @@ pub enum Command {
     Pause(BotPaused),
     Unpause(BotUnpaused),
     Excluded(BotExcluded),
+    Unknown(UnknownCommand),
 }
 
 impl Command {
@@ -43,20 +46,21 @@ impl Command {
         pr_metadata: &PrMetadata,
         comment: &Comment,
     ) -> Option<Command> {
-        let (command, arg) = common::extract_command_with_args(bot_name, comment)?;
+        let (command, args) = common::extract_command_with_args(bot_name, comment)?;
 
         Some(match command.as_str() {
-            "score" => BotScored::construct(pr_metadata, comment, arg),
-            "pause" => BotPaused::construct(pr_metadata, comment),
-            "unpause" => BotUnpaused::construct(pr_metadata, comment),
-            "exclude" => BotExcluded::construct(pr_metadata, comment),
+            "score" | "rate" | "value" => BotScored::construct(pr_metadata, comment, args),
+            "pause" | "block" => BotPaused::construct(pr_metadata, comment),
+            "unpause" | "unblock" => BotUnpaused::construct(pr_metadata, comment),
+            "exclude" | "leave" => BotExcluded::construct(pr_metadata, comment),
             "include" | "in" | "start" | "join" => BotIncluded::construct(pr_metadata, comment),
+
             _ => {
                 info!(
                     "Unknown command: {} for PR: {}",
                     command, pr_metadata.full_id
                 );
-                return None;
+                UnknownCommand::construct(pr_metadata, comment, command, args)
             }
         })
     }
@@ -68,6 +72,7 @@ impl Command {
             Command::Pause(event) => &event.pr_metadata,
             Command::Unpause(event) => &event.pr_metadata,
             Command::Excluded(event) => &event.pr_metadata,
+            Command::Unknown(event) => &event.pr_metadata,
         }
     }
 
@@ -78,12 +83,13 @@ impl Command {
             Command::Pause(event) => &event.timestamp,
             Command::Unpause(event) => &event.timestamp,
             Command::Excluded(event) => &event.timestamp,
+            Command::Unknown(event) => &event.timestamp,
         }
     }
 }
 
 impl Command {
-    #[instrument(skip(self, context), fields(pr = self.pr().full_id))]
+    #[instrument(skip(self, context, check_info), fields(pr = self.pr().full_id))]
     pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<()> {
         match self {
             Command::Include(event) => event.execute(context, check_info).await,
@@ -91,6 +97,7 @@ impl Command {
             Command::Pause(event) => event.execute(context, check_info).await,
             Command::Unpause(event) => event.execute(context, check_info).await,
             Command::Excluded(event) => event.execute(context, check_info).await,
+            Command::Unknown(event) => event.execute(context, check_info).await,
         }
     }
 }
@@ -98,8 +105,9 @@ impl Command {
 #[derive(Debug, Clone)]
 pub enum Event {
     Command(Command),
-    Merged(PullRequestMerged),
+    Merged(PullRequestMerge),
     Stale(PullRequestStale),
+    Finalize(PullRequestFinalize),
 }
 
 impl Event {
@@ -155,6 +163,7 @@ impl Event {
             Event::Command(command) => command.execute(context, check_info).await,
             Event::Merged(event) => event.execute(context, check_info).await,
             Event::Stale(event) => event.execute(context, check_info).await,
+            Event::Finalize(event) => event.execute(context, check_info).await,
         }?;
 
         Ok(())
@@ -167,6 +176,7 @@ impl Event {
             Event::Command(command) => command.pr(),
             Event::Merged(event) => &event.pr_metadata,
             Event::Stale(event) => &event.pr_metadata,
+            Event::Finalize(event) => &event.pr_metadata,
         }
     }
 }

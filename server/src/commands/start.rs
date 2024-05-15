@@ -43,13 +43,21 @@ impl BotIncluded {
             return Ok(());
         }
 
+        if self.pr_metadata.merged.is_some() {
+            debug!(
+                "PR {} is already merged. Skipping",
+                self.pr_metadata.full_id,
+            );
+            return context
+                .reply_with_error(&self.pr_metadata, "The PR is already merged.")
+                .await;
+        }
+
         debug!("Starting PR {}", self.pr_metadata.full_id);
 
         let comment = context
             .reply(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.pr_metadata.number,
+                &self.pr_metadata,
                 self.comment_id,
                 &msg(&context.github.user_handle),
             )

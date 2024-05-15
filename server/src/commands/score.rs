@@ -58,9 +58,7 @@ impl BotScored {
             );
             return context
                 .reply_with_error(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
+                    &self.pr_metadata,
                     "Score should be a fibonacci number: 1, 2, 3, 5, 8, or 13.",
                 )
                 .await;
@@ -73,12 +71,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
-                    "You can't score your own PR.",
-                )
+                .reply_with_error(&self.pr_metadata, "You can't score your own PR.")
                 .await;
         }
 
@@ -88,12 +81,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
-                    "Only maintainers can score PRs.",
-                )
+                .reply_with_error(&self.pr_metadata, "Only maintainers can score PRs.")
                 .await;
         }
 
@@ -104,9 +92,7 @@ impl BotScored {
 
         context
             .reply(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.pr_metadata.number,
+                &self.pr_metadata,
                 self.comment_id,
                 "Thanks for submitting your score for the Sloth race.",
             )

@@ -6,7 +6,8 @@ use near_sdk::{
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
-use types::{timestamp_to_month_string, MonthYearString, Organization, UserData, PR};
+use shared_types::{MonthYearString, UserData, PR};
+use types::{timestamp_to_month_string, Organization};
 
 pub mod migration;
 pub mod storage;
@@ -176,34 +177,36 @@ impl Contract {
         self.prs.remove(&pr_id);
     }
 
-    pub fn sloth_finalize(&mut self) {
+    pub fn sloth_finalize(&mut self, pr_id: String) {
         self.assert_sloth();
 
-        let current_block_timestamp = env::block_timestamp();
-        let prs: Vec<_> = self
-            .prs
-            .values()
-            .filter(|pr| pr.is_ready_to_move(current_block_timestamp))
-            .cloned()
-            .collect();
-        for pr in prs {
-            // Reward with zero score if PR wasn't scored to track the number of merged PRs
-            let score = pr.score().unwrap_or_default();
-            let mut user = self.get_user(pr.author.clone());
-            let user_name = user.handle.clone();
+        let pr = self.prs.get(&pr_id).cloned();
+        let pr = if let Some(pr) = pr {
+            pr
+        } else {
+            env::panic_str("PR is not started or already executed")
+        };
 
-            user.add_score(score);
-            self.sloths.insert(user.handle.clone(), user);
-
-            *self
-                .sloths_per_month
-                .entry((user_name, timestamp_to_month_string(pr.merged_at.unwrap())))
-                .or_default() += score;
-
-            let full_id = pr.full_id();
-            self.prs.remove(&full_id);
-            self.executed_prs.insert(full_id, pr);
+        if !pr.is_ready_to_move(env::block_timestamp()) {
+            env::panic_str("PR is not ready to be finalized")
         }
+
+        // Reward with zero score if PR wasn't scored to track the number of merged PRs
+        let score = pr.score().unwrap_or_default();
+        let mut user = self.get_user(pr.author.clone());
+        let user_name = user.handle.clone();
+
+        user.add_score(score);
+        self.sloths.insert(user.handle.clone(), user);
+
+        *self
+            .sloths_per_month
+            .entry((user_name, timestamp_to_month_string(pr.merged_at.unwrap())))
+            .or_default() += score;
+
+        let full_id = pr.full_id();
+        self.prs.remove(&full_id);
+        self.executed_prs.insert(full_id, pr);
     }
 }
 

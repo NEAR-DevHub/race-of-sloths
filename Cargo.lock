@@ -3616,6 +3616,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared-types"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+]
+
+[[package]]
 name = "signal-hook-registry"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3673,6 +3680,7 @@ dependencies = [
  "octocrab",
  "serde",
  "serde_json",
+ "shared-types",
  "tokio",
  "tracing",
 ]
@@ -3683,6 +3691,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "near-sdk",
+ "shared-types",
  "tokio",
 ]
 
