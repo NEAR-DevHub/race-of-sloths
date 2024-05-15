@@ -1,5 +1,7 @@
 use tracing::{debug, instrument};
 
+use crate::consts::{MAINTAINER_ONLY, SCORE_INVALID_SCORE, SCORE_MESSAGE, SCORE_SELF_SCORE};
+
 use self::api::{github::User, near::PRInfo};
 
 use super::*;
@@ -57,10 +59,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(
-                    &self.pr_metadata,
-                    "Score should be a fibonacci number: 1, 2, 3, 5, 8, or 13.",
-                )
+                .reply_with_error(&self.pr_metadata, SCORE_INVALID_SCORE)
                 .await;
         }
         let score = score.unwrap();
@@ -71,7 +70,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, "You can't score your own PR.")
+                .reply_with_error(&self.pr_metadata, SCORE_SELF_SCORE)
                 .await;
         }
 
@@ -81,7 +80,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, "Only maintainers can score PRs.")
+                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
                 .await;
         }
 
@@ -91,11 +90,7 @@ impl BotScored {
             .await?;
 
         context
-            .reply(
-                &self.pr_metadata,
-                self.comment_id,
-                "Thanks for submitting your score for the Sloth race.",
-            )
+            .reply(&self.pr_metadata, self.comment_id, SCORE_MESSAGE)
             .await?;
         Ok(())
     }

@@ -6,6 +6,7 @@ use crate::{
         near::{PRInfo, PR},
     },
     commands::Context,
+    consts,
 };
 
 #[derive(Debug, Clone)]
@@ -36,14 +37,14 @@ impl PullRequestFinalize {
             .await?;
 
         context
-                .github
-                .reply(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
-                    "The PR has been finalized. Thank you for your contribution! The scoring process is closed now."
-                )
-                .await?;
+            .github
+            .reply(
+                &self.pr_metadata.owner,
+                &self.pr_metadata.repo,
+                self.pr_metadata.number,
+                consts::FINALIZE_MESSAGE,
+            )
+            .await?;
         Ok(())
     }
 }

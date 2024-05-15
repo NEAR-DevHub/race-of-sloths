@@ -1,5 +1,7 @@
 use tracing::{debug, instrument};
 
+use crate::consts::{EXCLUDE_MESSAGE, MAINTAINER_ONLY};
+
 use self::api::github::User;
 
 use super::*;
@@ -20,17 +22,17 @@ impl BotExcluded {
                 "Tried to exclude a PR from not maintainer: {}. Skipping",
                 self.pr_metadata.full_id
             );
-            return Ok(());
+            return context
+                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
+                .await;
         }
 
         debug!("Excluding PR {}", self.pr_metadata.full_id);
 
         context.near.send_exclude(&self.pr_metadata).await?;
-        context.reply(
-            &self.pr_metadata,
-            self.comment_id,
-            "The PR has been excluded. If you want to include it again, please restart the bot with `include` command",
-        ).await?;
+        context
+            .reply(&self.pr_metadata, self.comment_id, EXCLUDE_MESSAGE)
+            .await?;
         Ok(())
     }
 
