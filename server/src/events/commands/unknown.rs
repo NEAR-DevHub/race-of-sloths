@@ -44,7 +44,7 @@ impl UnknownCommand {
                 self.user.clone(),
                 pr.clone(),
                 self.timestamp.clone(),
-                self.comment_id,
+                Some(self.comment_id),
             );
             return event.execute(context, check_info).await;
         }

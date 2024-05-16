@@ -38,11 +38,11 @@ pub struct PrMetadata {
     pub repo: String,
     pub number: u64,
     pub author: User,
-    pub title: String,
     pub started: chrono::DateTime<chrono::Utc>,
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub full_id: String,
+    pub body: String,
 }
 
 impl From<PR> for PrMetadata {
@@ -53,7 +53,7 @@ impl From<PR> for PrMetadata {
             repo: pr.repo,
             number: pr.number,
             author: User::new(pr.author, AuthorAssociation::None),
-            title: Default::default(),
+            body: Default::default(),
             started: chrono::DateTime::from_timestamp_nanos(pr.created_at as i64),
             merged: pr
                 .merged_at
@@ -71,18 +71,21 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
 
     fn try_from(pr: octocrab::models::pulls::PullRequest) -> anyhow::Result<Self> {
         let repo = pr.base.repo.map(|repo| (repo.owner, repo.name));
+        let body: String = pr
+            .body
+            .or(pr.body_text)
+            .or(pr.body_html)
+            .unwrap_or_default();
 
         if let (
             Some((Some(owner), repo)),
             Some(user),
-            Some(title),
             Some(author_association),
             Some(created_at),
             Some(updated_at),
         ) = (
             repo,
             pr.user,
-            pr.title,
             pr.author_association,
             pr.created_at,
             pr.updated_at,
@@ -91,9 +94,9 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
             Ok(Self {
                 owner: owner.login,
                 repo,
+                body,
                 number: pr.number,
                 author: User::new(user.login, author_association),
-                title,
                 started: created_at,
                 merged: pr.merged_at,
                 updated_at,

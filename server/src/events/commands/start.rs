@@ -11,7 +11,7 @@ pub struct BotIncluded {
     pub sender: User,
     pub pr_metadata: PrMetadata,
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
 }
 
 impl BotIncluded {
@@ -19,7 +19,7 @@ impl BotIncluded {
         sender: User,
         pr_metadata: PrMetadata,
         timestamp: chrono::DateTime<chrono::Utc>,
-        comment_id: u64,
+        comment_id: Option<u64>,
     ) -> Self {
         Self {
             sender,
@@ -69,7 +69,7 @@ impl BotIncluded {
         let comment = context
             .reply(
                 &self.pr_metadata,
-                Some(self.comment_id),
+                self.comment_id,
                 &vec![status.status_message().as_str()],
             )
             .await?;
@@ -90,7 +90,22 @@ impl BotIncluded {
             ),
             pr_metadata.clone(),
             comment.created_at,
-            comment.id.0,
+            Some(comment.id.0),
         ))
+    }
+
+    pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {
+        let body = pr_metadata.body.as_str();
+        let bot_name = format!("@{}", bot_name);
+        if !body.contains(&bot_name) {
+            return None;
+        }
+
+        Some(Command::Include(Self {
+            sender: pr_metadata.author.clone(),
+            pr_metadata: pr_metadata.clone(),
+            timestamp: pr_metadata.started,
+            comment_id: None,
+        }))
     }
 }
