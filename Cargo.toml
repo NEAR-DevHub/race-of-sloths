@@ -27,6 +27,7 @@ near-workspaces = { version = "0.10.0", no-default-feature = true }
 serde_json = "1.0.116"
 tracing = "0.1"
 futures = "0.3.30"
+rand = "0.8.5"
 
 shared-types = { path = "shared-types" }
 

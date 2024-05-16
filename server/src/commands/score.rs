@@ -1,6 +1,8 @@
 use tracing::{debug, instrument};
 
-use crate::consts::{MAINTAINER_ONLY, SCORE_INVALID_SCORE, SCORE_MESSAGE, SCORE_SELF_SCORE};
+use crate::consts::{
+    MAINTAINER_ONLY_MESSAGES, SCORE_INVALID_SCORES, SCORE_MESSAGES, SCORE_SELF_SCORES,
+};
 
 use self::api::{github::User, near::PRInfo};
 
@@ -59,7 +61,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, SCORE_INVALID_SCORE)
+                .reply_with_error(&self.pr_metadata, &SCORE_INVALID_SCORES)
                 .await;
         }
         let score = score.unwrap();
@@ -70,7 +72,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, SCORE_SELF_SCORE)
+                .reply_with_error(&self.pr_metadata, &SCORE_SELF_SCORES)
                 .await;
         }
 
@@ -80,7 +82,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
+                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
                 .await;
         }
 
@@ -90,7 +92,7 @@ impl BotScored {
             .await?;
 
         context
-            .reply(&self.pr_metadata, self.comment_id, SCORE_MESSAGE)
+            .reply(&self.pr_metadata, Some(self.comment_id), &SCORE_MESSAGES)
             .await?;
         Ok(())
     }

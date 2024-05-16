@@ -3,7 +3,7 @@ use tracing::instrument;
 use crate::{
     api::{github::PrMetadata, near::PRInfo},
     commands::Context,
-    consts::MERGE_MESSAGE,
+    consts::MERGE_MESSAGES,
 };
 
 #[derive(Debug, Clone)]
@@ -28,13 +28,7 @@ impl PullRequestMerge {
 
         if !info.scored {
             context
-                .github
-                .reply(
-                    &self.pr_metadata.owner,
-                    &self.pr_metadata.repo,
-                    self.pr_metadata.number,
-                    MERGE_MESSAGE,
-                )
+                .reply(&self.pr_metadata, None, &MERGE_MESSAGES)
                 .await?;
         }
         Ok(())

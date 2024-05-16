@@ -1,3 +1,4 @@
+use rand::seq::SliceRandom;
 use tracing::trace;
 
 use self::api::near::PRInfo;
@@ -14,12 +15,19 @@ impl Context {
     pub async fn reply(
         &self,
         pr_metadata: &PrMetadata,
-        comment_id: u64,
-        text: &str,
+        comment_id: Option<u64>,
+        text: &[&str],
     ) -> anyhow::Result<Comment> {
-        self.github
-            .like_comment(&pr_metadata.owner, &pr_metadata.repo, comment_id)
-            .await?;
+        let text = text.choose(&mut rand::thread_rng()).ok_or_else(|| {
+            anyhow::anyhow!("Failed to choose a random message from the list. Is it empty?")
+        })?;
+
+        if let Some(comment_id) = comment_id {
+            self.github
+                .like_comment(&pr_metadata.owner, &pr_metadata.repo, comment_id)
+                .await?;
+        }
+
         self.github
             .reply(
                 &pr_metadata.owner,
@@ -30,19 +38,14 @@ impl Context {
             .await
     }
 
+    // It does the same, but maybe later we will add some additional logic
+    // And it makes visual separation between different types of replies
     pub async fn reply_with_error(
         &self,
         pr_metadata: &PrMetadata,
-        error: &str,
+        error: &[&str],
     ) -> anyhow::Result<()> {
-        self.github
-            .reply(
-                &pr_metadata.owner,
-                &pr_metadata.repo,
-                pr_metadata.number,
-                &format!("#### {error}"),
-            )
-            .await?;
+        self.reply(pr_metadata, None, error).await?;
         Ok(())
     }
 }
