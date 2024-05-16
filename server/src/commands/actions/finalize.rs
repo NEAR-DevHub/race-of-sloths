@@ -37,13 +37,7 @@ impl PullRequestFinalize {
             .await?;
 
         context
-            .github
-            .reply(
-                &self.pr_metadata.owner,
-                &self.pr_metadata.repo,
-                self.pr_metadata.number,
-                consts::FINALIZE_MESSAGE,
-            )
+            .reply(&self.pr_metadata, None, &consts::FINALIZE_MESSAGES)
             .await?;
         Ok(())
     }

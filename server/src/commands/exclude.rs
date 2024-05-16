@@ -1,6 +1,6 @@
 use tracing::{debug, instrument};
 
-use crate::consts::{EXCLUDE_MESSAGE, MAINTAINER_ONLY};
+use crate::consts::{EXCLUDE_MESSAGES, MAINTAINER_ONLY_MESSAGES};
 
 use self::api::github::User;
 
@@ -23,7 +23,7 @@ impl BotExcluded {
                 self.pr_metadata.full_id
             );
             return context
-                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
+                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
                 .await;
         }
 
@@ -31,7 +31,7 @@ impl BotExcluded {
 
         context.near.send_exclude(&self.pr_metadata).await?;
         context
-            .reply(&self.pr_metadata, self.comment_id, EXCLUDE_MESSAGE)
+            .reply(&self.pr_metadata, Some(self.comment_id), &EXCLUDE_MESSAGES)
             .await?;
         Ok(())
     }

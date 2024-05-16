@@ -1,6 +1,6 @@
 use tracing::debug;
 
-use crate::consts::UNKNOWN_COMMAND;
+use crate::consts::UNKNOWN_COMMAND_MESSAGES;
 
 use self::api::github::User;
 
@@ -50,7 +50,7 @@ impl UnknownCommand {
         }
 
         context
-            .reply_with_error(&self.pr_metadata, UNKNOWN_COMMAND)
+            .reply_with_error(&self.pr_metadata, &UNKNOWN_COMMAND_MESSAGES)
             .await
     }
 

@@ -1,6 +1,8 @@
 use tracing::{debug, info, instrument};
 
-use crate::consts::{MAINTAINER_ONLY, PAUSE_ALREADY_UNPAUSED, PAUSE_MESSAGE, UNPAUSE_MESSAGE};
+use crate::consts::{
+    MAINTAINER_ONLY_MESSAGES, PAUSE_ALREADY_UNPAUSED_MESSAGES, PAUSE_MESSAGES, UNPAUSE_MESSAGES,
+};
 
 use self::api::github::User;
 
@@ -23,7 +25,7 @@ impl BotPaused {
                 self.pr_metadata.full_id
             );
             return context
-                .reply_with_error(&self.pr_metadata, MAINTAINER_ONLY)
+                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
                 .await;
         }
 
@@ -36,7 +38,7 @@ impl BotPaused {
             .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
             .await?;
         context
-            .reply(&self.pr_metadata, self.comment_id, PAUSE_MESSAGE)
+            .reply(&self.pr_metadata, Some(self.comment_id), &PAUSE_MESSAGES)
             .await?;
         Ok(())
     }
@@ -80,12 +82,16 @@ impl BotUnpaused {
                 .await?;
             debug!("Unpaused PR {}", self.pr_metadata.full_id);
             context
-                .reply(&self.pr_metadata, self.comment_id, UNPAUSE_MESSAGE)
+                .reply(&self.pr_metadata, Some(self.comment_id), &UNPAUSE_MESSAGES)
                 .await?;
             Ok(())
         } else {
             context
-                .reply(&self.pr_metadata, self.comment_id, PAUSE_ALREADY_UNPAUSED)
+                .reply(
+                    &self.pr_metadata,
+                    Some(self.comment_id),
+                    &PAUSE_ALREADY_UNPAUSED_MESSAGES,
+                )
                 .await?;
             Ok(())
         }

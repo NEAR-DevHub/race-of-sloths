@@ -1,12 +1,10 @@
 use tracing::{debug, instrument};
 
+use crate::consts::INCLUDE_ALREADY_MERGED_MESSAGES;
+
 use self::api::github::User;
 
 use super::*;
-
-fn msg(user: &str) -> String {
-    format!("This pull request is a part of Sloth race now.")
-}
 
 #[derive(Debug, Clone)]
 pub struct BotIncluded {
@@ -49,17 +47,29 @@ impl BotIncluded {
                 self.pr_metadata.full_id,
             );
             return context
-                .reply_with_error(&self.pr_metadata, "The PR is already merged.")
+                .reply_with_error(&self.pr_metadata, &INCLUDE_ALREADY_MERGED_MESSAGES)
                 .await;
         }
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
 
+        let status = PRInfo {
+            exist: true,
+            executed: false,
+            merged: false,
+            scored: false,
+            votes: vec![],
+            allowed_org: true,
+            allowed_repo: true,
+            excluded: false,
+            comment_id: 0,
+        };
+
         let comment = context
             .reply(
                 &self.pr_metadata,
-                self.comment_id,
-                &msg(&context.github.user_handle),
+                Some(self.comment_id),
+                &vec![status.status_message().as_str()],
             )
             .await?;
 
