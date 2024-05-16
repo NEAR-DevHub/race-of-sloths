@@ -2,7 +2,7 @@ use futures::future::join_all;
 use octocrab::models::{
     activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
 };
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 use crate::events::commands::Command;
 
@@ -43,12 +43,24 @@ impl GithubClient {
             .await?;
 
         let events = self.octocrab.all_pages(page).await?;
-        let interested_events = events.into_iter().filter(|notification| {
-            notification.subject.r#type == "PullRequest"
-                && (notification.reason == "mention" || notification.reason == "state_change")
-        });
 
-        let fetch_pr_futures = interested_events.map(|event| async move {
+        let fetch_pr_futures = events.into_iter().map(|event| async move {
+            if event.subject.r#type != "PullRequest"
+                || (event.reason != "mention" && event.reason != "state_change")
+            {
+                info!(
+                    "Skipping event: {} with reason {}",
+                    event.subject.r#type, event.reason
+                );
+                if let Err(_) = self.mark_notification_as_read(event.id).await {
+                    warn!(
+                        "Failed to mark notification as read for event: {:?}",
+                        event.id
+                    );
+                }
+                return None;
+            }
+
             let pr = self.get_pull_request_from_notification(&event).await;
             if let Err(e) = pr {
                 warn!("Failed to get PR: {:?}", e);
@@ -85,13 +97,22 @@ impl GithubClient {
             let comments = comments.unwrap();
 
             let mut results = Vec::new();
+            let mut found_us = false;
             for comment in comments.into_iter().rev() {
                 if comment.user.login == self.user_handle {
+                    found_us = true;
                     break;
                 }
 
                 let event = Command::parse_command(&self.user_handle, &pr_metadata, &comment);
                 if let Some(event) = event {
+                    results.push(event);
+                }
+            }
+
+            // We haven
+            if results.is_empty() && !found_us {
+                if let Some(event) = Command::parse_body(&self.user_handle, &pr_metadata) {
                     results.push(event);
                 }
             }

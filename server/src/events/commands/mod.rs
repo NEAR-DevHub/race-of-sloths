@@ -43,6 +43,10 @@ impl Command {
         })
     }
 
+    pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {
+        BotIncluded::parse_body(bot_name, pr_metadata)
+    }
+
     pub fn pr(&self) -> &PrMetadata {
         match self {
             Command::Include(event) => &event.pr_metadata,
