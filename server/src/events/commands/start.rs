@@ -32,13 +32,13 @@ impl BotIncluded {
 
 impl BotIncluded {
     #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
         if info.exist {
             debug!(
                 "Sloth is already included in {}. Skipping",
                 self.pr_metadata.full_id,
             );
-            return Ok(());
+            return Ok(false);
         }
 
         if self.pr_metadata.merged.is_some() {
@@ -46,9 +46,10 @@ impl BotIncluded {
                 "PR {} is already merged. Skipping",
                 self.pr_metadata.full_id,
             );
-            return context
+            context
                 .reply_with_error(&self.pr_metadata, &INCLUDE_ALREADY_MERGED_MESSAGES)
-                .await;
+                .await?;
+            return Ok(false);
         }
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
@@ -76,7 +77,9 @@ impl BotIncluded {
         context
             .near
             .send_start(&self.pr_metadata, self.sender.is_maintainer(), comment.id.0)
-            .await
+            .await?;
+        // We already put the status message in the reply, so we don't need to send it again
+        Ok(false)
     }
 
     pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {

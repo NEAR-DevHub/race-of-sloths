@@ -45,13 +45,13 @@ impl BotScored {
 
 impl BotScored {
     #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id, score = self.score))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
         if !info.exist || info.executed {
             debug!(
                 "Sloth is not included before or PR is already executed in: {}. Skipping.",
                 self.pr_metadata.full_id,
             );
-            return Ok(());
+            return Ok(false);
         }
 
         let score = self.score();
@@ -60,9 +60,10 @@ impl BotScored {
                 "Invalid score for PR {}. Skipping.",
                 self.pr_metadata.full_id,
             );
-            return context
+            context
                 .reply_with_error(&self.pr_metadata, &SCORE_INVALID_SCORES)
-                .await;
+                .await?;
+            return Ok(false);
         }
         let score = score.unwrap();
 
@@ -71,9 +72,10 @@ impl BotScored {
                 "Author tried to score their own PR {}. Skipping.",
                 self.pr_metadata.full_id,
             );
-            return context
+            context
                 .reply_with_error(&self.pr_metadata, &SCORE_SELF_SCORES)
-                .await;
+                .await?;
+            return Ok(false);
         }
 
         if !self.sender.is_maintainer() {
@@ -81,9 +83,10 @@ impl BotScored {
                 "Non-maintainer tried to score PR {}. Skipping.",
                 self.pr_metadata.full_id,
             );
-            return context
+            context
                 .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
-                .await;
+                .await?;
+            return Ok(false);
         }
 
         context
@@ -94,7 +97,7 @@ impl BotScored {
         context
             .reply(&self.pr_metadata, Some(self.comment_id), &SCORE_MESSAGES)
             .await?;
-        Ok(())
+        Ok(true)
     }
 
     pub fn construct(pr_metadata: &PrMetadata, comment: &Comment, input: String) -> Command {

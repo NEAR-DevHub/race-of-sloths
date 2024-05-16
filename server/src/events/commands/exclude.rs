@@ -16,15 +16,16 @@ pub struct BotExcluded {
 
 impl BotExcluded {
     #[instrument(skip(self, context, _check_info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<bool> {
         if !self.author.is_maintainer() {
             info!(
                 "Tried to exclude a PR from not maintainer: {}. Skipping",
                 self.pr_metadata.full_id
             );
-            return context
+            context
                 .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
-                .await;
+                .await?;
+            return Ok(false);
         }
 
         debug!("Excluding PR {}", self.pr_metadata.full_id);
@@ -33,7 +34,7 @@ impl BotExcluded {
         context
             .reply(&self.pr_metadata, Some(self.comment_id), &EXCLUDE_MESSAGES)
             .await?;
-        Ok(())
+        Ok(true)
     }
 
     pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
