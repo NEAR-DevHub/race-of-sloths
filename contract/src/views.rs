@@ -7,18 +7,17 @@ use super::*;
 impl Contract {
     pub fn check_info(&self, organization: String, repo: String, issue_id: u64) -> PRInfo {
         let pr_id = format!("{}/{}/{}", organization, repo, issue_id);
-        let pr = self.prs.get(&pr_id);
         let executed_pr = self.executed_prs.get(&pr_id);
+        let pr = self.prs.get(&pr_id).or(executed_pr);
         let organization = self.organizations.get(&organization);
         PRInfo {
             allowed_org: organization.is_some(),
             allowed_repo: organization
                 .map(|org| org.is_allowed(&repo))
                 .unwrap_or_default(),
-            exist: pr.is_some() || executed_pr.is_some(),
-            merged: executed_pr.is_some()
-                || pr.map(|pr| pr.merged_at.is_some()).unwrap_or_default(),
-            scored: executed_pr.is_some() || pr.map(|pr| pr.score().is_some()).unwrap_or_default(),
+            exist: pr.is_some(),
+            merged: pr.map(|pr| pr.merged_at.is_some()).unwrap_or_default(),
+            scored: pr.map(|pr| pr.score().is_some()).unwrap_or_default(),
             executed: executed_pr.is_some(),
             excluded: self.excluded_prs.contains(&pr_id),
             votes: pr.map(|pr| pr.score.clone()).unwrap_or_default(),
