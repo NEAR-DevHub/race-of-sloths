@@ -36,7 +36,7 @@ impl UnknownCommand {
     }
 
     #[instrument(skip(self, context, check_info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
         let pr = self.pr_metadata.clone();
         if !check_info.exist {
             // It's first call for this PR, so we will just include it
@@ -51,7 +51,8 @@ impl UnknownCommand {
 
         context
             .reply_with_error(&self.pr_metadata, &UNKNOWN_COMMAND_MESSAGES)
-            .await
+            .await?;
+        Ok(false)
     }
 
     pub fn construct(

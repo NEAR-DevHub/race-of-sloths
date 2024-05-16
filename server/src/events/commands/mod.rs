@@ -1,34 +1,12 @@
-use std::sync::Arc;
+use super::*;
 
-use octocrab::models::issues::Comment;
-use tracing::{info, instrument};
-
-use crate::{
-    api::{self, github::PrMetadata, near::PRInfo},
-    commands::unknown::UnknownCommand,
-};
-
-use self::{
-    actions::{PullRequestFinalize, PullRequestMerge, PullRequestStale},
-    exclude::BotExcluded,
-    pause::{BotPaused, BotUnpaused},
-    score::BotScored,
-    start::BotIncluded,
-};
-
-pub mod actions;
-pub(crate) mod common;
 pub mod exclude;
 pub mod pause;
 pub mod score;
 pub mod start;
 pub mod unknown;
 
-#[derive(Clone, Debug)]
-pub struct Context {
-    pub github: Arc<api::github::GithubClient>,
-    pub near: Arc<api::near::NearClient>,
-}
+pub use self::{exclude::*, pause::*, score::*, start::*, unknown::*};
 
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -90,30 +68,8 @@ impl Command {
 
 impl Command {
     #[instrument(skip(self, context, check_info), fields(pr = self.pr().full_id))]
-    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<()> {
-        match self {
-            Command::Include(event) => event.execute(context, check_info).await,
-            Command::Score(event) => event.execute(context, check_info).await,
-            Command::Pause(event) => event.execute(context, check_info).await,
-            Command::Unpause(event) => event.execute(context, check_info).await,
-            Command::Excluded(event) => event.execute(context, check_info).await,
-            Command::Unknown(event) => event.execute(context, check_info).await,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum Event {
-    Command(Command),
-    Merged(PullRequestMerge),
-    Stale(PullRequestStale),
-    Finalize(PullRequestFinalize),
-}
-
-impl Event {
-    pub async fn execute(&self, context: Context) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
         let pr = self.pr();
-        let check_info = context.check_info(pr).await?;
         if !check_info.allowed_org {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
@@ -129,7 +85,7 @@ impl Event {
                 )
                 .await?;
 
-            return Ok(());
+            return Ok(false);
         }
 
         if check_info.executed {
@@ -138,45 +94,34 @@ impl Event {
                 pr.full_id
             );
 
-            return Ok(());
+            return Ok(false);
         }
 
-        if !check_info.allowed_repo && !matches!(&self, Event::Command(Command::Unpause(_))) {
+        if !check_info.allowed_repo && !matches!(self, Command::Unpause(_)) {
             info!(
                 "Sloth called for a PR from paused repo: {}. Skipping",
                 pr.full_id
             );
 
-            return Ok(());
+            return Ok(false);
         }
 
-        if check_info.excluded && !matches!(self, Event::Command(Command::Include(_))) {
+        if check_info.excluded && !matches!(self, Command::Include(_)) {
             info!(
-                "Sloth called for a PR from excluded repo: {}. Skipping",
+                "Sloth called for a PR from excluded PR: {}. Skipping",
                 pr.full_id
             );
 
-            return Ok(());
+            return Ok(false);
         }
 
         match self {
-            Event::Command(command) => command.execute(context, check_info).await,
-            Event::Merged(event) => event.execute(context, check_info).await,
-            Event::Stale(event) => event.execute(context, check_info).await,
-            Event::Finalize(event) => event.execute(context, check_info).await,
-        }?;
-
-        Ok(())
-    }
-}
-
-impl Event {
-    pub fn pr(&self) -> &PrMetadata {
-        match self {
-            Event::Command(command) => command.pr(),
-            Event::Merged(event) => &event.pr_metadata,
-            Event::Stale(event) => &event.pr_metadata,
-            Event::Finalize(event) => &event.pr_metadata,
+            Command::Include(event) => event.execute(context, check_info).await,
+            Command::Score(event) => event.execute(context, check_info).await,
+            Command::Pause(event) => event.execute(context, check_info).await,
+            Command::Unpause(event) => event.execute(context, check_info).await,
+            Command::Excluded(event) => event.execute(context, check_info).await,
+            Command::Unknown(event) => event.execute(context, check_info).await,
         }
     }
 }

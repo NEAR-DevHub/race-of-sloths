@@ -8,10 +8,7 @@ use slothrace::{
         github::{GithubClient, PrMetadata},
         near::NearClient,
     },
-    commands::{
-        actions::PullRequestFinalize, actions::PullRequestMerge, actions::PullRequestStale,
-        Command, Context, Event,
-    },
+    events::{actions::Action, commands::Command, Context, Event},
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -126,15 +123,31 @@ async fn execute(context: Context, events: Vec<Event>) {
     }
 
     debug!("Executing {} events", events.len());
+    let mut should_update = false;
     for event in &events {
-        if let Err(e) = event.execute(context.clone()).await {
-            error!("Failed to execute event for {}: {e}", event.pr().full_id);
+        match event.execute(context.clone()).await {
+            Ok(res) => {
+                should_update |= res;
+            }
+            Err(e) => {
+                error!("Failed to execute event for {}: {e}", event.pr().full_id);
+            }
         }
     }
-
-    debug!("Finished executing events");
-    debug!("Updating status comment");
     let pr = events[0].pr();
+
+    if !should_update {
+        debug!(
+            "No events that require updating status comment for {}",
+            pr.full_id
+        );
+        return;
+    }
+
+    debug!(
+        "Finished executing events. Updating status comment for {}",
+        pr.full_id
+    );
     let info = context.check_info(&pr).await;
     if let Err(e) = info {
         error!("Failed to get PR info for {}: {e}", pr.full_id);
@@ -183,14 +196,13 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             );
             if check_for_stale_pr(&pr_metadata) {
                 info!("PR {} is stale. Creating an event", pr_metadata.full_id);
-                results.push(Event::Stale(PullRequestStale { pr_metadata }));
+                results.push(Event::Action(Action::stale(pr_metadata)));
             }
             continue;
         }
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
-        let merged = PullRequestMerge::new(pr_metadata);
-        if let Some(merged) = merged {
-            results.push(Event::Merged(merged));
+        if let Some(merged) = Action::merge(pr_metadata) {
+            results.push(Event::Action(merged));
         }
     }
     info!("Finished merge task with {} events", results.len());
@@ -204,7 +216,7 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
 
     Ok(prs
         .into_iter()
-        .map(|pr| Event::Finalize(PullRequestFinalize::new(pr)))
+        .map(|pr| Event::Action(Action::finalize(pr.into())))
         .collect())
 }
 

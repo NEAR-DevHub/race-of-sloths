@@ -4,7 +4,7 @@ use octocrab::models::{
 };
 use tracing::{instrument, warn};
 
-use crate::commands::Command;
+use crate::events::commands::Command;
 
 mod types;
 pub use types::*;

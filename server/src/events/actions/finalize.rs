@@ -1,12 +1,9 @@
 use tracing::{instrument, warn};
 
 use crate::{
-    api::{
-        github::PrMetadata,
-        near::{PRInfo, PR},
-    },
-    commands::Context,
+    api::{github::PrMetadata, near::PRInfo},
     consts,
+    events::Context,
 };
 
 #[derive(Debug, Clone)]
@@ -15,20 +12,14 @@ pub struct PullRequestFinalize {
 }
 
 impl PullRequestFinalize {
-    pub fn new(pr_metadata: PR) -> Self {
-        Self {
-            pr_metadata: pr_metadata.into(),
-        }
-    }
-
     #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<()> {
+    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
         if info.executed {
             warn!(
                 "PR {} is already finalized. Skipping",
                 self.pr_metadata.full_id
             );
-            return Ok(());
+            return Ok(false);
         }
 
         context
@@ -36,9 +27,11 @@ impl PullRequestFinalize {
             .send_finalize(&self.pr_metadata.full_id)
             .await?;
 
-        context
-            .reply(&self.pr_metadata, None, &consts::FINALIZE_MESSAGES)
-            .await?;
-        Ok(())
+        if info.allowed_repo {
+            context
+                .reply(&self.pr_metadata, None, &consts::FINALIZE_MESSAGES)
+                .await?;
+        }
+        Ok(true)
     }
 }
