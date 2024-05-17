@@ -1,5 +1,8 @@
-use rand::seq::SliceRandom;
+use std::collections::HashMap;
+
 use tracing::trace;
+
+use crate::messages::MsgCategory;
 
 use self::api::near::PRInfo;
 
@@ -16,11 +19,15 @@ impl Context {
         &self,
         pr_metadata: &PrMetadata,
         comment_id: Option<u64>,
-        text: &[&str],
+        msg: MsgCategory,
+        args: Vec<(String, String)>,
     ) -> anyhow::Result<Comment> {
-        let text = text.choose(&mut rand::thread_rng()).ok_or_else(|| {
-            anyhow::anyhow!("Failed to choose a random message from the list. Is it empty?")
-        })?;
+        let text = self
+            .messages
+            .get_message(msg)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get message for category: {msg}"))?;
+
+        let text = text.format(args.into_iter().collect::<HashMap<_, _>>());
 
         if let Some(comment_id) = comment_id {
             self.github
@@ -33,7 +40,7 @@ impl Context {
                 &pr_metadata.owner,
                 &pr_metadata.repo,
                 pr_metadata.number,
-                &format!("#### {text}"),
+                &text,
             )
             .await
     }
@@ -43,9 +50,10 @@ impl Context {
     pub async fn reply_with_error(
         &self,
         pr_metadata: &PrMetadata,
-        error: &[&str],
+        error: MsgCategory,
+        args: Vec<(String, String)>,
     ) -> anyhow::Result<()> {
-        self.reply(pr_metadata, None, error).await?;
+        self.reply(pr_metadata, None, error, args).await?;
         Ok(())
     }
 }

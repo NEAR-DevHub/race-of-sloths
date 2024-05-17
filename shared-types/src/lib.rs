@@ -31,7 +31,7 @@ pub struct PRInfo {
 }
 
 impl PRInfo {
-    fn average_score(&self) -> u32 {
+    pub fn average_score(&self) -> u32 {
         if self.votes.is_empty() {
             return 0;
         }

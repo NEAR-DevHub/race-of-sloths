@@ -1,6 +1,6 @@
 use tracing::{debug, instrument};
 
-use crate::consts::{EXCLUDE_MESSAGES, MAINTAINER_ONLY_MESSAGES};
+use crate::messages::MsgCategory;
 
 use self::api::github::User;
 
@@ -23,7 +23,11 @@ impl BotExcluded {
                 self.pr_metadata.full_id
             );
             context
-                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
+                .reply_with_error(
+                    &self.pr_metadata,
+                    MsgCategory::ErrorRightsViolationMessage,
+                    vec![],
+                )
                 .await?;
             return Ok(false);
         }
@@ -32,7 +36,12 @@ impl BotExcluded {
 
         context.near.send_exclude(&self.pr_metadata).await?;
         context
-            .reply(&self.pr_metadata, Some(self.comment_id), &EXCLUDE_MESSAGES)
+            .reply(
+                &self.pr_metadata,
+                Some(self.comment_id),
+                MsgCategory::ExcludeMessages,
+                vec![],
+            )
             .await?;
         Ok(true)
     }

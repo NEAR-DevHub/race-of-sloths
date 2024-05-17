@@ -2,8 +2,8 @@ use tracing::{instrument, warn};
 
 use crate::{
     api::{github::PrMetadata, near::PRInfo},
-    consts,
     events::Context,
+    messages::MsgCategory,
 };
 
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ impl PullRequestFinalize {
 
         if info.allowed_repo {
             context
-                .reply(&self.pr_metadata, None, &consts::FINALIZE_MESSAGES)
+                .reply(&self.pr_metadata, None, MsgCategory::FinalMessage, vec![])
                 .await?;
         }
         Ok(true)

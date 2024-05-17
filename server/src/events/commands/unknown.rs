@@ -1,6 +1,6 @@
 use tracing::debug;
 
-use crate::consts::UNKNOWN_COMMAND_MESSAGES;
+use crate::messages::MsgCategory;
 
 use self::api::github::User;
 
@@ -50,7 +50,11 @@ impl UnknownCommand {
         }
 
         context
-            .reply_with_error(&self.pr_metadata, &UNKNOWN_COMMAND_MESSAGES)
+            .reply_with_error(
+                &self.pr_metadata,
+                MsgCategory::ErrorUnknownCommandMessage,
+                vec![],
+            )
             .await?;
         Ok(false)
     }

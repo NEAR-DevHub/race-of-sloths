@@ -2,8 +2,8 @@ use tracing::instrument;
 
 use crate::{
     api::{github::PrMetadata, near::PRInfo},
-    consts::MERGE_MESSAGES,
     events::Context,
+    messages::MsgCategory,
 };
 
 #[derive(Debug, Clone)]
@@ -26,9 +26,23 @@ impl PullRequestMerge {
     pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
         context.near.send_merge(&self.pr_metadata).await?;
 
-        if !info.scored && info.allowed_repo {
+        if info.scored && info.allowed_repo {
             context
-                .reply(&self.pr_metadata, None, &MERGE_MESSAGES)
+                .reply(
+                    &self.pr_metadata,
+                    None,
+                    MsgCategory::MergeWithScoreMessage,
+                    vec![("score".to_string(), info.average_score().to_string())],
+                )
+                .await?;
+        } else {
+            context
+                .reply(
+                    &self.pr_metadata,
+                    None,
+                    MsgCategory::MergeWithoutScoreMessage,
+                    vec![],
+                )
                 .await?;
         }
         Ok(true)

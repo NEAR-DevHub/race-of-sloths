@@ -3,7 +3,10 @@ use std::sync::Arc;
 use octocrab::models::issues::Comment;
 use tracing::{info, instrument};
 
-use crate::api::{self, github::PrMetadata, near::PRInfo};
+use crate::{
+    api::{self, github::PrMetadata, near::PRInfo},
+    messages::MessageLoader,
+};
 
 use self::{actions::Action, commands::Command};
 
@@ -15,6 +18,7 @@ pub(crate) mod common;
 pub struct Context {
     pub github: Arc<api::github::GithubClient>,
     pub near: Arc<api::near::NearClient>,
+    pub messages: Arc<MessageLoader>,
 }
 
 #[derive(Debug, Clone)]

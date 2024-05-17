@@ -1,6 +1,6 @@
 use tracing::{debug, instrument};
 
-use crate::consts::INCLUDE_ALREADY_MERGED_MESSAGES;
+use crate::messages::MsgCategory;
 
 use self::api::github::User;
 
@@ -47,30 +47,27 @@ impl BotIncluded {
                 self.pr_metadata.full_id,
             );
             context
-                .reply_with_error(&self.pr_metadata, &INCLUDE_ALREADY_MERGED_MESSAGES)
+                .reply_with_error(
+                    &self.pr_metadata,
+                    MsgCategory::ErrorLateIncludeMessage,
+                    vec![],
+                )
                 .await?;
             return Ok(false);
         }
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
 
-        let status = PRInfo {
-            exist: true,
-            executed: false,
-            merged: false,
-            scored: false,
-            votes: vec![],
-            allowed_org: true,
-            allowed_repo: true,
-            excluded: false,
-            comment_id: 0,
-        };
-
+        // TODO: other types of events
         let comment = context
             .reply(
                 &self.pr_metadata,
                 self.comment_id,
-                &vec![status.status_message().as_str()],
+                MsgCategory::IncludeBasicMessage,
+                vec![(
+                    "pr-author-username".to_string(),
+                    self.pr_metadata.author.login.clone(),
+                )],
             )
             .await?;
 

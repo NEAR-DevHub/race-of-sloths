@@ -1,3 +1,5 @@
+use crate::messages::MsgCategory;
+
 use super::*;
 
 pub mod exclude;
@@ -80,12 +82,11 @@ impl Command {
                 pr.full_id
             );
             context
-                .github
                 .reply(
-                    &pr.owner,
-                    &pr.repo,
-                    pr.number,
-                    "The organization is not a part of the allowed organizations.",
+                    &pr,
+                    None,
+                    MsgCategory::ErrorOrgNotInAllowedListMessage,
+                    vec![],
                 )
                 .await?;
 
