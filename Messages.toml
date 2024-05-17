@@ -3,19 +3,25 @@ leaderboard_link = "https://github.com/race-of-sloths"
 form = "https://github.com/race-of-sloths"
 
 [[common_basic_include_message]]
-message = """Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
+message = """
+
+Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
 </details>
 """
 variables = ["link", "bot-name"]
 
 [[common_basic_include_message]]
-message = """Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
+message = """
+
+Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
 </details>
 """
 variables = ["link", "bot-name"]
 
 [[common_basic_include_message]]
-message = """Here’s what you can do next: Use `@{bot-name} reject` to remove this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to assign points, or `@{bot-name} pause` to silence notifications temporarily. For a complete guide on how the Race of Sloths works and our scoring system, click here: [link]({link}).
+message = """
+
+Here’s what you can do next: Use `@{bot-name} reject` to remove this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to assign points, or `@{bot-name} pause` to silence notifications temporarily. For a complete guide on how the Race of Sloths works and our scoring system, click here: [link]({link}).
 </details>
 """
 variables = ["link", "bot-name"]
