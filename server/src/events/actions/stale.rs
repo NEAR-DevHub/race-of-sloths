@@ -2,8 +2,8 @@ use tracing::{instrument, warn};
 
 use crate::{
     api::{github::PrMetadata, near::PRInfo},
-    consts::STALE_MESSAGES,
     events::Context,
+    messages::MsgCategory,
 };
 
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ impl PullRequestStale {
 
         if check_info.allowed_repo {
             context
-                .reply(&self.pr_metadata, None, &STALE_MESSAGES)
+                .reply(&self.pr_metadata, None, MsgCategory::StaleMessage, vec![])
                 .await?;
         }
         Ok(check_info.allowed_repo)

@@ -1,8 +1,6 @@
 use tracing::{debug, info, instrument};
 
-use crate::consts::{
-    MAINTAINER_ONLY_MESSAGES, PAUSE_ALREADY_UNPAUSED_MESSAGES, PAUSE_MESSAGES, UNPAUSE_MESSAGES,
-};
+use crate::messages::MsgCategory;
 
 use self::api::github::User;
 
@@ -25,7 +23,11 @@ impl BotPaused {
                 self.pr_metadata.full_id
             );
             context
-                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
+                .reply_with_error(
+                    &self.pr_metadata,
+                    MsgCategory::ErrorRightsViolationMessage,
+                    vec![],
+                )
                 .await?;
             return Ok(false);
         }
@@ -39,7 +41,12 @@ impl BotPaused {
             .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
             .await?;
         context
-            .reply(&self.pr_metadata, Some(self.comment_id), &PAUSE_MESSAGES)
+            .reply(
+                &self.pr_metadata,
+                Some(self.comment_id),
+                MsgCategory::PauseMessage,
+                vec![],
+            )
             .await?;
         Ok(true)
     }
@@ -83,7 +90,12 @@ impl BotUnpaused {
                 .await?;
             debug!("Unpaused PR {}", self.pr_metadata.full_id);
             context
-                .reply(&self.pr_metadata, Some(self.comment_id), &UNPAUSE_MESSAGES)
+                .reply(
+                    &self.pr_metadata,
+                    Some(self.comment_id),
+                    MsgCategory::UnpauseMessage,
+                    vec![],
+                )
                 .await?;
             Ok(false)
         } else {
@@ -91,7 +103,8 @@ impl BotUnpaused {
                 .reply(
                     &self.pr_metadata,
                     Some(self.comment_id),
-                    &PAUSE_ALREADY_UNPAUSED_MESSAGES,
+                    MsgCategory::UnpauseUnpausedMessage,
+                    vec![],
                 )
                 .await?;
             Ok(false)

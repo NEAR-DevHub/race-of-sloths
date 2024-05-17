@@ -22,3 +22,4 @@ serde_json.workspace = true
 futures.workspace = true
 shared-types.workspace = true
 rand.workspace = true
+toml.workspace = true

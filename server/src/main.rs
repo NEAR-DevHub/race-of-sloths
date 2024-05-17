@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use futures::future::join_all;
 use near_workspaces::types::SecretKey;
@@ -9,6 +9,7 @@ use slothrace::{
         near::NearClient,
     },
     events::{actions::Action, commands::Command, Context, Event},
+    messages::MessageLoader,
 };
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -18,6 +19,7 @@ struct Env {
     contract: String,
     secret_key: String,
     is_mainnet: bool,
+    message_file: PathBuf,
 }
 
 #[tokio::main]
@@ -27,18 +29,18 @@ async fn main() -> anyhow::Result<()> {
 
     let env = envy::from_env::<Env>()?;
 
-    let github_api = Arc::new(GithubClient::new(env.github_token).await?);
-    let near_api = Arc::new(
-        NearClient::new(
-            env.contract,
-            SecretKey::from_str(&env.secret_key)?,
-            env.is_mainnet,
-        )
-        .await?,
-    );
+    let github_api = GithubClient::new(env.github_token).await?;
+    let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
+    let near_api = NearClient::new(
+        env.contract,
+        SecretKey::from_str(&env.secret_key)?,
+        env.is_mainnet,
+    )
+    .await?;
     let context = Context {
-        github: github_api,
-        near: near_api,
+        github: github_api.into(),
+        near: near_api.into(),
+        messages: messages.into(),
     };
 
     let minute = tokio::time::Duration::from_secs(60);

@@ -1,8 +1,6 @@
 use tracing::{debug, instrument};
 
-use crate::consts::{
-    MAINTAINER_ONLY_MESSAGES, SCORE_INVALID_SCORES, SCORE_MESSAGES, SCORE_SELF_SCORES,
-};
+use crate::messages::MsgCategory;
 
 use self::api::{github::User, near::PRInfo};
 
@@ -34,11 +32,20 @@ impl BotScored {
         }
     }
 
-    pub fn score(&self) -> Option<u8> {
-        let score = self.score.parse::<u8>().ok()?;
+    pub fn score(&self) -> (u8, bool) {
+        let score = self.score.parse::<u8>().ok();
+
         match score {
-            1 | 2 | 3 | 5 | 8 | 13 => Some(score),
-            _ => None,
+            None => (0, true),
+            Some(score) => match score {
+                0 | 1 | 2 | 3 | 5 | 8 | 13 => (score, false),
+                // edit to nearest valid score
+                number => {
+                    let mut valid_scores: Vec<i32> = vec![0, 1, 2, 3, 5, 8, 13];
+                    valid_scores.sort_by_key(|&x| (x - number as i32).abs());
+                    (valid_scores[0] as u8, true)
+                }
+            },
         }
     }
 }
@@ -54,18 +61,7 @@ impl BotScored {
             return Ok(false);
         }
 
-        let score = self.score();
-        if score.is_none() {
-            debug!(
-                "Invalid score for PR {}. Skipping.",
-                self.pr_metadata.full_id,
-            );
-            context
-                .reply_with_error(&self.pr_metadata, &SCORE_INVALID_SCORES)
-                .await?;
-            return Ok(false);
-        }
-        let score = score.unwrap();
+        let (number, edited) = self.score();
 
         if self.pr_metadata.author.login == self.sender.login {
             debug!(
@@ -73,7 +69,7 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             context
-                .reply_with_error(&self.pr_metadata, &SCORE_SELF_SCORES)
+                .reply_with_error(&self.pr_metadata, MsgCategory::ErrorSelfScore, vec![])
                 .await?;
             return Ok(false);
         }
@@ -84,18 +80,34 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             context
-                .reply_with_error(&self.pr_metadata, &MAINTAINER_ONLY_MESSAGES)
+                .reply_with_error(
+                    &self.pr_metadata,
+                    MsgCategory::ErrorRightsViolationMessage,
+                    vec![],
+                )
                 .await?;
             return Ok(false);
         }
 
         context
             .near
-            .send_scored(&self.pr_metadata, &self.sender.login, score as u64)
+            .send_scored(&self.pr_metadata, &self.sender.login, number as u64)
             .await?;
 
+        let (category, args) = match (number, edited) {
+            (num, true) => (
+                MsgCategory::CorrectableScoringMessage,
+                vec![
+                    ("corrected_score".to_string(), num.to_string()),
+                    ("score".to_string(), self.score.clone()),
+                ],
+            ),
+            (0, _) => (MsgCategory::CorrectZeroScoringMessage, vec![]),
+            (_, _) => (MsgCategory::CorrectNonzeroScoringMessage, vec![]),
+        };
+
         context
-            .reply(&self.pr_metadata, Some(self.comment_id), &SCORE_MESSAGES)
+            .reply(&self.pr_metadata, Some(self.comment_id), category, args)
             .await?;
         Ok(true)
     }
