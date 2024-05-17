@@ -49,6 +49,7 @@ impl BotIncluded {
             context
                 .reply_with_error(
                     &self.pr_metadata,
+                    self.comment_id,
                     MsgCategory::ErrorLateIncludeMessage,
                     vec![],
                 )

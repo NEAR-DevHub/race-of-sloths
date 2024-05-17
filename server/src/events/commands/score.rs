@@ -69,7 +69,12 @@ impl BotScored {
                 self.pr_metadata.full_id,
             );
             context
-                .reply_with_error(&self.pr_metadata, MsgCategory::ErrorSelfScore, vec![])
+                .reply_with_error(
+                    &self.pr_metadata,
+                    Some(self.comment_id),
+                    MsgCategory::ErrorSelfScore,
+                    vec![],
+                )
                 .await?;
             return Ok(false);
         }
@@ -82,6 +87,7 @@ impl BotScored {
             context
                 .reply_with_error(
                     &self.pr_metadata,
+                    Some(self.comment_id),
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
                 )
