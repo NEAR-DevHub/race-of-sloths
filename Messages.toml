@@ -23,7 +23,7 @@ variables = ["link", "bot-name"]
 [[include_basic_message]]
 message = """Hello, Maintainer! 👋 @{pr-author-username} has submitted another valuable pull request in the Race of Sloths. We appreciate their continued efforts to enhance the project. Your review will help further their contribution's impact.
 
-<details open>
+<details>
 <summary>Learn more about the race and how your feedback drives our community forward.</summary>
 """
 
@@ -32,7 +32,7 @@ variables = ["pr-author-username"]
 [[include_basic_message]]
 message = """Hey there, Maintainer! 🌟 @{pr-author-username} just contributed another pull request to the Race of Sloths. It’s great to see their ongoing dedication! Please review their work to help advance their standing in the race.
 
-<details open>
+<details>
 <summary>Interested in more details about the race and your role in shaping our contributors' paths?</summary>
 """
 
@@ -41,7 +41,7 @@ variables = ["pr-author-username"]
 [[include_basic_message]]
 message = """Greetings, Maintainer! 🛠️ Here’s another contribution by @{pr-author-username} in the Race of Sloths. Their consistent participation is what keeps our project thriving. Your expert review is crucial for their progress.
 
-<details open>
+<details>
 <summary>Click here to dive deeper into how your support impacts our collaborative success.</summary>
 """
 
@@ -50,7 +50,7 @@ variables = ["pr-author-username"]
 
 [[include_streak_message]]
 message = """Hello, Maintainer! 🌟 @{pr-author-username} is in the thick of the Race of Sloths, sporting a 🌟 [{streak} streak of open source contributions]({leaderboard-link}) with a current score of {score}. Your review could be a game-changer for their progress!
-<details open>
+<details>
 <summary>Click here to dive deeper into how your support impacts our collaborative success.</summary>
 """
 variables = ["pr-author-username", "streak", "leaderboard-link", "score"]

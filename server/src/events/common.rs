@@ -50,10 +50,11 @@ impl Context {
     pub async fn reply_with_error(
         &self,
         pr_metadata: &PrMetadata,
+        comment_id: Option<u64>,
         error: MsgCategory,
         args: Vec<(String, String)>,
     ) -> anyhow::Result<()> {
-        self.reply(pr_metadata, None, error, args).await?;
+        self.reply(pr_metadata, comment_id, error, args).await?;
         Ok(())
     }
 }

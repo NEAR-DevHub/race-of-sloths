@@ -82,7 +82,7 @@ impl Command {
                 pr.full_id
             );
             context
-                .reply(
+                .reply_with_error(
                     &pr,
                     None,
                     MsgCategory::ErrorOrgNotInAllowedListMessage,

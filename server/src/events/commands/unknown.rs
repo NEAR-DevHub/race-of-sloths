@@ -52,6 +52,7 @@ impl UnknownCommand {
         context
             .reply_with_error(
                 &self.pr_metadata,
+                Some(self.comment_id),
                 MsgCategory::ErrorUnknownCommandMessage,
                 vec![],
             )
