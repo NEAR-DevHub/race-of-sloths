@@ -1,5 +1,5 @@
 use near_sdk::near_bindgen;
-use shared_types::{PRInfo, UserWithMonthScore};
+use shared_types::PRInfo;
 
 use super::*;
 

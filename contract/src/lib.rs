@@ -2,12 +2,15 @@
 use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
-    store::LookupSet,
+    store::{LookupSet, Vector},
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
-use shared_types::{MonthYearString, UserData, PR};
-use types::{timestamp_to_month_string, Organization};
+use shared_types::{
+    GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakUserData, TimePeriod,
+    TimePeriodString, UserPeriodData, PR,
+};
+use types::Organization;
 
 pub mod migration;
 pub mod storage;
@@ -20,17 +23,19 @@ pub mod views;
 pub struct Contract {
     sloth: AccountId,
     #[allow(deprecated)]
-    sloths: UnorderedMap<String, UserData>,
+    sloths_per_period: UnorderedMap<(GithubHandle, TimePeriodString), UserPeriodData>,
     #[allow(deprecated)]
-    sloths_per_month: UnorderedMap<(String, MonthYearString), u32>,
-    #[allow(deprecated)]
-    organizations: UnorderedMap<String, Organization>,
+    organizations: UnorderedMap<GithubHandle, Organization>,
     // We need to think about removing PRs that are stale for a long time
     #[allow(deprecated)]
-    prs: UnorderedMap<String, PR>,
+    prs: UnorderedMap<PRId, PR>,
     #[allow(deprecated)]
-    executed_prs: UnorderedMap<String, PR>,
-    excluded_prs: LookupSet<String>,
+    executed_prs: UnorderedMap<PRId, PR>,
+    excluded_prs: LookupSet<PRId>,
+
+    // Configured streaks
+    streaks: Vector<Streak>,
+    user_streaks: UnorderedMap<(GithubHandle, StreakId), StreakUserData>,
 }
 
 #[near_bindgen]
@@ -41,9 +46,7 @@ impl Contract {
         Self {
             sloth,
             #[allow(deprecated)]
-            sloths: UnorderedMap::new(storage::StorageKey::Sloths),
-            #[allow(deprecated)]
-            sloths_per_month: UnorderedMap::new(storage::StorageKey::SlothsPerMonth),
+            sloths_per_period: UnorderedMap::new(storage::StorageKey::SlothsPerPeriod),
             #[allow(deprecated)]
             organizations: UnorderedMap::new(storage::StorageKey::Organizations),
             #[allow(deprecated)]
@@ -51,6 +54,8 @@ impl Contract {
             #[allow(deprecated)]
             executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
             excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
+            streaks: Vector::new(storage::StorageKey::Streaks),
+            user_streaks: UnorderedMap::new(storage::StorageKey::UserStreaks),
         }
     }
 
@@ -85,11 +90,15 @@ impl Contract {
         }
 
         // Create user if it doesn't exist
-        let mut user_data = self.get_user(user.clone());
-        user_data.add_opened_pr();
-        self.sloths.insert(user_data.handle.clone(), user_data);
-
         let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
+
+        for period in TimePeriod::iter() {
+            let key = period.time_string(started_at);
+            self.sloths_per_period
+                .entry((pr.author.clone(), key.clone()))
+                .or_default()
+                .prs_opened += 1;
+        }
         self.prs.insert(pr_id, pr);
     }
 
@@ -115,10 +124,34 @@ impl Contract {
 
         let pr = pr.unwrap();
         pr.add_merge_info(merged_at);
+
+        for period in TimePeriod::iter() {
+            let key = period.time_string(merged_at);
+            self.sloths_per_period
+                .entry((pr.author.clone(), key.clone()))
+                .or_default()
+                .prs_merged += 1;
+        }
     }
 
     pub fn sloth_exclude(&mut self, pr_id: String) {
         self.assert_sloth();
+        let pr = self.prs.get(&pr_id);
+        if pr.is_none() {
+            env::panic_str("PR is not started or already executed")
+        }
+        let pr = pr.unwrap();
+        if pr.merged_at.is_some() {
+            env::panic_str("Merged PR cannot be excluded")
+        }
+
+        for period in TimePeriod::iter() {
+            let key = period.time_string(pr.created_at);
+            self.sloths_per_period
+                .entry((pr.author.clone(), key.clone()))
+                .or_default()
+                .prs_opened -= 1;
+        }
 
         self.prs.remove(&pr_id);
         self.excluded_prs.insert(pr_id);
@@ -170,10 +203,13 @@ impl Contract {
         }
         let pr = pr.unwrap();
 
-        self.sloths.get_mut(&pr.author).map(|user| {
-            user.total_prs_opened -= 1;
-            user
-        });
+        for period in TimePeriod::iter() {
+            let key = period.time_string(pr.created_at);
+            self.sloths_per_period
+                .entry((pr.author.clone(), key.clone()))
+                .or_default()
+                .prs_opened -= 1;
+        }
         self.prs.remove(&pr_id);
     }
 
@@ -193,24 +229,106 @@ impl Contract {
 
         // Reward with zero score if PR wasn't scored to track the number of merged PRs
         let score = pr.score().unwrap_or_default();
-        let mut user = self.get_user(pr.author.clone());
-        let user_name = user.handle.clone();
 
-        user.add_score(score);
-        self.sloths.insert(user.handle.clone(), user);
+        self.count_score_to_periods(&pr, score);
+        self.calculate_streak(&pr.author);
 
-        *self
-            .sloths_per_month
-            .entry((user_name, timestamp_to_month_string(pr.merged_at.unwrap())))
-            .or_default() += score;
-
-        let full_id = pr.full_id();
+        let full_id = pr.pr_id();
         self.prs.remove(&full_id);
         self.executed_prs.insert(full_id, pr);
     }
 }
 
 impl Contract {
+    pub fn calculate_streak(&mut self, user: &String) {
+        let current_time = env::block_timestamp();
+        for streak in self.streaks.iter() {
+            if !streak.is_active {
+                continue;
+            }
+
+            let key = (user.clone(), streak.id.clone());
+            let mut streak_data = self.user_streaks.get(&key).cloned().unwrap_or_default();
+            let current_time_string = streak.time_period.time_string(current_time);
+
+            // Check if user accomplished the streak for current period
+            let achieved = self
+                .sloths_per_period
+                .get(&(user.clone(), current_time_string.clone()))
+                .map(|s| streak.is_streak_achieved(s))
+                .unwrap_or_default();
+
+            let previous_time =
+                self.verify_previous_streak(streak, &streak_data, user, current_time);
+
+            match (
+                streak_data.latest_time_string == current_time_string,
+                achieved,
+            ) {
+                (false, true) => {
+                    streak_data.amount += previous_time + 1;
+                    streak_data.latest_time_string = current_time_string;
+                }
+                (true, false) => {
+                    // We have update the streak data previously with success, so we need to revert it
+                    streak_data.amount = previous_time - 1;
+                }
+                // If both are false, then user hasn't achieved the streak and we don't need to do anything
+                // If both are true, then user has already achieved the streak and we don't need to do anything
+                _ => {
+                    streak_data.amount = previous_time;
+                }
+            }
+            self.user_streaks.insert(key, streak_data);
+        }
+    }
+
+    fn verify_previous_streak(
+        &self,
+        streak: &Streak,
+        streak_data: &StreakUserData,
+        user: &String,
+        timestamp: Timestamp,
+    ) -> u32 {
+        for i in 0u32..std::cmp::min(5, streak_data.amount) {
+            let previous_time = if let Some(a) = streak.time_period.previous_period(timestamp) {
+                a
+            } else {
+                // Shouldn't happen, but if it does, we can't verify the streak
+                return i;
+            };
+
+            let previous_time_string = streak.time_period.time_string(previous_time);
+
+            let previous_data = self
+                .sloths_per_period
+                .get(&(user.clone(), previous_time_string.clone()))
+                .map(|s| streak.is_streak_achieved(s))
+                .unwrap_or_default();
+            if !previous_data {
+                return i;
+            }
+        }
+        // We will check at max 5 previous periods
+        streak_data.amount
+    }
+
+    pub fn count_score_to_periods(&mut self, pr: &PR, score: u32) {
+        if pr.merged_at.is_none() {
+            return;
+        }
+
+        for period in TimePeriod::iter() {
+            let key = period.time_string(pr.merged_at.unwrap());
+            let entry = self
+                .sloths_per_period
+                .entry((pr.author.clone(), key.clone()))
+                .or_default();
+            entry.executed_prs += 1;
+            entry.total_score += score;
+        }
+    }
+
     pub fn assert_sloth(&self) {
         if env::predecessor_account_id() != self.sloth {
             env::panic_str("Only sloth can call this method")
@@ -226,12 +344,5 @@ impl Contract {
         } else {
             env::panic_str("Organization is not allowlisted")
         }
-    }
-
-    pub fn get_user(&self, user_handle: String) -> UserData {
-        self.sloths
-            .get(&user_handle)
-            .cloned()
-            .unwrap_or_else(|| UserData::new(user_handle))
     }
 }

@@ -8,3 +8,5 @@ license.workspace = true
 
 [dependencies]
 near-sdk.workspace = true
+strum = { workspace = true, features = ["derive"] }
+chrono.workspace = true
