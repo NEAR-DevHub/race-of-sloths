@@ -51,7 +51,25 @@ impl Contract {
         };
 
         for value in contract.executed_prs.values().cloned().collect::<Vec<_>>() {
-            contract.count_score_to_periods(&value, value.score().unwrap());
+            contract.apply_to_periods(&value.author, value.created_at, |period| {
+                period.prs_opened += 1;
+            });
+            contract.apply_to_periods(&value.author, value.merged_at.unwrap(), |period| {
+                period.prs_merged += 1;
+                period.total_score += value.score().unwrap();
+                period.executed_prs += 1;
+            });
+        }
+
+        for value in contract.executed_prs.values().cloned().collect::<Vec<_>>() {
+            contract.apply_to_periods(&value.author, value.created_at, |period| {
+                period.prs_opened += 1;
+            });
+            if let Some(merged_at) = value.merged_at {
+                contract.apply_to_periods(&value.author, merged_at, |period| {
+                    period.prs_merged += 1;
+                });
+            }
         }
 
         for user in old_state.sloths.values() {

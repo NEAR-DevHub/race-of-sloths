@@ -2,6 +2,7 @@
 use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
+    require,
     store::{LookupSet, Vector},
     Timestamp,
 };
@@ -83,7 +84,7 @@ impl Contract {
         }
 
         // Check if PR already exists
-        let pr = self.prs.get(&pr_id);
+        let pr = self.prs.get(&pr_id).cloned();
         let executed_pr = self.executed_prs.get(&pr_id);
         if pr.is_some() || executed_pr.is_some() {
             env::panic_str("PR already exists: {pr_id}")
@@ -92,13 +93,9 @@ impl Contract {
         // Create user if it doesn't exist
         let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
 
-        for period in TimePeriod::iter() {
-            let key = period.time_string(started_at);
-            self.sloths_per_period
-                .entry((pr.author.clone(), key.clone()))
-                .or_default()
-                .prs_opened += 1;
-        }
+        self.apply_to_periods(&pr.author, started_at, |data| {
+            data.prs_opened += 1;
+        });
         self.prs.insert(pr_id, pr);
     }
 
@@ -117,26 +114,23 @@ impl Contract {
     pub fn sloth_merged(&mut self, pr_id: String, merged_at: Timestamp) {
         self.assert_sloth();
 
-        let pr = self.prs.get_mut(&pr_id);
+        let pr = self.prs.get_mut(&pr_id).cloned();
         if pr.is_none() {
             env::panic_str("PR is not started or already executed")
         }
 
-        let pr = pr.unwrap();
+        let mut pr = pr.unwrap();
         pr.add_merge_info(merged_at);
 
-        for period in TimePeriod::iter() {
-            let key = period.time_string(merged_at);
-            self.sloths_per_period
-                .entry((pr.author.clone(), key.clone()))
-                .or_default()
-                .prs_merged += 1;
-        }
+        self.apply_to_periods(&pr.author, merged_at, |data| {
+            data.prs_merged += 1;
+        });
+        self.prs.insert(pr_id.clone(), pr);
     }
 
     pub fn sloth_exclude(&mut self, pr_id: String) {
         self.assert_sloth();
-        let pr = self.prs.get(&pr_id);
+        let pr = self.prs.get(&pr_id).cloned();
         if pr.is_none() {
             env::panic_str("PR is not started or already executed")
         }
@@ -145,13 +139,9 @@ impl Contract {
             env::panic_str("Merged PR cannot be excluded")
         }
 
-        for period in TimePeriod::iter() {
-            let key = period.time_string(pr.created_at);
-            self.sloths_per_period
-                .entry((pr.author.clone(), key.clone()))
-                .or_default()
-                .prs_opened -= 1;
-        }
+        self.apply_to_periods(&pr.author, pr.created_at, |data| {
+            data.prs_opened -= 1;
+        });
 
         self.prs.remove(&pr_id);
         self.excluded_prs.insert(pr_id);
@@ -201,15 +191,12 @@ impl Contract {
         if pr.is_none() {
             env::panic_str("PR is not started or already executed")
         }
-        let pr = pr.unwrap();
+        let pr = pr.unwrap().clone();
+        require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
 
-        for period in TimePeriod::iter() {
-            let key = period.time_string(pr.created_at);
-            self.sloths_per_period
-                .entry((pr.author.clone(), key.clone()))
-                .or_default()
-                .prs_opened -= 1;
-        }
+        self.apply_to_periods(&pr.author, pr.created_at, |data| {
+            data.prs_opened -= 1;
+        });
         self.prs.remove(&pr_id);
     }
 
@@ -230,7 +217,10 @@ impl Contract {
         // Reward with zero score if PR wasn't scored to track the number of merged PRs
         let score = pr.score().unwrap_or_default();
 
-        self.count_score_to_periods(&pr, score);
+        self.apply_to_periods(&pr.author, pr.merged_at.unwrap(), |data| {
+            data.total_score += score;
+            data.executed_prs += 1;
+        });
         self.calculate_streak(&pr.author);
 
         let full_id = pr.pr_id();
@@ -313,19 +303,19 @@ impl Contract {
         streak_data.amount
     }
 
-    pub fn count_score_to_periods(&mut self, pr: &PR, score: u32) {
-        if pr.merged_at.is_none() {
-            return;
-        }
-
+    pub fn apply_to_periods(
+        &mut self,
+        author: &str,
+        timestamp: Timestamp,
+        func: impl Fn(&mut UserPeriodData),
+    ) {
         for period in TimePeriod::iter() {
-            let key = period.time_string(pr.merged_at.unwrap());
+            let key = period.time_string(timestamp);
             let entry = self
                 .sloths_per_period
-                .entry((pr.author.clone(), key.clone()))
+                .entry((author.to_owned(), key.clone()))
                 .or_default();
-            entry.executed_prs += 1;
-            entry.total_score += score;
+            func(entry);
         }
     }
 
