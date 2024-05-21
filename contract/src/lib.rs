@@ -8,7 +8,7 @@ use near_sdk::{
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared_types::{
-    GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakUserData, TimePeriod,
+    GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakType, StreakUserData, TimePeriod,
     TimePeriodString, UserPeriodData, PR,
 };
 use types::{Account, Organization};
@@ -61,8 +61,27 @@ impl Contract {
             executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
             excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
             streaks: Vector::new(storage::StorageKey::Streaks),
+            #[allow(deprecated)]
             user_streaks: UnorderedMap::new(storage::StorageKey::UserStreaks),
         }
+    }
+
+    pub fn create_streak(&mut self, time_period: TimePeriod, streak_criterias: Vec<StreakType>) {
+        self.assert_sloth();
+        let id = self.streaks.len();
+        let streak = Streak::new(id, time_period, streak_criterias);
+        self.streaks.push(streak);
+    }
+
+    pub fn deactivate_streak(&mut self, id: u32) {
+        self.assert_sloth();
+
+        let streak = self.streaks.get_mut(id).cloned();
+        if streak.is_none() {
+            env::panic_str("Streak doesn't exist")
+        }
+
+        streak.unwrap().is_active = false;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -226,6 +245,7 @@ impl Contract {
         self.apply_to_periods(&pr.author, pr.merged_at.unwrap(), |data| {
             data.total_score += score;
             data.executed_prs += 1;
+            data.largest_score = data.largest_score.max(score);
         });
         self.calculate_streak(&pr.author);
 
@@ -243,7 +263,7 @@ impl Contract {
                 continue;
             }
 
-            let key = (user.clone(), streak.id.clone());
+            let key = (user.clone(), streak.id);
             let mut streak_data = self.user_streaks.get(&key).cloned().unwrap_or_default();
             let current_time_string = streak.time_period.time_string(current_time);
 
@@ -299,7 +319,7 @@ impl Contract {
 
             let previous_data = self
                 .sloths_per_period
-                .get(&(user.clone(), previous_time_string.clone()))
+                .get(&(user.to_owned(), previous_time_string.clone()))
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
             if !previous_data {
@@ -312,7 +332,7 @@ impl Contract {
 
     pub fn apply_to_periods(
         &mut self,
-        author: &str,
+        author: &String,
         timestamp: Timestamp,
         func: impl Fn(&mut UserPeriodData),
     ) {

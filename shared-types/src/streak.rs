@@ -1,13 +1,16 @@
 use super::*;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(
+    BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Debug, Clone, Copy,
+)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum StreakType {
     PRsOpened(u32),
     PRsMerged(u32),
     TotalScore(u32),
-    AverageScoreGreaterThan(u32),
+    LargestScore(u32),
+    AverageScore(u32),
 }
 
 impl StreakType {
@@ -24,16 +27,17 @@ impl StreakType {
             Self::PRsOpened(value) => user_period_data.prs_opened >= *value,
             Self::PRsMerged(value) => user_period_data.prs_merged >= *value,
             Self::TotalScore(score) => user_period_data.total_score >= *score,
-            Self::AverageScoreGreaterThan(score) => {
-                user_period_data.total_score / user_period_data.executed_prs > *score
+            Self::LargestScore(score) => user_period_data.largest_score >= *score,
+            Self::AverageScore(score) => {
+                user_period_data.total_score / user_period_data.executed_prs >= *score
             }
         }
     }
 }
 
-pub type StreakId = u64;
+pub type StreakId = u32;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Streak {
@@ -44,7 +48,7 @@ pub struct Streak {
 }
 
 impl Streak {
-    pub fn new(streak_id: u64, time_period: TimePeriod, streak_criterias: Vec<StreakType>) -> Self {
+    pub fn new(streak_id: u32, time_period: TimePeriod, streak_criterias: Vec<StreakType>) -> Self {
         assert!(
             !streak_criterias.is_empty(),
             "Streak criteria should not be empty"
@@ -70,7 +74,9 @@ impl Streak {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(
+    BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Debug, Clone, Default,
+)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct StreakUserData {

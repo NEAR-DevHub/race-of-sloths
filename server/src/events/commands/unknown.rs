@@ -43,7 +43,7 @@ impl UnknownCommand {
             let event = BotIncluded::new(
                 self.user.clone(),
                 pr.clone(),
-                self.timestamp.clone(),
+                self.timestamp,
                 Some(self.comment_id),
             );
             return event.execute(context, check_info).await;
@@ -79,7 +79,7 @@ impl UnknownCommand {
             command,
             args,
             comment.id.0,
-            comment.created_at.clone(),
+            comment.created_at,
         ))
     }
 }

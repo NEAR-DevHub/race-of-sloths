@@ -83,7 +83,7 @@ impl Command {
             );
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     None,
                     MsgCategory::ErrorOrgNotInAllowedListMessage,
                     vec![],

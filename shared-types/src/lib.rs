@@ -30,6 +30,7 @@ pub type GithubHandle = String;
 pub struct UserPeriodData {
     pub total_score: u32,
     pub executed_prs: u32,
+    pub largest_score: u32,
     pub prs_opened: u32,
     pub prs_merged: u32,
 }

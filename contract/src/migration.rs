@@ -37,7 +37,9 @@ impl Contract {
         let mut old_state = env::state_read::<OldState>().unwrap();
         old_state.sloths_per_month.clear();
 
+        #[allow(deprecated)]
         let sloths_per_period = UnorderedMap::new(StorageKey::SlothsPerPeriod);
+        #[allow(deprecated)]
         let mut accounts = UnorderedMap::new(StorageKey::Accounts);
         old_state.sloths.into_iter().for_each(|(key, value)| {
             accounts.insert(
@@ -58,8 +60,20 @@ impl Contract {
             excluded_prs: old_state.excluded_prs,
             accounts,
             streaks: Vector::new(StorageKey::Streaks),
+            #[allow(deprecated)]
             user_streaks: UnorderedMap::new(StorageKey::UserStreaks),
         };
+
+        contract.streaks.push(Streak::new(
+            0,
+            TimePeriod::Week,
+            vec![StreakType::PRsOpened(1)],
+        ));
+        contract.streaks.push(Streak::new(
+            1,
+            TimePeriod::Month,
+            vec![StreakType::LargestScore(8)],
+        ));
 
         for value in contract.executed_prs.values().cloned().collect::<Vec<_>>() {
             contract.apply_to_periods(&value.author, value.created_at, |period| {
