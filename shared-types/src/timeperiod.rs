@@ -23,6 +23,7 @@ pub type TimePeriodString = String;
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum TimePeriod {
+    Day,
     Week,
     Month,
     Quarter,
@@ -33,6 +34,7 @@ pub enum TimePeriod {
 impl TimePeriod {
     pub fn time_string(&self, timestamp: Timestamp) -> TimePeriodString {
         match self {
+            TimePeriod::Day => timestamp_to_day_string(timestamp),
             TimePeriod::Week => timestamp_to_week_string(timestamp),
             TimePeriod::Month => timestamp_to_month_string(timestamp),
             TimePeriod::Quarter => timestamp_to_quarter_string(timestamp),
@@ -46,6 +48,9 @@ impl TimePeriod {
     pub fn previous_period(&self, timestamp: Timestamp) -> Option<Timestamp> {
         let timestamp = DateTime::from_timestamp_nanos(timestamp as i64);
         let result = match self {
+            TimePeriod::Day => timestamp
+                .checked_sub_days(Days::new(1))?
+                .timestamp_nanos_opt()? as Timestamp,
             TimePeriod::Week => timestamp
                 .checked_sub_days(Days::new(7))?
                 .timestamp_nanos_opt()? as Timestamp,
@@ -66,6 +71,11 @@ impl TimePeriod {
 }
 
 // Helper function to convert timestamp to quarter string
+fn timestamp_to_day_string(timestamp: Timestamp) -> TimePeriodString {
+    let date = DateTime::from_timestamp_nanos(timestamp as i64);
+    format!("{:02}{:02}{:04}", date.day(), date.month(), date.year())
+}
+
 fn timestamp_to_week_string(timestamp: Timestamp) -> TimePeriodString {
     let date = DateTime::from_timestamp_nanos(timestamp as i64);
     format!("{}W{}", date.year(), date.iso_week().week())

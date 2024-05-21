@@ -37,18 +37,53 @@ impl StreakType {
 
 pub type StreakId = u32;
 
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedStreak {
+    V1(Streak),
+}
+
+impl VersionedStreak {
+    pub fn is_active(&self) -> bool {
+        match self {
+            VersionedStreak::V1(streak) => streak.is_active,
+        }
+    }
+
+    pub fn id(&self) -> StreakId {
+        match self {
+            VersionedStreak::V1(streak) => streak.id,
+        }
+    }
+}
+
+impl From<VersionedStreak> for Streak {
+    fn from(message: VersionedStreak) -> Self {
+        match message {
+            VersionedStreak::V1(x) => x,
+        }
+    }
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Streak {
     pub id: StreakId,
+    pub name: String,
     pub time_period: TimePeriod,
     pub streak_criterias: Vec<StreakType>,
     pub is_active: bool,
 }
 
 impl Streak {
-    pub fn new(streak_id: u32, time_period: TimePeriod, streak_criterias: Vec<StreakType>) -> Self {
+    pub fn new(
+        streak_id: u32,
+        name: String,
+        time_period: TimePeriod,
+        streak_criterias: Vec<StreakType>,
+    ) -> Self {
         assert!(
             !streak_criterias.is_empty(),
             "Streak criteria should not be empty"
@@ -61,16 +96,35 @@ impl Streak {
 
         Self {
             id: streak_id,
+            name,
             time_period,
             streak_criterias,
             is_active: true,
         }
     }
 
-    pub fn is_streak_achieved(&self, user_period_data: &UserPeriodData) -> bool {
-        self.streak_criterias
-            .iter()
-            .all(|criteria| criteria.is_streak_achieved(user_period_data))
+    pub fn is_streak_achieved(&self, user_period_data: &VersionedUserPeriodData) -> bool {
+        match user_period_data {
+            VersionedUserPeriodData::V1(data) => self
+                .streak_criterias
+                .iter()
+                .all(|criteria| criteria.is_streak_achieved(data)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedStreakUserData {
+    V1(StreakUserData),
+}
+
+impl From<VersionedStreakUserData> for StreakUserData {
+    fn from(message: VersionedStreakUserData) -> Self {
+        match message {
+            VersionedStreakUserData::V1(x) => x,
+        }
     }
 }
 

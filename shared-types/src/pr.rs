@@ -23,7 +23,6 @@ pub struct PRInfo {
     pub allowed_repo: bool,
     pub exist: bool,
     pub merged: bool,
-    pub scored: bool,
     pub executed: bool,
     pub excluded: bool,
 }
@@ -84,6 +83,35 @@ impl PRInfo {
         message.push_str("\nWe'll keep this status updated as things progress. Thanks again for your awesome contribution! 🌟");
 
         message
+    }
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedPR {
+    V1(PR),
+}
+
+impl VersionedPR {
+    pub fn is_merged(&self) -> bool {
+        match self {
+            VersionedPR::V1(pr) => pr.merged_at.is_some(),
+        }
+    }
+
+    pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
+        match self {
+            VersionedPR::V1(pr) => pr.is_ready_to_move(timestamp),
+        }
+    }
+}
+
+impl From<VersionedPR> for PR {
+    fn from(message: VersionedPR) -> Self {
+        match message {
+            VersionedPR::V1(x) => x,
+        }
     }
 }
 

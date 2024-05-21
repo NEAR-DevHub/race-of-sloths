@@ -6,6 +6,21 @@ use near_sdk::{
     AccountId, NearSchema,
 };
 
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedAccount {
+    V1(Account),
+}
+
+impl From<VersionedAccount> for Account {
+    fn from(message: VersionedAccount) -> Self {
+        match message {
+            VersionedAccount::V1(x) => x,
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
 )]
@@ -23,6 +38,29 @@ enum PermissionModel {
     Allowlist(HashSet<String>),
     // Represents `all, except` list of repositories
     Blocklist(HashSet<String>),
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedOrganization {
+    V1(Organization),
+}
+
+impl VersionedOrganization {
+    pub fn is_allowed(&self, repo: &str) -> bool {
+        match self {
+            VersionedOrganization::V1(org) => org.is_allowed(repo),
+        }
+    }
+}
+
+impl From<VersionedOrganization> for Organization {
+    fn from(message: VersionedOrganization) -> Self {
+        match message {
+            VersionedOrganization::V1(x) => x,
+        }
+    }
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
