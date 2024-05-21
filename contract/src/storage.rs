@@ -6,16 +6,12 @@ use near_sdk::{
 #[derive(BorshSerialize, BorshDeserialize, BorshStorageKey)]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum StorageKey {
-    // Unused
-    _1,
-    // Unused
-    _2,
+    Accounts,
+    SlothsPerPeriod,
     Organizations,
     PRs,
     MergedPRs,
     ExcludedPRs,
     Streaks,
     UserStreaks,
-    Accounts,
-    SlothsPerPeriod,
 }

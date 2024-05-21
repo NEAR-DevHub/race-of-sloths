@@ -123,6 +123,7 @@ impl NearClient {
         Ok(())
     }
 
+    #[instrument(skip(self))]
     pub async fn check_info(
         &self,
         organization: &str,
@@ -145,6 +146,7 @@ impl NearClient {
         Ok(res)
     }
 
+    #[instrument(skip(self))]
     pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
         let args = json!({
             "page": page,
@@ -178,6 +180,7 @@ impl NearClient {
         Ok(res)
     }
 
+    #[instrument(skip(self))]
     pub async fn unfinalized_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
         let args = json!({
             "page": page,

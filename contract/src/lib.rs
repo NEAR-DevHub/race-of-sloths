@@ -9,11 +9,11 @@ use near_sdk::{
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared_types::{
     GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakType, StreakUserData, TimePeriod,
-    TimePeriodString, UserPeriodData, PR,
+    TimePeriodString, UserPeriodData, VersionedPR, VersionedStreak, VersionedStreakUserData,
+    VersionedUserPeriodData, PR,
 };
-use types::{Account, Organization};
+use types::{Account, Organization, VersionedAccount, VersionedOrganization};
 
-pub mod migration;
 pub mod storage;
 pub mod types;
 pub mod views;
@@ -24,22 +24,22 @@ pub mod views;
 pub struct Contract {
     sloth: AccountId,
     #[allow(deprecated)]
-    accounts: UnorderedMap<GithubHandle, Account>,
+    accounts: UnorderedMap<GithubHandle, VersionedAccount>,
     #[allow(deprecated)]
-    sloths_per_period: UnorderedMap<(GithubHandle, TimePeriodString), UserPeriodData>,
+    sloths_per_period: UnorderedMap<(GithubHandle, TimePeriodString), VersionedUserPeriodData>,
     #[allow(deprecated)]
-    organizations: UnorderedMap<GithubHandle, Organization>,
+    organizations: UnorderedMap<GithubHandle, VersionedOrganization>,
     // We need to think about removing PRs that are stale for a long time
     #[allow(deprecated)]
-    prs: UnorderedMap<PRId, PR>,
+    prs: UnorderedMap<PRId, VersionedPR>,
     #[allow(deprecated)]
-    executed_prs: UnorderedMap<PRId, PR>,
+    executed_prs: UnorderedMap<PRId, VersionedPR>,
     excluded_prs: LookupSet<PRId>,
 
     // Configured streaks
-    streaks: Vector<Streak>,
+    streaks: Vector<VersionedStreak>,
     #[allow(deprecated)]
-    user_streaks: UnorderedMap<(GithubHandle, StreakId), StreakUserData>,
+    user_streaks: UnorderedMap<(GithubHandle, StreakId), VersionedStreakUserData>,
 }
 
 #[near_bindgen]
@@ -47,7 +47,7 @@ impl Contract {
     #[init]
     #[init(ignore_state)]
     pub fn new(sloth: AccountId) -> Self {
-        Self {
+        let mut contract = Self {
             sloth,
             #[allow(deprecated)]
             accounts: UnorderedMap::new(storage::StorageKey::Accounts),
@@ -63,25 +63,51 @@ impl Contract {
             streaks: Vector::new(storage::StorageKey::Streaks),
             #[allow(deprecated)]
             user_streaks: UnorderedMap::new(storage::StorageKey::UserStreaks),
-        }
+        };
+
+        contract.allow_organization("NEAR-DevHub".to_owned());
+        contract.allow_organization("akorchyn".to_owned());
+
+        contract.create_streak(
+            "Weekly PR".to_owned(),
+            TimePeriod::Week,
+            vec![StreakType::PRsOpened(1)],
+        );
+        contract.create_streak(
+            "Monthly PR with score higher 8".to_owned(),
+            TimePeriod::Month,
+            vec![StreakType::LargestScore(8)],
+        );
+
+        contract
     }
 
-    pub fn create_streak(&mut self, time_period: TimePeriod, streak_criterias: Vec<StreakType>) {
+    pub fn create_streak(
+        &mut self,
+        name: String,
+        time_period: TimePeriod,
+        streak_criterias: Vec<StreakType>,
+    ) {
         self.assert_sloth();
         let id = self.streaks.len();
-        let streak = Streak::new(id, time_period, streak_criterias);
-        self.streaks.push(streak);
+        let streak = Streak::new(id, name, time_period, streak_criterias);
+        self.streaks.push(VersionedStreak::V1(streak));
     }
 
     pub fn deactivate_streak(&mut self, id: u32) {
         self.assert_sloth();
 
-        let streak = self.streaks.get_mut(id).cloned();
+        let streak = self.streaks.get_mut(id);
         if streak.is_none() {
             env::panic_str("Streak doesn't exist")
         }
 
-        streak.unwrap().is_active = false;
+        let streak = streak.unwrap();
+        match streak {
+            VersionedStreak::V1(streak) => {
+                streak.is_active = false;
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -109,63 +135,54 @@ impl Contract {
         }
 
         // Check if PR already exists
-        let pr = self.prs.get(&pr_id).cloned();
-        let executed_pr = self.executed_prs.get(&pr_id);
-        if pr.is_some() || executed_pr.is_some() {
+        let pr = self.prs.get(&pr_id).or(self.executed_prs.get(&pr_id));
+        if pr.is_some() {
             env::panic_str("PR already exists: {pr_id}")
         }
 
         // Create user if it doesn't exist
         let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
 
-        self.apply_to_periods(&pr.author, started_at, |data| {
-            data.prs_opened += 1;
-        });
-        self.prs.insert(pr_id, pr);
+        self.apply_to_periods(&pr.author, started_at, |data| data.pr_opened());
+        self.prs.insert(pr_id, VersionedPR::V1(pr));
     }
 
     pub fn sloth_scored(&mut self, pr_id: String, user: String, score: u32) {
         self.assert_sloth();
 
-        let pr = self.prs.get_mut(&pr_id);
-        if pr.is_none() {
-            env::panic_str("PR is not started or already executed")
-        }
+        let pr = match self.prs.get_mut(&pr_id) {
+            Some(VersionedPR::V1(pr)) => pr,
+            None => env::panic_str("PR is not started or already executed"),
+        };
 
-        let pr = pr.unwrap();
         pr.add_score(user, score);
     }
 
     pub fn sloth_merged(&mut self, pr_id: String, merged_at: Timestamp) {
         self.assert_sloth();
 
-        let pr = self.prs.get_mut(&pr_id).cloned();
-        if pr.is_none() {
-            env::panic_str("PR is not started or already executed")
-        }
-
-        let mut pr = pr.unwrap();
+        let mut pr = match self.prs.get(&pr_id).cloned() {
+            Some(VersionedPR::V1(pr)) => pr,
+            None => env::panic_str("PR is not started or already executed"),
+        };
         pr.add_merge_info(merged_at);
 
-        self.apply_to_periods(&pr.author, merged_at, |data| {
-            data.prs_merged += 1;
-        });
-        self.prs.insert(pr_id.clone(), pr);
+        self.apply_to_periods(&pr.author, merged_at, |data| data.pr_merged());
+        self.prs.insert(pr_id.clone(), VersionedPR::V1(pr));
     }
 
     pub fn sloth_exclude(&mut self, pr_id: String) {
         self.assert_sloth();
-        let pr = self.prs.get(&pr_id).cloned();
-        if pr.is_none() {
-            env::panic_str("PR is not started or already executed")
-        }
-        let pr = pr.unwrap();
+        let pr = match self.prs.get(&pr_id).cloned() {
+            Some(VersionedPR::V1(pr)) => pr,
+            None => env::panic_str("PR is not started or already executed"),
+        };
         if pr.merged_at.is_some() {
             env::panic_str("Merged PR cannot be excluded")
         }
 
         self.apply_to_periods(&pr.author, pr.created_at, |data| {
-            data.prs_opened -= 1;
+            data.pr_closed();
         });
 
         self.prs.remove(&pr_id);
@@ -180,59 +197,55 @@ impl Contract {
         }
 
         let org = Organization::new_all(organization);
-        self.organizations.insert(org.name.clone(), org);
+        self.organizations
+            .insert(org.name.clone(), VersionedOrganization::V1(org));
     }
 
     pub fn exclude_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        let org = self.organizations.get_mut(&organization);
-        if org.is_none() {
-            env::panic_str("Organization is not in the list")
-        }
+        let org = match self.organizations.get_mut(&organization) {
+            Some(VersionedOrganization::V1(org)) => org,
+            _ => env::panic_str("Organization is not in the list"),
+        };
 
-        let org = org.unwrap();
         org.exclude(&repo);
     }
 
     pub fn include_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        let org = self.organizations.get_mut(&organization);
-        if org.is_none() {
-            let org = Organization::new_only(organization, vec![repo].into_iter().collect());
-            self.organizations.insert(org.name.clone(), org);
-            return;
+        match self.organizations.get_mut(&organization) {
+            Some(VersionedOrganization::V1(org)) => {
+                org.include(&repo);
+            }
+            None => {
+                let org = Organization::new_only(organization, vec![repo].into_iter().collect());
+                self.organizations
+                    .insert(org.name.clone(), VersionedOrganization::V1(org));
+            }
         }
-
-        let org = org.unwrap();
-        org.include(&repo);
     }
 
     pub fn sloth_stale(&mut self, pr_id: String) {
         self.assert_sloth();
 
-        let pr = self.prs.get(&pr_id);
-        if pr.is_none() {
-            env::panic_str("PR is not started or already executed")
-        }
-        let pr = pr.unwrap().clone();
+        let pr = match self.prs.get(&pr_id).cloned() {
+            Some(VersionedPR::V1(pr)) => pr,
+            None => env::panic_str("PR is not started or already executed"),
+        };
         require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
 
-        self.apply_to_periods(&pr.author, pr.created_at, |data| {
-            data.prs_opened -= 1;
-        });
+        self.apply_to_periods(&pr.author, pr.created_at, |data| data.pr_closed());
         self.prs.remove(&pr_id);
     }
 
     pub fn sloth_finalize(&mut self, pr_id: String) {
         self.assert_sloth();
 
-        let pr = self.prs.get(&pr_id).cloned();
-        let pr = if let Some(pr) = pr {
-            pr
-        } else {
-            env::panic_str("PR is not started or already executed")
+        let pr = match self.prs.get(&pr_id).cloned() {
+            Some(VersionedPR::V1(pr)) => pr,
+            None => env::panic_str("PR is not started or already executed"),
         };
 
         if !pr.is_ready_to_move(env::block_timestamp()) {
@@ -243,15 +256,12 @@ impl Contract {
         let score = pr.score().unwrap_or_default();
 
         self.apply_to_periods(&pr.author, pr.merged_at.unwrap(), |data| {
-            data.total_score += score;
-            data.executed_prs += 1;
-            data.largest_score = data.largest_score.max(score);
+            data.pr_executed(score)
         });
-        self.calculate_streak(&pr.author);
 
         let full_id = pr.pr_id();
         self.prs.remove(&full_id);
-        self.executed_prs.insert(full_id, pr);
+        self.executed_prs.insert(full_id, VersionedPR::V1(pr));
     }
 }
 
@@ -259,12 +269,19 @@ impl Contract {
     pub fn calculate_streak(&mut self, user: &String) {
         let current_time = env::block_timestamp();
         for streak in self.streaks.iter() {
+            let streak: Streak = streak.clone().into();
+
             if !streak.is_active {
                 continue;
             }
 
             let key = (user.clone(), streak.id);
-            let mut streak_data = self.user_streaks.get(&key).cloned().unwrap_or_default();
+            let mut streak_data: StreakUserData = self
+                .user_streaks
+                .get(&key)
+                .cloned()
+                .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
+                .into();
             let current_time_string = streak.time_period.time_string(current_time);
 
             // Check if user accomplished the streak for current period
@@ -274,7 +291,7 @@ impl Contract {
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
 
-            let streak = self.verify_previous_streak(streak, &streak_data, user, current_time);
+            let streak = self.verify_previous_streak(&streak, &streak_data, user, current_time);
 
             match (
                 streak_data.latest_time_string == current_time_string,
@@ -296,7 +313,8 @@ impl Contract {
                     streak_data.amount = streak;
                 }
             }
-            self.user_streaks.insert(key, streak_data);
+            self.user_streaks
+                .insert(key, VersionedStreakUserData::V1(streak_data));
         }
     }
 
@@ -334,23 +352,25 @@ impl Contract {
         &mut self,
         author: &String,
         timestamp: Timestamp,
-        func: impl Fn(&mut UserPeriodData),
+        func: impl Fn(&mut VersionedUserPeriodData),
     ) {
         for period in TimePeriod::iter() {
             let key = period.time_string(timestamp);
             let entry = self
                 .sloths_per_period
                 .entry((author.to_owned(), key.clone()))
-                .or_default();
+                .or_insert(VersionedUserPeriodData::V1(Default::default()));
             func(entry);
         }
+        self.calculate_streak(author);
     }
 
     pub fn get_or_create_account(&mut self, account_id: &str) -> Account {
         self.accounts
             .entry(account_id.to_owned())
-            .or_default()
+            .or_insert(VersionedAccount::V1(Default::default()))
             .clone()
+            .into()
     }
 
     pub fn assert_sloth(&self) {
