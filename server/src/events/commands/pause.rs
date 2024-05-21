@@ -53,7 +53,7 @@ impl BotPaused {
     }
 
     pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
-        return Command::Pause(BotPaused {
+        Command::Pause(BotPaused {
             pr_metadata: pr_metadata.clone(),
             sender: User {
                 login: comment.user.login.clone(),
@@ -61,7 +61,7 @@ impl BotPaused {
             },
             timestamp: comment.created_at,
             comment_id: comment.id.0,
-        });
+        })
     }
 }
 
@@ -113,7 +113,7 @@ impl BotUnpaused {
     }
 
     pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
-        return Command::Unpause(BotUnpaused {
+        Command::Unpause(BotUnpaused {
             pr_metadata: pr_metadata.clone(),
             sender: User {
                 login: comment.user.login.clone(),
@@ -121,6 +121,6 @@ impl BotUnpaused {
             },
             timestamp: comment.created_at,
             comment_id: comment.id.0,
-        });
+        })
     }
 }

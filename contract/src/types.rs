@@ -1,16 +1,18 @@
 use std::collections::HashSet;
 
-use chrono::{DateTime, Datelike};
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     serde::{Deserialize, Serialize},
-    NearSchema,
+    AccountId, NearSchema,
 };
-use shared_types::MonthYearString;
 
-pub fn timestamp_to_month_string(timestamp: u64) -> MonthYearString {
-    let date = DateTime::from_timestamp_nanos(timestamp as i64);
-    format!("{:02}{:04}", date.month(), date.year())
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct Account {
+    pub account_id: Option<AccountId>,
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
@@ -65,17 +67,5 @@ impl Organization {
             PermissionModel::Allowlist(allowlist) => allowlist.contains(repo),
             PermissionModel::Blocklist(blocklist) => !blocklist.contains(repo),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_timestamp_to_code() {
-        let timestamp = 1625097600000000000; // 2021-07-01
-        let code = timestamp_to_month_string(timestamp);
-        assert_eq!(code, "072021");
     }
 }

@@ -11,7 +11,7 @@ use slothrace::{
     events::{actions::Action, commands::Command, Context, Event},
     messages::MessageLoader,
 };
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace};
 
 #[derive(Deserialize)]
 struct Env {
@@ -114,7 +114,7 @@ async fn merge_and_execute_task(
     }
     execute(context.clone(), event.unwrap()).await;
 
-    return current_time + merge_interval;
+    current_time + merge_interval
 }
 
 // Runs events from the same PR
@@ -150,7 +150,7 @@ async fn execute(context: Context, events: Vec<Event>) {
         "Finished executing events. Updating status comment for {}",
         pr.full_id
     );
-    let info = context.check_info(&pr).await;
+    let info = context.check_info(pr).await;
     if let Err(e) = info {
         error!("Failed to get PR info for {}: {e}", pr.full_id);
         return;
@@ -178,7 +178,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             .get_pull_request(&pr.organization, &pr.repo, pr.number)
             .await;
         if let Err(e) = pr {
-            warn!("Failed to get PR: {e}");
+            error!("Failed to get PR: {e}");
             continue;
         }
         let pr = pr.unwrap();
@@ -186,7 +186,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         let pr_metadata = PrMetadata::try_from(pr);
 
         if let Err(e) = pr_metadata {
-            warn!("Failed to convert PR: {e}");
+            error!("Failed to convert PR: {e}");
             continue;
         }
 

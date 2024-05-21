@@ -259,4 +259,18 @@ impl NearClient {
             .into_result()?;
         Ok(())
     }
+
+    #[instrument(skip(self))]
+    pub async fn user_info(&self, user: &str) -> anyhow::Result<User> {
+        let res = self
+            .contract
+            .view("user")
+            .args_json(json!({
+                "user": user,
+            }))
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;
+        let res = res.json()?;
+        Ok(res)
+    }
 }

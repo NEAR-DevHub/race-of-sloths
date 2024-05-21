@@ -2,7 +2,7 @@ use futures::future::join_all;
 use octocrab::models::{
     activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
 };
-use tracing::{info, instrument, warn};
+use tracing::{error, info, instrument};
 
 use crate::events::commands::Command;
 
@@ -53,7 +53,7 @@ impl GithubClient {
                     event.subject.r#type, event.reason
                 );
                 if let Err(_) = self.mark_notification_as_read(event.id).await {
-                    warn!(
+                    error!(
                         "Failed to mark notification as read for event: {:?}",
                         event.id
                     );
@@ -63,14 +63,14 @@ impl GithubClient {
 
             let pr = self.get_pull_request_from_notification(&event).await;
             if let Err(e) = pr {
-                warn!("Failed to get PR: {:?}", e);
+                error!("Failed to get PR: {:?}", e);
                 return None;
             }
             let pr = pr.unwrap();
 
             let pr_metadata = types::PrMetadata::try_from(pr);
             if let Err(e) = pr_metadata {
-                warn!("Failed to convert PR: {:?}", e);
+                error!("Failed to convert PR: {:?}", e);
                 return None;
             }
             let pr_metadata = pr_metadata.unwrap();
@@ -84,14 +84,14 @@ impl GithubClient {
                 .await;
 
             if let Err(e) = comments {
-                warn!("Failed to get comments: {:?}", e);
+                error!("Failed to get comments: {:?}", e);
                 return None;
             }
             let comments = comments.unwrap();
 
             let comments = self.octocrab.all_pages(comments).await;
             if let Err(e) = comments {
-                warn!("Failed to get all comments: {:?}", e);
+                error!("Failed to get all comments: {:?}", e);
                 return None;
             }
             let comments = comments.unwrap();
@@ -117,8 +117,8 @@ impl GithubClient {
                 }
             }
 
-            if let Err(_) = self.mark_notification_as_read(event.id).await {
-                warn!("Failed to mark notification as read");
+            if let Err(e) = self.mark_notification_as_read(event.id).await {
+                error!("Failed to mark notification as read: {:?}", e);
             }
 
             Some(results)
