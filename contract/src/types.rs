@@ -3,8 +3,17 @@ use std::collections::HashSet;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     serde::{Deserialize, Serialize},
-    NearSchema,
+    AccountId, NearSchema,
 };
+
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct Account {
+    pub account_id: Option<AccountId>,
+}
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]

@@ -36,9 +36,19 @@ impl Contract {
     pub fn migrate() -> Self {
         let mut old_state = env::state_read::<OldState>().unwrap();
         old_state.sloths_per_month.clear();
-        old_state.sloths.clear();
 
         let sloths_per_period = UnorderedMap::new(StorageKey::SlothsPerPeriod);
+        let mut accounts = UnorderedMap::new(StorageKey::Accounts);
+        old_state.sloths.into_iter().for_each(|(key, value)| {
+            accounts.insert(
+                key.clone(),
+                Account {
+                    account_id: value.account_id.clone(),
+                },
+            );
+        });
+        old_state.sloths.clear();
+
         let mut contract = Self {
             sloth: old_state.sloth,
             sloths_per_period,
@@ -46,6 +56,7 @@ impl Contract {
             prs: old_state.prs,
             executed_prs: old_state.executed_prs,
             excluded_prs: old_state.excluded_prs,
+            accounts,
             streaks: Vector::new(StorageKey::Streaks),
             user_streaks: UnorderedMap::new(StorageKey::UserStreaks),
         };

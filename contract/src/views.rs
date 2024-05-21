@@ -1,5 +1,5 @@
 use near_sdk::near_bindgen;
-use shared_types::PRInfo;
+use shared_types::{PRInfo, User};
 
 use super::*;
 
@@ -46,28 +46,38 @@ impl Contract {
             .collect()
     }
 
-    pub fn users(
-        &self,
-        limit: u64,
-        page: u64,
-        year_month_string: Option<String>,
-    ) -> Vec<UserWithMonthScore> {
-        let month =
-            year_month_string.unwrap_or_else(|| timestamp_to_month_string(env::block_timestamp()));
-
-        self.sloths
-            .values()
-            .skip((page * limit) as usize)
-            .take(limit as usize)
-            .map(|user| UserWithMonthScore {
-                user: user.clone(),
-                score: self
-                    .sloths_per_month
-                    .get(&(user.handle.clone(), month.clone()))
-                    .copied()
-                    .unwrap_or(0),
-                month: month.clone(),
+    pub fn user_streaks(&self, user: &str) -> Vec<(StreakId, StreakUserData)> {
+        self.streaks
+            .into_iter()
+            .filter(|s| s.is_active)
+            .filter_map(|streak| {
+                self.user_streaks
+                    .get(&(user.to_string(), streak.id))
+                    .map(|data| (streak.id, data.clone()))
             })
+            .collect()
+    }
+
+    pub fn period_data(&self, user: &str, period_string: &str) -> Option<UserPeriodData> {
+        self.sloths_per_period
+            .get(&(user.to_string(), period_string.to_string()))
+            .cloned()
+    }
+
+    pub fn user(&self, user: &str, period_string: &str) -> Option<User> {
+        self.accounts.get(user).map(|data| User {
+            name: user.to_string(),
+            account_id: data.account_id.clone(),
+            period_data: self.period_data(user, period_string).unwrap_or_default(),
+            streaks: self.user_streaks(user),
+        })
+    }
+
+    pub fn users(&self, limit: u64, page: u64, period_string: String) -> Vec<User> {
+        self.accounts
+            .iter()
+            .skip((page * limit) as usize)
+            .filter_map(|(user, _data)| self.user(user, &period_string))
             .collect()
     }
 }

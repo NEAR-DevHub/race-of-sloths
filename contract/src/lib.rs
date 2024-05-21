@@ -11,7 +11,7 @@ use shared_types::{
     GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakUserData, TimePeriod,
     TimePeriodString, UserPeriodData, PR,
 };
-use types::Organization;
+use types::{Account, Organization};
 
 pub mod migration;
 pub mod storage;
@@ -23,6 +23,8 @@ pub mod views;
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Contract {
     sloth: AccountId,
+    #[allow(deprecated)]
+    accounts: UnorderedMap<GithubHandle, Account>,
     #[allow(deprecated)]
     sloths_per_period: UnorderedMap<(GithubHandle, TimePeriodString), UserPeriodData>,
     #[allow(deprecated)]
@@ -36,6 +38,7 @@ pub struct Contract {
 
     // Configured streaks
     streaks: Vector<Streak>,
+    #[allow(deprecated)]
     user_streaks: UnorderedMap<(GithubHandle, StreakId), StreakUserData>,
 }
 
@@ -46,6 +49,8 @@ impl Contract {
     pub fn new(sloth: AccountId) -> Self {
         Self {
             sloth,
+            #[allow(deprecated)]
+            accounts: UnorderedMap::new(storage::StorageKey::Accounts),
             #[allow(deprecated)]
             sloths_per_period: UnorderedMap::new(storage::StorageKey::SlothsPerPeriod),
             #[allow(deprecated)]
@@ -73,6 +78,7 @@ impl Contract {
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
+        self.get_or_create_account(&user);
 
         let pr_id = format!("{organization}/{repo}/{pr_number}");
 
@@ -248,25 +254,26 @@ impl Contract {
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
 
-            let previous_time =
-                self.verify_previous_streak(streak, &streak_data, user, current_time);
+            let streak = self.verify_previous_streak(streak, &streak_data, user, current_time);
 
             match (
                 streak_data.latest_time_string == current_time_string,
                 achieved,
             ) {
+                // We haven't counted current period yet
                 (false, true) => {
-                    streak_data.amount += previous_time + 1;
+                    streak_data.amount += streak + 1;
                     streak_data.latest_time_string = current_time_string;
                 }
+                // We have counted current period, but now user is losing the streak
                 (true, false) => {
                     // We have update the streak data previously with success, so we need to revert it
-                    streak_data.amount = previous_time - 1;
+                    streak_data.amount = streak - 1;
                 }
                 // If both are false, then user hasn't achieved the streak and we don't need to do anything
                 // If both are true, then user has already achieved the streak and we don't need to do anything
                 _ => {
-                    streak_data.amount = previous_time;
+                    streak_data.amount = streak;
                 }
             }
             self.user_streaks.insert(key, streak_data);
@@ -317,6 +324,13 @@ impl Contract {
                 .or_default();
             func(entry);
         }
+    }
+
+    pub fn get_or_create_account(&mut self, account_id: &str) -> Account {
+        self.accounts
+            .entry(account_id.to_owned())
+            .or_default()
+            .clone()
     }
 
     pub fn assert_sloth(&self) {
