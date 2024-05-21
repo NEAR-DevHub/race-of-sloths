@@ -309,9 +309,7 @@ impl Contract {
                 }
                 // If both are false, then user hasn't achieved the streak and we don't need to do anything
                 // If both are true, then user has already achieved the streak and we don't need to do anything
-                _ => {
-                    streak_data.amount = streak;
-                }
+                _ => {}
             }
             self.user_streaks
                 .insert(key, VersionedStreakUserData::V1(streak_data));
