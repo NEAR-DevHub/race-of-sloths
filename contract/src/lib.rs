@@ -353,6 +353,10 @@ impl Contract {
         func: impl Fn(&mut VersionedUserPeriodData),
     ) {
         for period in TimePeriod::iter() {
+            if period == TimePeriod::Day {
+                continue;
+            }
+
             let key = period.time_string(timestamp);
             let entry = self
                 .sloths_per_period
