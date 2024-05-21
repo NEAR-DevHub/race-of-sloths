@@ -28,10 +28,20 @@ impl Contract {
         }
     }
 
+    pub fn prs(&self, page: u64, limit: u64) -> Vec<PR> {
+        self.prs
+            .values()
+            .skip((page * limit) as usize)
+            .take(limit as usize)
+            .cloned()
+            .map(Into::into)
+            .collect()
+    }
+
     pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PR> {
         self.prs
             .values()
-            .filter(|pr| pr.is_merged())
+            .filter(|pr| !pr.is_merged())
             .skip((page * limit) as usize)
             .take(limit as usize)
             .cloned()
