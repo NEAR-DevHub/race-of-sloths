@@ -531,7 +531,7 @@ dependencies = [
  "cargo_metadata",
  "clap 3.2.25",
  "colored",
- "env_logger 0.9.3",
+ "env_logger",
  "libloading",
  "log",
  "near-abi",
@@ -1050,16 +1050,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "env_filter"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a009aa4810eb158359dda09d0c87378e4bbb89b5a801f016885a4707ba24f7ea"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
 name = "env_logger"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1070,19 +1060,6 @@ dependencies = [
  "log",
  "regex",
  "termcolor",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b35839ba51819680ba087cd351788c9a3c476841207e0b8cee0b04722343b9"
-dependencies = [
- "anstream",
- "anstyle",
- "env_filter",
- "humantime",
- "log",
 ]
 
 [[package]]
@@ -3007,7 +2984,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "dotenv",
- "env_logger 0.11.3",
  "envy",
  "futures",
  "hex",
@@ -3020,6 +2996,7 @@ dependencies = [
  "tokio",
  "toml 0.8.12",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -1,0 +1,23 @@
+# fly.toml app configuration file generated for race-of-sloths on 2024-05-22T18:50:10+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'race-of-sloths'
+primary_region = 'ams'
+
+[env]
+RUST_LOG = "race_of_sloths_bot=TRACE"
+
+[build]
+[http_service]
+internal_port = 8080
+protocol = "tcp"
+auto_start_machines = true
+auto_stop_machines = false
+min_machines_running = 1
+
+[[vm]]
+memory = '256mb'
+cpu_kind = 'shared'
+cpus = 1

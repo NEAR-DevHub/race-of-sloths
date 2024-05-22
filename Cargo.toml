@@ -30,6 +30,7 @@ futures = "0.3.30"
 rand = "0.8.5"
 toml = "0.8"
 strum = { version = "0.26", no-default-features = true }
+tracing-subscriber = "0.3"
 
 shared-types = { path = "shared-types" }
 

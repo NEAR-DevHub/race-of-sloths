@@ -13,6 +13,7 @@ use race_of_sloths_bot::{
 use serde::Deserialize;
 use tokio::signal;
 use tracing::{debug, error, info, instrument, trace};
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
 #[derive(Deserialize)]
 struct Env {
@@ -26,7 +27,10 @@ struct Env {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
-    env_logger::init();
+    let subscriber = tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer());
+    tracing::subscriber::set_global_default(subscriber)?;
 
     let env = envy::from_env::<Env>()?;
 
