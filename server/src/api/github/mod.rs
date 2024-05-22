@@ -52,28 +52,30 @@ impl GithubClient {
                     "Skipping event: {} with reason {}",
                     event.subject.r#type, event.reason
                 );
-                if let Err(_) = self.mark_notification_as_read(event.id).await {
+                if let Err(e) = self.mark_notification_as_read(event.id).await {
                     error!(
-                        "Failed to mark notification as read for event: {:?}",
+                        "Failed to mark notification as read for event: {:?}: {e:?}",
                         event.id
                     );
                 }
                 return None;
             }
 
-            let pr = self.get_pull_request_from_notification(&event).await;
-            if let Err(e) = pr {
-                error!("Failed to get PR: {:?}", e);
-                return None;
-            }
-            let pr = pr.unwrap();
+            let pr = match self.get_pull_request_from_notification(&event).await {
+                Ok(pr) => pr,
+                Err(e) => {
+                    error!("Failed to get PR: {:?}", e);
+                    return None;
+                }
+            };
 
-            let pr_metadata = types::PrMetadata::try_from(pr);
-            if let Err(e) = pr_metadata {
-                error!("Failed to convert PR: {:?}", e);
-                return None;
-            }
-            let pr_metadata = pr_metadata.unwrap();
+            let pr_metadata = match types::PrMetadata::try_from(pr) {
+                Ok(pr) => pr,
+                Err(e) => {
+                    error!("Failed to convert PR: {:?}", e);
+                    return None;
+                }
+            };
 
             let comments = self
                 .octocrab
@@ -83,18 +85,21 @@ impl GithubClient {
                 .send()
                 .await;
 
-            if let Err(e) = comments {
-                error!("Failed to get comments: {:?}", e);
-                return None;
-            }
-            let comments = comments.unwrap();
+            let comments = match comments {
+                Ok(comments) => comments,
+                Err(e) => {
+                    error!("Failed to get comments: {:?}", e);
+                    return None;
+                }
+            };
 
-            let comments = self.octocrab.all_pages(comments).await;
-            if let Err(e) = comments {
-                error!("Failed to get all comments: {:?}", e);
-                return None;
-            }
-            let comments = comments.unwrap();
+            let comments = match self.octocrab.all_pages(comments).await {
+                Ok(comments) => comments,
+                Err(e) => {
+                    error!("Failed to get all comments: {:?}", e);
+                    return None;
+                }
+            };
 
             let mut results = Vec::new();
             let mut found_us = false;
