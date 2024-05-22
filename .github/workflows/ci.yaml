@@ -31,7 +31,10 @@ jobs:
           if: steps.git-diff.outputs.diff
         - name: install near-cli
           if: steps.git-diff.outputs.diff
-          run: cargo install near-cli-rs
+          run: 
+              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev
+              sudo apt-get install libudev-dev
+              cargo install cargo-flash
         - name: clippy 
           if: steps.git-diff.outputs.diff
           run: |
