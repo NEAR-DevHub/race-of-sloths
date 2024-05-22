@@ -32,8 +32,8 @@ jobs:
         - name: install near-cli
           if: steps.git-diff.outputs.diff
           run:
-              sudo apt update
-              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev
+              sudo apt update -y &&
+              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev &&
               cargo install near-cli-rs
         - name: clippy 
           if: steps.git-diff.outputs.diff
