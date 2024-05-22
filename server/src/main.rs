@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use futures::future::join_all;
 use near_workspaces::types::SecretKey;
+use octocrab::models::NotificationId;
 use race_of_sloths_bot::{
     api::{
         github::{GithubClient, PrMetadata},
@@ -89,16 +90,22 @@ async fn event_task(context: Context) {
 
     let events_per_pr = events.into_iter().fold(
         std::collections::HashMap::new(),
-        |mut map: HashMap<String, Vec<Command>>, event| {
+        |mut map: HashMap<String, Vec<(Command, Option<NotificationId>)>>,
+         (event, notification)| {
             let pr = event.pr();
-            map.entry(pr.full_id.clone()).or_default().push(event);
+            map.entry(pr.full_id.clone())
+                .or_default()
+                .push((event, Some(notification)));
             map
         },
     );
 
     let futures = events_per_pr.into_iter().map(|(key, events)| {
         debug!("Received {} events for PR {}", events.len(), key);
-        let events: Vec<_> = events.into_iter().map(Event::Command).collect();
+        let events: Vec<_> = events
+            .into_iter()
+            .map(|(event, id)| (Event::Command(event), id))
+            .collect();
         execute(context.clone(), events)
     });
 
@@ -121,7 +128,10 @@ async fn merge_and_execute_task(
             error!("Failed to get merge events: {}", e);
             return merge_time;
         }
-    };
+    }
+    .into_iter()
+    .map(|e| (e, None))
+    .collect();
 
     execute(context.clone(), events).await;
 
@@ -133,7 +143,11 @@ async fn merge_and_execute_task(
             error!("Failed to get finalize events: {}", e);
             return merge_time;
         }
-    };
+    }
+    .into_iter()
+    .map(|e| (e, None))
+    .collect();
+
     execute(context.clone(), event).await;
 
     current_time + merge_interval
@@ -141,15 +155,15 @@ async fn merge_and_execute_task(
 
 // Runs events from the same PR
 #[instrument(skip(context, events))]
-async fn execute(context: Context, events: Vec<Event>) {
+async fn execute(context: Context, events: Vec<(Event, Option<NotificationId>)>) {
     if events.is_empty() {
         return;
     }
 
     debug!("Executing {} events", events.len());
     let mut should_update = false;
-    for event in &events {
-        match event.execute(context.clone()).await {
+    for (event, notification_id) in &events {
+        match event.execute(context.clone(), *notification_id).await {
             Ok(res) => {
                 should_update |= res;
             }
@@ -158,7 +172,7 @@ async fn execute(context: Context, events: Vec<Event>) {
             }
         }
     }
-    let pr = events[0].pr();
+    let pr = events[0].0.pr();
 
     if !should_update {
         debug!(

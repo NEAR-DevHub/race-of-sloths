@@ -70,9 +70,7 @@ impl Command {
             Command::Unknown(event) => &event.timestamp,
         }
     }
-}
 
-impl Command {
     #[instrument(skip(self, context, check_info), fields(pr = self.pr().full_id))]
     pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
         let pr = self.pr();

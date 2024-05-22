@@ -29,7 +29,7 @@ impl GithubClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_events(&self) -> anyhow::Result<Vec<Command>> {
+    pub async fn get_events(&self) -> anyhow::Result<Vec<(Command, NotificationId)>> {
         let page = self
             .octocrab
             .activity()
@@ -109,21 +109,25 @@ impl GithubClient {
                     break;
                 }
 
-                let event = Command::parse_command(&self.user_handle, &pr_metadata, &comment);
-                if let Some(event) = event {
-                    results.push(event);
+                if let Some(command) =
+                    Command::parse_command(&self.user_handle, &pr_metadata, &comment)
+                {
+                    results.push((command, event.id));
                 }
             }
 
             // We haven
             if results.is_empty() && !found_us {
-                if let Some(event) = Command::parse_body(&self.user_handle, &pr_metadata) {
-                    results.push(event);
+                if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
+                    results.push((command, event.id));
                 }
             }
 
-            if let Err(e) = self.mark_notification_as_read(event.id).await {
-                error!("Failed to mark notification as read: {:?}", e);
+            if results.is_empty() {
+                info!("No commands found in PR: {}", pr_metadata.number);
+                if let Err(e) = self.mark_notification_as_read(event.id).await {
+                    error!("Failed to mark notification as read: {:?}", e);
+                }
             }
 
             Some(results)
