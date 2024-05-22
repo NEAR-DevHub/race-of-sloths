@@ -29,12 +29,12 @@ jobs:
         - name: fmt
           run: cargo fmt --all -- --check
           if: steps.git-diff.outputs.diff
-        - name: install near-cli
+        - name: install cargo-near
           if: steps.git-diff.outputs.diff
           run:
               sudo apt update -y &&
               sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev &&
-              cargo install near-cli-rs
+              cargo install cargo-near
         - name: clippy 
           if: steps.git-diff.outputs.diff
           run: |
