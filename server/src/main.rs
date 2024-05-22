@@ -2,8 +2,7 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use futures::future::join_all;
 use near_workspaces::types::SecretKey;
-use serde::Deserialize;
-use slothrace::{
+use race_of_sloths_bot::{
     api::{
         github::{GithubClient, PrMetadata},
         near::NearClient,
@@ -11,6 +10,8 @@ use slothrace::{
     events::{actions::Action, commands::Command, Context, Event},
     messages::MessageLoader,
 };
+use serde::Deserialize;
+use tokio::signal;
 use tracing::{debug, error, info, instrument, trace};
 
 #[derive(Deserialize)]
@@ -43,6 +44,19 @@ async fn main() -> anyhow::Result<()> {
         messages: messages.into(),
     };
 
+    tokio::select! {
+        _ = run(context) => {
+            error!("Main loop exited unexpectedly.")
+        }
+        _ = signal::ctrl_c() => {
+            info!("Received SIGINT. Exiting.");
+        }
+    }
+
+    Ok(())
+}
+
+async fn run(context: Context) {
     let minute = tokio::time::Duration::from_secs(60);
     let mut interval: tokio::time::Interval = tokio::time::interval(minute);
     let mut merge_time = std::time::SystemTime::now();
@@ -53,20 +67,19 @@ async fn main() -> anyhow::Result<()> {
         (_, _, merge_time) = tokio::join!(
             interval.tick(),
             event_task(context.clone()),
-            merge_and_execute_task(context.clone(), current_time, merge_time, merge_interval),
-        );
+            merge_and_execute_task(context.clone(), current_time, merge_time, merge_interval)
+        )
     }
-
-    Ok(())
 }
 
 async fn event_task(context: Context) {
-    let events = context.github.get_events().await;
-    if let Err(e) = events {
-        error!("Failed to get events: {}", e);
-        return;
-    }
-    let events = events.unwrap();
+    let events = match context.github.get_events().await {
+        Ok(events) => events,
+        Err(e) => {
+            error!("Failed to get events: {}", e);
+            return;
+        }
+    };
 
     info!("Received {} events.", events.len());
 
@@ -98,21 +111,26 @@ async fn merge_and_execute_task(
         return merge_time;
     }
 
-    let events = merge_events(&context).await;
-    if let Err(e) = events {
-        error!("Failed to get merge events: {}", e);
-        return merge_time;
-    }
-    execute(context.clone(), events.unwrap()).await;
+    let events = match merge_events(&context).await {
+        Ok(events) => events,
+        Err(e) => {
+            error!("Failed to get merge events: {}", e);
+            return merge_time;
+        }
+    };
+
+    execute(context.clone(), events).await;
 
     // It matters to first execute the merge events and then finalize
     // as the merge event is a requirement for the finalize event
-    let event = finalized_events(&context).await;
-    if let Err(e) = event {
-        error!("Failed to get execute events: {}", e);
-        return merge_time;
-    }
-    execute(context.clone(), event.unwrap()).await;
+    let event = match finalized_events(&context).await {
+        Ok(events) => events,
+        Err(e) => {
+            error!("Failed to get finalize events: {}", e);
+            return merge_time;
+        }
+    };
+    execute(context.clone(), event).await;
 
     current_time + merge_interval
 }
@@ -150,12 +168,13 @@ async fn execute(context: Context, events: Vec<Event>) {
         "Finished executing events. Updating status comment for {}",
         pr.full_id
     );
-    let info = context.check_info(pr).await;
-    if let Err(e) = info {
-        error!("Failed to get PR info for {}: {e}", pr.full_id);
-        return;
-    }
-    let info = info.unwrap();
+    let info = match context.check_info(pr).await {
+        Ok(info) => info,
+        Err(e) => {
+            error!("Failed to get PR info for {}: {e}", pr.full_id);
+            return;
+        }
+    };
 
     if let Err(e) = context
         .github
@@ -177,20 +196,22 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             .github
             .get_pull_request(&pr.organization, &pr.repo, pr.number)
             .await;
-        if let Err(e) = pr {
-            error!("Failed to get PR: {e}");
-            continue;
-        }
-        let pr = pr.unwrap();
+        let pr = match pr {
+            Ok(pr) => pr,
+            Err(e) => {
+                error!("Failed to get PR: {e}");
+                continue;
+            }
+        };
 
-        let pr_metadata = PrMetadata::try_from(pr);
+        let pr_metadata = match PrMetadata::try_from(pr) {
+            Ok(pr) => pr,
+            Err(e) => {
+                error!("Failed to convert PR: {e}");
+                continue;
+            }
+        };
 
-        if let Err(e) = pr_metadata {
-            error!("Failed to convert PR: {e}");
-            continue;
-        }
-
-        let pr_metadata = pr_metadata.unwrap();
         if pr_metadata.merged.is_none() {
             trace!(
                 "PR {} is not merged. Checking for stale",

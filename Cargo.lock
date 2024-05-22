@@ -3000,6 +3000,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "race-of-sloths-bot"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dotenv",
+ "env_logger 0.11.3",
+ "envy",
+ "futures",
+ "hex",
+ "near-workspaces",
+ "octocrab",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "shared-types",
+ "tokio",
+ "toml 0.8.12",
+ "tracing",
+]
+
+[[package]]
 name = "radium"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3673,29 +3696,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "slothrace"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dotenv",
- "env_logger 0.11.3",
- "envy",
- "futures",
- "hex",
- "near-workspaces",
- "octocrab",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "shared-types",
- "tokio",
- "toml 0.8.12",
- "tracing",
 ]
 
 [[package]]

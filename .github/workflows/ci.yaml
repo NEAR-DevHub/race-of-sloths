@@ -1,0 +1,47 @@
+name: race-of-sloth-ci
+
+# The ref given is fully-formed, meaning that for branches the format is refs/heads/<branch_name>, for pull requests it is refs/pull/<pr_number>/merge, and for tags it is refs/tags/<tag_name>
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [main]
+
+jobs:
+  ci:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v4
+          with:
+            ref: ${{ github.event.pull_request.head.sha }}
+            persist-credentials: false
+        - run: git config --global --add safe.directory "*"
+        - uses: technote-space/get-diff-action@v6.1.2
+          id: git-diff
+          with:
+            PATTERNS: |
+              **/**.rs
+              Cargo.lock
+        - uses: dsherret/rust-toolchain-file@v1
+          if: steps.git-diff.outputs.diff
+        - name: fmt
+          run: cargo fmt --all -- --check
+          if: steps.git-diff.outputs.diff
+        - name: install cargo-near
+          if: steps.git-diff.outputs.diff
+          run:
+              sudo apt update -y &&
+              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev &&
+              cargo install cargo-near
+        - name: clippy 
+          if: steps.git-diff.outputs.diff
+          run: |
+                cargo clippy --release -- -D warnings -A clippy::too_many_arguments
+        - name: build bot
+          if: steps.git-diff.outputs.diff
+          run: cargo build --release --package race-of-sloths-bot
+        - name: build contract
+          if: steps.git-diff.outputs.diff
+          run: cd contract && cargo near build

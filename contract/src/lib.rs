@@ -45,7 +45,6 @@ pub struct Contract {
 #[near_bindgen]
 impl Contract {
     #[init]
-    #[init(ignore_state)]
     pub fn new(sloth: AccountId) -> Self {
         let mut contract = Self {
             sloth,
