@@ -166,8 +166,7 @@ impl PR {
     }
 
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
-        // const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
-        const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 1; // For testing purposes
+        const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
         const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
 
         self.merged_at.is_some()
