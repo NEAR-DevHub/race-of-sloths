@@ -4,6 +4,9 @@ use super::*;
 
 pub type PRId = String;
 
+pub const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
+pub const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
+
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
 )]
@@ -166,9 +169,6 @@ impl PR {
     }
 
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
-        const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
-        const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
-
         self.merged_at.is_some()
             && (timestamp - self.merged_at.unwrap()) > SCORE_TIMEOUT_IN_NANOSECONDS
     }

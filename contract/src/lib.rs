@@ -15,6 +15,8 @@ use shared_types::{
 use types::{Account, Organization, VersionedAccount, VersionedOrganization};
 
 pub mod storage;
+#[cfg(test)]
+mod tests;
 pub mod types;
 pub mod views;
 
@@ -298,13 +300,14 @@ impl Contract {
             ) {
                 // We haven't counted current period yet
                 (false, true) => {
-                    streak_data.amount += streak + 1;
+                    streak_data.amount = streak + 1;
                     streak_data.latest_time_string = current_time_string;
+                    streak_data.best = streak_data.best.max(streak_data.amount);
                 }
                 // We have counted current period, but now user is losing the streak
                 (true, false) => {
                     // We have update the streak data previously with success, so we need to revert it
-                    streak_data.amount = streak - 1;
+                    streak_data.amount = streak.max(1) - 1;
                 }
                 // If both are false, then user hasn't achieved the streak and we don't need to do anything
                 // If both are true, then user has already achieved the streak and we don't need to do anything
