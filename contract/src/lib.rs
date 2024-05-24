@@ -339,7 +339,9 @@ impl Contract {
             }
         }
         // We check only older periods here, but if we have a streak > 5, we might return including the current period
-        if streak_data.latest_time_string == streak.time_period.time_string(timestamp) {
+        if streak_data.latest_time_string == streak.time_period.time_string(timestamp)
+            && streak_data.amount > 0
+        {
             streak_data.amount - 1
         } else {
             streak_data.amount

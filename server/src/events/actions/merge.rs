@@ -26,7 +26,11 @@ impl PullRequestMerge {
     pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
         context.near.send_merge(&self.pr_metadata).await?;
 
-        if !info.votes.is_empty() && info.allowed_repo {
+        if !info.allowed_org {
+            return Ok(false);
+        }
+
+        if !info.votes.is_empty() {
             context
                 .reply(
                     &self.pr_metadata,
