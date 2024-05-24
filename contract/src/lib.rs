@@ -283,6 +283,11 @@ impl Contract {
                 .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
                 .into();
             let current_time_string = streak.time_period.time_string(current_time);
+            let prev_time_string = streak
+                .time_period
+                .previous_period(current_time)
+                .map(|a| streak.time_period.time_string(a))
+                .unwrap_or_default();
 
             // Check if user accomplished the streak for current period
             let achieved = self
@@ -291,28 +296,17 @@ impl Contract {
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
 
-            let streak = self.verify_previous_streak(&streak, &streak_data, user, current_time);
-            env::log_str(&format!("Streak: {achieved:?} {streak} {streak_data:?}"));
+            let older_streak =
+                self.verify_previous_streak(&streak, &streak_data, user, current_time);
 
-            match (
-                streak_data.latest_time_string == current_time_string,
-                achieved,
-            ) {
-                // We haven't counted current period yet
-                (false, true) => {
-                    streak_data.amount = streak + 1;
-                    streak_data.latest_time_string = current_time_string;
-                    streak_data.best = streak_data.best.max(streak_data.amount);
-                }
-                // We have counted current period, but now user is losing the streak
-                (true, false) => {
-                    // We have update the streak data previously with success, so we need to revert it
-                    streak_data.amount = streak.max(1) - 1;
-                }
-                // If both are false, then user hasn't achieved the streak and we don't need to do anything
-                // If both are true, then user has already achieved the streak and we don't need to do anything
-                _ => {}
-            }
+            streak_data.amount = older_streak + achieved as u32;
+            streak_data.best = streak_data.best.max(streak_data.amount);
+            streak_data.latest_time_string = if achieved {
+                current_time_string
+            } else {
+                prev_time_string
+            };
+
             self.user_streaks
                 .insert(key, VersionedStreakUserData::V1(streak_data));
         }
@@ -344,8 +338,12 @@ impl Contract {
                 return i;
             }
         }
-        // We will check at max 5 previous periods
-        streak_data.amount
+        // We check only older periods here, but if we have a streak > 5, we might return including the current period
+        if streak_data.latest_time_string == streak.time_period.time_string(timestamp) {
+            streak_data.amount - 1
+        } else {
+            streak_data.amount
+        }
     }
 
     pub fn apply_to_periods(

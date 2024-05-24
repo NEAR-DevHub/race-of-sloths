@@ -104,6 +104,8 @@ fn streak_calculation() {
 
     let mut current_time = 0;
     for i in 0..12 {
+        contract.context.block_timestamp = current_time;
+        testing_env!(contract.context.clone());
         contract.include_sloth_common_repo(0, i, current_time);
         contract.score(i, 1, 10);
         contract.merge(i, current_time + 1);
@@ -121,6 +123,43 @@ fn streak_calculation() {
 
     assert_eq!(user.period_data.total_score, 12 * 10);
     assert_eq!(user.period_data.executed_prs, 12);
+}
+
+#[test]
+fn streak_in_a_nutshell() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    let user = contract.contract.user(&github_handle(0), None).unwrap();
+
+    assert_eq!(user.streaks[0].1.amount, 1);
+
+    contract.merge(0, 10);
+    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    assert_eq!(user.streaks[0].1.amount, 1);
+}
+
+#[test]
+fn user_had_a_streak_then_lost_then_again_get_it() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    let user = contract.contract.user(&github_handle(0), None).unwrap();
+
+    assert_eq!(user.streaks[0].1.amount, 1);
+
+    contract.exclude(0);
+
+    let user = contract.contract.user(&github_handle(0), None).unwrap();
+
+    assert_eq!(user.streaks[0].1.amount, 0);
+    assert_eq!(user.streaks[0].1.best, 1);
+
+    contract.include_sloth_common_repo(0, 1, 0);
+
+    let user = contract.contract.user(&github_handle(0), None).unwrap();
+
+    assert_eq!(user.streaks[0].1.amount, 1);
 }
 
 #[test]
