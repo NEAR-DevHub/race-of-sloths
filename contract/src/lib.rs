@@ -14,6 +14,7 @@ use shared_types::{
 };
 use types::{Account, Organization, VersionedAccount, VersionedOrganization};
 
+pub mod migration;
 pub mod storage;
 #[cfg(test)]
 mod tests;
