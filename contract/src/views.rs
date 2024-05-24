@@ -24,7 +24,6 @@ impl Contract {
             executed: executed_pr.is_some(),
             excluded: self.excluded_prs.contains(&pr_id),
             votes: pr.as_ref().map(|pr| pr.score.clone()).unwrap_or_default(),
-            comment_id: pr.map(|pr| pr.comment_id).unwrap_or_default(),
         }
     }
 

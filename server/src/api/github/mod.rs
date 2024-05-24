@@ -4,7 +4,7 @@ use octocrab::models::{
 };
 use tracing::{error, info, instrument};
 
-use crate::events::commands::Command;
+use crate::events::{commands::Command, Event, EventType};
 
 mod types;
 pub use types::*;
@@ -29,7 +29,7 @@ impl GithubClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_events(&self) -> anyhow::Result<Vec<(Command, NotificationId)>> {
+    pub async fn get_events(&self) -> anyhow::Result<Vec<Event>> {
         let page = self
             .octocrab
             .activity()
@@ -100,6 +100,10 @@ impl GithubClient {
                     return None;
                 }
             };
+            let comment_id = comments
+                .iter()
+                .find(|c| c.user.login == self.user_handle)
+                .map(|c| c.id);
 
             let mut results = Vec::new();
             let mut found_us = false;
@@ -112,14 +116,22 @@ impl GithubClient {
                 if let Some(command) =
                     Command::parse_command(&self.user_handle, &pr_metadata, &comment)
                 {
-                    results.push((command, event.id));
+                    results.push(Event {
+                        event: EventType::Command(command),
+                        notification_id: Some(event.id),
+                        comment_id,
+                    });
                 }
             }
 
             // We haven
             if results.is_empty() && !found_us {
                 if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
-                    results.push((command, event.id));
+                    results.push(Event {
+                        event: EventType::Command(command),
+                        notification_id: Some(event.id),
+                        comment_id,
+                    });
                 }
             }
 
@@ -247,5 +259,50 @@ impl GithubClient {
             .update_comment(CommentId(comment_id), text)
             .await?;
         Ok(())
+    }
+
+    #[instrument(skip(self, comment_id))]
+    pub async fn delete_comment(
+        &self,
+        owner: &str,
+        repo: &str,
+        comment_id: CommentId,
+    ) -> anyhow::Result<()> {
+        self.octocrab
+            .issues(owner, repo)
+            .delete_comment(comment_id)
+            .await?;
+        Ok(())
+    }
+
+    #[instrument(skip(self,))]
+    pub async fn get_comment_id(
+        &self,
+        owner: &str,
+        repo: &str,
+        pr_number: u64,
+    ) -> anyhow::Result<Option<CommentId>> {
+        let mut page = self
+            .octocrab
+            .issues(owner, repo)
+            .list_comments(pr_number)
+            .per_page(100)
+            .send()
+            .await?;
+
+        loop {
+            let items = page.take_items();
+            for comment in items {
+                if comment.user.login == self.user_handle {
+                    return Ok(Some(comment.id));
+                }
+            }
+
+            if let Some(next) = self.octocrab.get_page(&page.next).await? {
+                page = next;
+            } else {
+                return Ok(None);
+            }
+        }
     }
 }

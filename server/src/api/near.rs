@@ -25,12 +25,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_start(
-        &self,
-        pr: &PrMetadata,
-        is_maintainer: bool,
-        comment_id: u64,
-    ) -> anyhow::Result<()> {
+    pub async fn send_start(&self, pr: &PrMetadata, is_maintainer: bool) -> anyhow::Result<()> {
         let args = json!({
             "organization": pr.owner,
             "repo": pr.repo,
@@ -38,7 +33,6 @@ impl NearClient {
             "user": pr.author.login,
             "started_at": pr.started.timestamp_nanos_opt().unwrap_or(0),
             "override_exclude": is_maintainer,
-            "comment_id": comment_id,
         });
 
         self.contract

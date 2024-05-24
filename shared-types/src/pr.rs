@@ -4,6 +4,9 @@ use super::*;
 
 pub type PRId = String;
 
+pub const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
+pub const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
+
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
 )]
@@ -17,7 +20,6 @@ pub struct Score {
 #[derive(Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
-    pub comment_id: u64,
     pub votes: Vec<Score>,
     pub allowed_org: bool,
     pub allowed_repo: bool,
@@ -128,7 +130,6 @@ pub struct PR {
     pub score: Vec<Score>,
     pub created_at: Timestamp,
     pub merged_at: Option<Timestamp>,
-    pub comment_id: u64,
 }
 
 impl PR {
@@ -138,7 +139,6 @@ impl PR {
         number: u64,
         author: GithubHandle,
         created_at: Timestamp,
-        comment_id: u64,
     ) -> Self {
         Self {
             organization,
@@ -146,7 +146,6 @@ impl PR {
             number,
             author,
             created_at,
-            comment_id,
 
             score: vec![],
             merged_at: None,
@@ -166,9 +165,6 @@ impl PR {
     }
 
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
-        const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
-        const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
-
         self.merged_at.is_some()
             && (timestamp - self.merged_at.unwrap()) > SCORE_TIMEOUT_IN_NANOSECONDS
     }

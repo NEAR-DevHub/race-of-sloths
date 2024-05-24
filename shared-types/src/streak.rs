@@ -135,5 +135,6 @@ impl From<VersionedStreakUserData> for StreakUserData {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct StreakUserData {
     pub amount: u32,
+    pub best: u32,
     pub latest_time_string: TimePeriodString,
 }

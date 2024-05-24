@@ -15,6 +15,8 @@ use shared_types::{
 use types::{Account, Organization, VersionedAccount, VersionedOrganization};
 
 pub mod storage;
+#[cfg(test)]
+mod tests;
 pub mod types;
 pub mod views;
 
@@ -118,7 +120,6 @@ impl Contract {
         pr_number: u64,
         started_at: Timestamp,
         override_exclude: bool,
-        comment_id: u64,
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
@@ -140,7 +141,7 @@ impl Contract {
         }
 
         // Create user if it doesn't exist
-        let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
+        let pr = PR::new(organization, repo, pr_number, user, started_at);
 
         self.apply_to_periods(&pr.author, started_at, |data| data.pr_opened());
         self.prs.insert(pr_id, VersionedPR::V1(pr));
@@ -291,6 +292,7 @@ impl Contract {
                 .unwrap_or_default();
 
             let streak = self.verify_previous_streak(&streak, &streak_data, user, current_time);
+            env::log_str(&format!("Streak: {achieved:?} {streak} {streak_data:?}"));
 
             match (
                 streak_data.latest_time_string == current_time_string,
@@ -298,13 +300,14 @@ impl Contract {
             ) {
                 // We haven't counted current period yet
                 (false, true) => {
-                    streak_data.amount += streak + 1;
+                    streak_data.amount = streak + 1;
                     streak_data.latest_time_string = current_time_string;
+                    streak_data.best = streak_data.best.max(streak_data.amount);
                 }
                 // We have counted current period, but now user is losing the streak
                 (true, false) => {
                     // We have update the streak data previously with success, so we need to revert it
-                    streak_data.amount = streak - 1;
+                    streak_data.amount = streak.max(1) - 1;
                 }
                 // If both are false, then user hasn't achieved the streak and we don't need to do anything
                 // If both are true, then user has already achieved the streak and we don't need to do anything
