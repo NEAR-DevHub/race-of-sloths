@@ -14,7 +14,6 @@ use shared_types::{
 };
 use types::{Account, Organization, VersionedAccount, VersionedOrganization};
 
-pub mod migration;
 pub mod storage;
 #[cfg(test)]
 mod tests;
@@ -294,6 +293,7 @@ impl Contract {
                 .unwrap_or_default();
 
             let streak = self.verify_previous_streak(&streak, &streak_data, user, current_time);
+            env::log_str(&format!("Streak: {achieved:?} {streak} {streak_data:?}"));
 
             match (
                 streak_data.latest_time_string == current_time_string,
