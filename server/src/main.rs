@@ -297,5 +297,5 @@ fn check_for_stale_pr(pr: &PrMetadata) -> bool {
 
     let now = chrono::Utc::now();
     let stale = now - pr.updated_at;
-    stale.num_days() > 14
+    stale.num_days() > 14 || pr.closed
 }

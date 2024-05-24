@@ -43,6 +43,7 @@ pub struct PrMetadata {
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub full_id: String,
     pub body: String,
+    pub closed: bool,
 }
 
 impl From<PR> for PrMetadata {
@@ -62,6 +63,7 @@ impl From<PR> for PrMetadata {
                 pr.merged_at.unwrap_or(pr.created_at) as i64,
             ),
             full_id,
+            closed: false,
         }
     }
 }
@@ -101,6 +103,7 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
                 merged: pr.merged_at,
                 updated_at,
                 full_id,
+                closed: pr.closed_at.is_some(),
             })
         } else {
             Err(anyhow::anyhow!("Missing required fields"))

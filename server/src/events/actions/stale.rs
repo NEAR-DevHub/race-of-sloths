@@ -23,12 +23,17 @@ impl PullRequestStale {
         }
 
         context.near.send_stale(&self.pr_metadata).await?;
-
-        if check_info.allowed_repo {
-            context
-                .reply(&self.pr_metadata, None, MsgCategory::StaleMessage, vec![])
-                .await?;
+        if !check_info.allowed_repo {
+            return Ok(false);
         }
-        Ok(check_info.allowed_repo)
+
+        if self.pr_metadata.closed {
+            return Ok(true);
+        }
+
+        context
+            .reply(&self.pr_metadata, None, MsgCategory::StaleMessage, vec![])
+            .await?;
+        Ok(true)
     }
 }
