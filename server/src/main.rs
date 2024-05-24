@@ -2,13 +2,12 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use futures::future::join_all;
 use near_workspaces::types::SecretKey;
-use octocrab::models::NotificationId;
 use race_of_sloths_bot::{
     api::{
         github::{GithubClient, PrMetadata},
         near::NearClient,
     },
-    events::{actions::Action, commands::Command, Context, Event},
+    events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
 use serde::Deserialize;
@@ -90,22 +89,15 @@ async fn event_task(context: Context) {
 
     let events_per_pr = events.into_iter().fold(
         std::collections::HashMap::new(),
-        |mut map: HashMap<String, Vec<(Command, Option<NotificationId>)>>,
-         (event, notification)| {
-            let pr = event.pr();
-            map.entry(pr.full_id.clone())
-                .or_default()
-                .push((event, Some(notification)));
+        |mut map: HashMap<String, Vec<Event>>, event| {
+            let pr = event.event.pr();
+            map.entry(pr.full_id.clone()).or_default().push(event);
             map
         },
     );
 
     let futures = events_per_pr.into_iter().map(|(key, events)| {
         debug!("Received {} events for PR {}", events.len(), key);
-        let events: Vec<_> = events
-            .into_iter()
-            .map(|(event, id)| (Event::Command(event), id))
-            .collect();
         execute(context.clone(), events)
     });
 
@@ -128,10 +120,7 @@ async fn merge_and_execute_task(
             error!("Failed to get merge events: {}", e);
             return merge_time;
         }
-    }
-    .into_iter()
-    .map(|e| (e, None))
-    .collect();
+    };
 
     execute(context.clone(), events).await;
 
@@ -143,10 +132,7 @@ async fn merge_and_execute_task(
             error!("Failed to get finalize events: {}", e);
             return merge_time;
         }
-    }
-    .into_iter()
-    .map(|e| (e, None))
-    .collect();
+    };
 
     execute(context.clone(), event).await;
 
@@ -155,15 +141,15 @@ async fn merge_and_execute_task(
 
 // Runs events from the same PR
 #[instrument(skip(context, events))]
-async fn execute(context: Context, events: Vec<(Event, Option<NotificationId>)>) {
+async fn execute(context: Context, events: Vec<Event>) {
     if events.is_empty() {
         return;
     }
 
     debug!("Executing {} events", events.len());
     let mut should_update = false;
-    for (event, notification_id) in &events {
-        match event.execute(context.clone(), *notification_id).await {
+    for event in &events {
+        match event.execute(context.clone()).await {
             Ok(res) => {
                 should_update |= res;
             }
@@ -172,11 +158,20 @@ async fn execute(context: Context, events: Vec<(Event, Option<NotificationId>)>)
             }
         }
     }
-    let pr = events[0].0.pr();
+    let event = &events[0];
+    let pr = event.pr();
 
     if !should_update {
         debug!(
             "No events that require updating status comment for {}",
+            pr.full_id
+        );
+        return;
+    }
+
+    if event.comment_id.is_none() {
+        debug!(
+            "No comment id for {}. Skipping status comment update",
             pr.full_id
         );
         return;
@@ -196,7 +191,12 @@ async fn execute(context: Context, events: Vec<(Event, Option<NotificationId>)>)
 
     if let Err(e) = context
         .github
-        .edit_comment(&pr.owner, &pr.repo, info.comment_id, &info.status_message())
+        .edit_comment(
+            &pr.owner,
+            &pr.repo,
+            event.comment_id.unwrap().0,
+            &info.status_message(),
+        )
         .await
     {
         error!("Failed to update status comment for {}: {e}", pr.full_id);
@@ -229,6 +229,12 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
                 continue;
             }
         };
+        let comment_id = context
+            .github
+            .get_comment_id(&pr_metadata.owner, &pr_metadata.repo, pr_metadata.number)
+            .await
+            .ok()
+            .flatten();
 
         if pr_metadata.merged.is_none() {
             trace!(
@@ -237,13 +243,21 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             );
             if check_for_stale_pr(&pr_metadata) {
                 info!("PR {} is stale. Creating an event", pr_metadata.full_id);
-                results.push(Event::Action(Action::stale(pr_metadata)));
+                results.push(Event {
+                    event: EventType::Action(Action::stale(pr_metadata)),
+                    notification_id: None,
+                    comment_id,
+                });
             }
             continue;
         }
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
         if let Some(merged) = Action::merge(pr_metadata) {
-            results.push(Event::Action(merged));
+            results.push(Event {
+                event: EventType::Action(merged),
+                notification_id: None,
+                comment_id,
+            });
         }
     }
     info!("Finished merge task with {} events", results.len());
@@ -255,9 +269,24 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
     let prs = context.near.unfinalized_prs_all().await?;
     info!("Received {} PRs for merge request check", prs.len());
 
-    Ok(prs
+    let comment_id_futures = prs.into_iter().map(|pr| async {
+        let comment_id = context
+            .github
+            .get_comment_id(&pr.organization, &pr.repo, pr.number)
+            .await
+            .ok()
+            .flatten();
+        (pr, comment_id)
+    });
+
+    Ok(join_all(comment_id_futures)
+        .await
         .into_iter()
-        .map(|pr| Event::Action(Action::finalize(pr.into())))
+        .map(|(pr, comment_id)| Event {
+            event: EventType::Action(Action::finalize(pr.into())),
+            notification_id: None,
+            comment_id,
+        })
         .collect())
 }
 

@@ -44,7 +44,6 @@ impl ContractExt {
             pr_id,
             started_at,
             true,
-            0,
         );
     }
 

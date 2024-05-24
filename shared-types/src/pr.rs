@@ -20,7 +20,6 @@ pub struct Score {
 #[derive(Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
-    pub comment_id: u64,
     pub votes: Vec<Score>,
     pub allowed_org: bool,
     pub allowed_repo: bool,
@@ -131,7 +130,6 @@ pub struct PR {
     pub score: Vec<Score>,
     pub created_at: Timestamp,
     pub merged_at: Option<Timestamp>,
-    pub comment_id: u64,
 }
 
 impl PR {
@@ -141,7 +139,6 @@ impl PR {
         number: u64,
         author: GithubHandle,
         created_at: Timestamp,
-        comment_id: u64,
     ) -> Self {
         Self {
             organization,
@@ -149,7 +146,6 @@ impl PR {
             number,
             author,
             created_at,
-            comment_id,
 
             score: vec![],
             merged_at: None,

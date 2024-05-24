@@ -120,7 +120,6 @@ impl Contract {
         pr_number: u64,
         started_at: Timestamp,
         override_exclude: bool,
-        comment_id: u64,
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
@@ -142,7 +141,7 @@ impl Contract {
         }
 
         // Create user if it doesn't exist
-        let pr = PR::new(organization, repo, pr_number, user, started_at, comment_id);
+        let pr = PR::new(organization, repo, pr_number, user, started_at);
 
         self.apply_to_periods(&pr.author, started_at, |data| data.pr_opened());
         self.prs.insert(pr_id, VersionedPR::V1(pr));

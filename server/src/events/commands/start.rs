@@ -58,9 +58,12 @@ impl BotIncluded {
         }
 
         debug!("Starting PR {}", self.pr_metadata.full_id);
+        context
+            .near
+            .send_start(&self.pr_metadata, self.sender.is_maintainer())
+            .await?;
 
-        // TODO: other types of events
-        let comment = context
+        context
             .reply(
                 &self.pr_metadata,
                 self.comment_id,
@@ -71,12 +74,6 @@ impl BotIncluded {
                 )],
             )
             .await?;
-
-        context
-            .near
-            .send_start(&self.pr_metadata, self.sender.is_maintainer(), comment.id.0)
-            .await?;
-        // We already put the status message in the reply, so we don't need to send it again
         Ok(false)
     }
 
