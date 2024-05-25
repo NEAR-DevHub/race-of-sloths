@@ -1,5 +1,5 @@
 [workspace]
-members = ["server", "contract", "shared-types"]
+members = ["bot", "contract", "server", "shared-types"]
 resolver = "2"
 
 [workspace.package]
@@ -31,6 +31,9 @@ rand = "0.8.5"
 toml = "0.8"
 strum = { version = "0.26", no-default-features = true }
 tracing-subscriber = "0.3"
+
+rocket = "0.5"
+svg = "0.17"
 
 shared-types = { path = "shared-types" }
 

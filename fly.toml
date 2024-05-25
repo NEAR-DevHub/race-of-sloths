@@ -7,15 +7,25 @@ app = 'race-of-sloths'
 primary_region = 'ams'
 
 [env]
-RUST_LOG = "race_of_sloths_bot=TRACE"
+RUST_LOG = "race_of_sloths_bot=TRACE,race-of-sloths-server=TRACE"
 
-[build]
-[http_service]
+[processes]
+bot = "./race-of-sloths-bot"
+server = "./race-of-sloths-server"
+
+[[services]]
 internal_port = 8080
+processes = ["server"]
 protocol = "tcp"
-auto_start_machines = true
-auto_stop_machines = false
-min_machines_running = 1
+
+[[services.ports]]
+handlers = ["http"]
+port = "80"
+force_https = true
+
+[[services.ports]]
+handlers = ["tls", "http"]
+port = 443
 
 [[vm]]
 memory = '256mb'
