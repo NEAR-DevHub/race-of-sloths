@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT streak_id as \"streak_id: i32\", amount, best, latest_time_string\n                FROM streak_user_data\n                WHERE user_id = $1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "streak_id: i32",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "best",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "latest_time_string",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "252c58746e6c49897f5942bbb99ae1ff96e779dda8847c8fed1a54f561604d7b"
+}
