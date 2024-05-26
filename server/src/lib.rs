@@ -1,6 +1,8 @@
 use svg::node::element::{Rectangle, Text};
 use svg::Document;
 
+pub mod db;
+
 pub fn generate_svg(contributor_name: &str, streak_count: u32, total_points: u32) -> String {
     let document = Document::new()
         .set("viewBox", (0, 0, 200, 100))

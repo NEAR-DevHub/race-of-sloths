@@ -8,6 +8,11 @@ mod pr;
 mod streak;
 mod timeperiod;
 
+#[cfg(feature = "github")]
+pub mod github;
+#[cfg(feature = "client")]
+pub mod near;
+
 pub use pr::*;
 pub use streak::*;
 pub use timeperiod::*;
@@ -87,6 +92,6 @@ pub struct UserPeriodData {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct User {
     pub name: GithubHandle,
-    pub period_data: UserPeriodData,
+    pub period_data: Vec<(TimePeriodString, UserPeriodData)>,
     pub streaks: Vec<(StreakId, StreakUserData)>,
 }

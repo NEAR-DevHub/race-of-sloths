@@ -1,5 +1,5 @@
+use crate::PR;
 use octocrab::models::AuthorAssociation;
-use shared_types::PR;
 
 #[derive(Debug, Clone)]
 pub struct User {

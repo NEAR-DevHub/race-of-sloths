@@ -1,12 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, path::PathBuf};
 
 use futures::future::join_all;
-use near_workspaces::types::SecretKey;
 use race_of_sloths_bot::{
-    api::{
-        github::{GithubClient, PrMetadata},
-        near::NearClient,
-    },
+    api::GithubClient,
     events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
@@ -14,6 +10,9 @@ use serde::Deserialize;
 use tokio::signal;
 use tracing::{debug, error, info, instrument, trace};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
+
+use shared::github::PrMetadata;
+use shared::near::NearClient;
 
 #[derive(Deserialize)]
 struct Env {
@@ -36,12 +35,7 @@ async fn main() -> anyhow::Result<()> {
 
     let github_api = GithubClient::new(env.github_token).await?;
     let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
-    let near_api = NearClient::new(
-        env.contract,
-        SecretKey::from_str(&env.secret_key)?,
-        env.is_mainnet,
-    )
-    .await?;
+    let near_api = NearClient::new(env.contract, env.secret_key, env.is_mainnet).await?;
     let context = Context {
         github: github_api.into(),
         near: near_api.into(),

@@ -1,5 +1,5 @@
 use near_sdk::near_bindgen;
-use shared_types::{PRInfo, User};
+use shared::{PRInfo, User};
 
 use super::*;
 
@@ -79,23 +79,27 @@ impl Contract {
             .map(Into::into)
     }
 
-    pub fn user(&self, user: &String, period_string: Option<String>) -> Option<User> {
-        let period = period_string
-            .unwrap_or_else(|| TimePeriod::AllTime.time_string(env::block_timestamp()));
+    pub fn user(&self, user: &String, periods: Vec<TimePeriodString>) -> Option<User> {
         self.accounts.get(user).map(|_| User {
             name: user.to_string(),
-            period_data: self.period_data(user, &period).unwrap_or_default(),
+            period_data: periods
+                .iter()
+                .map(|period| {
+                    (
+                        period.clone(),
+                        self.period_data(user, period).unwrap_or_default(),
+                    )
+                })
+                .collect(),
             streaks: self.user_streaks(user),
         })
     }
 
-    pub fn users(&self, limit: u64, page: u64, period_string: Option<String>) -> Vec<User> {
-        let period = period_string
-            .unwrap_or_else(|| TimePeriod::AllTime.time_string(env::block_timestamp()));
+    pub fn users(&self, limit: u64, page: u64, periods: Vec<TimePeriodString>) -> Vec<User> {
         self.accounts
             .iter()
             .skip((page * limit) as usize)
-            .filter_map(|(user, _data)| self.user(user, Some(period.clone())))
+            .filter_map(|(user, _data)| self.user(user, periods.clone()))
             .collect()
     }
 }

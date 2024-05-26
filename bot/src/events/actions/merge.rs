@@ -1,10 +1,8 @@
 use tracing::instrument;
 
-use crate::{
-    api::{github::PrMetadata, near::PRInfo},
-    events::Context,
-    messages::MsgCategory,
-};
+use shared::{github::PrMetadata, PRInfo};
+
+use crate::{events::Context, messages::MsgCategory};
 
 #[derive(Debug, Clone)]
 pub struct PullRequestMerge {

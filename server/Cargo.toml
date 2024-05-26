@@ -6,5 +6,15 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+dotenv.workspace = true
+envy.workspace = true
 rocket = { workspace = true, features = ["json"] }
+rocket_db_pools = { workspace = true, features = ["sqlx_postgres"] }
 svg.workspace = true
+sqlx = { workspace = true, features = ["postgres", "macros"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+
+shared = { workspace = true, features = ["client"] }
