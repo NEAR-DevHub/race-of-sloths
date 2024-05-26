@@ -12,7 +12,7 @@ async fn get_svg(username: &str, db: &DB) -> Option<(ContentType, RawHtml<String
         }
         Ok(value) => value?,
     };
-    let period_data = user.period_data.get(0)?;
+    let period_data = user.period_data.first()?;
     let streak = user
         .streaks
         .iter()
