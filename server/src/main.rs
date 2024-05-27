@@ -9,9 +9,6 @@ use std::time::Duration;
 use rocket_db_pools::Database;
 use shared::near::NearClient;
 use shared::TimePeriod;
-use tracing::instrument;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::EnvFilter;
 
 use race_of_sloths_server::db::{self, DB};
 
@@ -27,19 +24,11 @@ pub struct Env {
 async fn rocket() -> _ {
     dotenv::dotenv().ok();
 
-    let subscriber = tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer().pretty());
-    tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
-
     let env = envy::from_env::<Env>().expect("Failed to load environment variables");
     let sleep_duration =
         Duration::from_secs(env.sleep_duration_in_minutes.unwrap_or(10) as u64 * 60);
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let atomic_bool_clone = atomic_bool.clone();
-
-    let span = tracing::info_span!("Starting Rocket");
-    let _enter = span.enter();
 
     rocket::build()
         .attach(db::stage())
@@ -66,7 +55,7 @@ async fn rocket() -> _ {
 
                             // Execute a query of some kind
                             if let Err(e) = fetch_and_store_users(&near_client, &db).await {
-                                tracing::error!("Failed to fetch and store users: {:#?}", e);
+                                rocket::error!("Failed to fetch and store users: {:#?}", e);
                             }
                         }
                     });
@@ -84,7 +73,6 @@ async fn rocket() -> _ {
         .attach(entrypoints::stage())
 }
 
-#[instrument(skip(near_client, db))]
 async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
