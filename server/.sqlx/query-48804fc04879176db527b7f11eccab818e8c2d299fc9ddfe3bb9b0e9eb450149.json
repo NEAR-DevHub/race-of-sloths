@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT rownum as place\n        FROM (SELECT user_id, RANK() OVER (ORDER BY total_score DESC) as rownum\n              FROM user_period_data\n              WHERE period_type = $1) as ranked\n        JOIN users ON users.id = ranked.user_id\n        WHERE users.name = $2\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "place",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "48804fc04879176db527b7f11eccab818e8c2d299fc9ddfe3bb9b0e9eb450149"
+}

@@ -3,7 +3,7 @@ use race_of_sloths_server::{
         types::{LeaderboardRecord, UserRecord},
         DB,
     },
-    generate_svg,
+    svg::generate_badge,
 };
 use rocket::{fairing::AdHoc, http::ContentType, response::content::RawHtml, serde::json::Json};
 use tracing::instrument;
@@ -18,17 +18,16 @@ async fn get_svg(username: &str, db: &DB) -> Option<(ContentType, RawHtml<String
         }
         Ok(value) => value?,
     };
-    let period_data = user
-        .period_data
-        .iter()
-        .find(|p| p.period_type == "all-time")?;
-    let streak = user.streaks.iter().max_by(|a, b| a.amount.cmp(&b.amount))?;
-    let svg_content = generate_svg(
-        &user.name,
-        streak.amount as u32,
-        period_data.total_score as u32,
-    );
-    Some((ContentType::SVG, RawHtml(svg_content)))
+    let place = match db.get_leaderboard_place("all-time", &user.name).await {
+        Err(e) => {
+            error!("Failed to get leaderboard place: {username}: {e}");
+            return None;
+        }
+        Ok(value) => value?,
+    };
+    let svg = generate_badge(user, place as u64)?;
+
+    Some((ContentType::SVG, RawHtml(svg)))
 }
 
 #[get("/users/<username>")]

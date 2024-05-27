@@ -147,6 +147,30 @@ impl DB {
                                 LIMIT $2 OFFSET $3
                                 "#,period,limit,page*limit).fetch_all(&self.0,).await? )
     }
+
+    #[instrument(skip(self))]
+    pub async fn get_leaderboard_place(
+        &self,
+        period: &str,
+        name: &str,
+    ) -> anyhow::Result<Option<i64>> {
+        let rec = sqlx::query!(
+            r#"
+        SELECT rownum as place
+        FROM (SELECT user_id, RANK() OVER (ORDER BY total_score DESC) as rownum
+              FROM user_period_data
+              WHERE period_type = $1) as ranked
+        JOIN users ON users.id = ranked.user_id
+        WHERE users.name = $2
+        "#,
+            period,
+            name
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok(rec.place)
+    }
 }
 
 async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
