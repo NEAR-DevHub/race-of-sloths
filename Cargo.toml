@@ -34,7 +34,6 @@ tracing-subscriber = "0.3"
 
 rocket = "0.5"
 rocket_db_pools = "0.2"
-svg = "0.17"
 sqlx = "0.7"
 shared = { path = "shared" }
 
