@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged\n                FROM user_period_data \n                WHERE user_id = $1\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "period_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "executed_prs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "largest_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "prs_opened",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "prs_merged",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "812d0f5f99dacbaf032615bbfd971b39793fa2b27cedc2b4b8c34624515fda01"
+}

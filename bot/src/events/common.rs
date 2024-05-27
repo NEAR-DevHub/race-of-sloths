@@ -1,10 +1,8 @@
+use shared::PRInfo;
 use std::collections::HashMap;
-
 use tracing::trace;
 
 use crate::messages::MsgCategory;
-
-use self::api::near::PRInfo;
 
 use super::*;
 

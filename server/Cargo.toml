@@ -1,25 +1,20 @@
 [package]
-name = "race-of-sloths-bot"
+name = "race-of-sloths-server"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 authors.workspace = true
+license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
-envy.workspace = true
-hex.workspace = true
-octocrab.workspace = true
 dotenv.workspace = true
-serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["full"] }
-tracing-subscriber.workspace = true
+envy.workspace = true
+rocket = { workspace = true, features = ["json"] }
+rocket_db_pools = { workspace = true, features = ["sqlx_postgres"] }
+svg.workspace = true
+sqlx = { workspace = true, features = ["postgres", "macros"] }
 tracing.workspace = true
-async-trait.workspace = true
-near-workspaces.workspace = true
-serde_json.workspace = true
-futures.workspace = true
-shared-types.workspace = true
-rand.workspace = true
-toml.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+
+shared = { workspace = true, features = ["client"] }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::bail;
 use near_workspaces::{types::SecretKey, Contract};
 use serde_json::json;
@@ -5,7 +7,7 @@ use tracing::instrument;
 
 use super::github::PrMetadata;
 
-pub use shared_types::*;
+use crate::*;
 
 #[derive(Clone, Debug)]
 pub struct NearClient {
@@ -13,7 +15,8 @@ pub struct NearClient {
 }
 
 impl NearClient {
-    pub async fn new(contract: String, sk: SecretKey, mainnet: bool) -> anyhow::Result<Self> {
+    pub async fn new(contract: String, sk: String, mainnet: bool) -> anyhow::Result<Self> {
+        let sk = SecretKey::from_str(&sk)?;
         if mainnet {
             let mainnet = near_workspaces::mainnet().await?;
             let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet);
@@ -264,10 +267,47 @@ impl NearClient {
             .view("user")
             .args_json(json!({
                 "user": user,
+                "periods": vec![TimePeriod::AllTime.time_string(0)]
             }))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;
         let res = res.json()?;
+        Ok(res)
+    }
+
+    pub async fn users_paged(
+        &self,
+        page: u64,
+        limit: u64,
+        periods: Vec<TimePeriodString>,
+    ) -> anyhow::Result<Vec<User>> {
+        let res = self
+            .contract
+            .view("users")
+            .args_json(json!({
+                "page": page,
+                "limit": limit,
+                "periods": periods,
+            }))
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call users: {:?}", e))?;
+        let res = res.json()?;
+        Ok(res)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn users(&self, periods: Vec<TimePeriodString>) -> anyhow::Result<Vec<User>> {
+        let mut page = 0;
+        const LIMIT: u64 = 100;
+        let mut res = vec![];
+        loop {
+            let users = self.users_paged(page, LIMIT, periods.clone()).await?;
+            if users.is_empty() {
+                break;
+            }
+            res.extend(users);
+            page += 1;
+        }
         Ok(res)
     }
 }

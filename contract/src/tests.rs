@@ -1,5 +1,5 @@
 use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId, VMContext};
-use shared_types::SCORE_TIMEOUT_IN_NANOSECONDS;
+use shared::SCORE_TIMEOUT_IN_NANOSECONDS;
 
 use super::*;
 
@@ -89,11 +89,14 @@ fn success_flow() {
     contract.finalize(0);
 
     assert_eq!(contract.contract.unfinalized_prs(0, 50).len(), 0);
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
-    assert_eq!(user.period_data.total_score, 10);
-    assert_eq!(user.period_data.executed_prs, 1);
-    assert_eq!(user.period_data.prs_opened, 1);
-    assert_eq!(user.period_data.prs_merged, 1);
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
+    assert_eq!(user.period_data[0].1.total_score, 10);
+    assert_eq!(user.period_data[0].1.executed_prs, 1);
+    assert_eq!(user.period_data[0].1.prs_opened, 1);
+    assert_eq!(user.period_data[0].1.prs_merged, 1);
     assert_eq!(user.streaks[0].1.amount, 1);
     assert_eq!(user.streaks[1].1.amount, 1);
 }
@@ -115,14 +118,17 @@ fn streak_calculation() {
         contract.finalize(i);
     }
 
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
     // 12 weeks streak with opened PR
     assert_eq!(user.streaks[0].1.amount, 12);
     // 3 months streak with 8+ scopre
     assert_eq!(user.streaks[1].1.amount, 3);
 
-    assert_eq!(user.period_data.total_score, 12 * 10);
-    assert_eq!(user.period_data.executed_prs, 12);
+    assert_eq!(user.period_data[0].1.total_score, 12 * 10);
+    assert_eq!(user.period_data[0].1.executed_prs, 12);
 }
 
 #[test]
@@ -130,12 +136,18 @@ fn streak_in_a_nutshell() {
     let mut contract = ContractExt::new();
 
     contract.include_sloth_common_repo(0, 0, 0);
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
 
     assert_eq!(user.streaks[0].1.amount, 1);
 
     contract.merge(0, 10);
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
     assert_eq!(user.streaks[0].1.amount, 1);
 }
 
@@ -144,20 +156,29 @@ fn user_had_a_streak_then_lost_then_again_get_it() {
     let mut contract = ContractExt::new();
 
     contract.include_sloth_common_repo(0, 0, 0);
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
 
     assert_eq!(user.streaks[0].1.amount, 1);
 
     contract.exclude(0);
 
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
 
     assert_eq!(user.streaks[0].1.amount, 0);
     assert_eq!(user.streaks[0].1.best, 1);
 
     contract.include_sloth_common_repo(0, 1, 0);
 
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
 
     assert_eq!(user.streaks[0].1.amount, 1);
 }
@@ -179,11 +200,14 @@ fn streak_crashed_in_middle() {
         contract.finalize(i);
     }
 
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
     assert_eq!(user.streaks[0].1.amount, 8);
     assert_eq!(user.streaks[1].1.amount, 2);
-    assert_eq!(user.period_data.total_score, 8 * 10);
-    assert_eq!(user.period_data.executed_prs, 8);
+    assert_eq!(user.period_data[0].1.total_score, 8 * 10);
+    assert_eq!(user.period_data[0].1.executed_prs, 8);
 
     // 5 weeks skipped to crush both streaks
     current_time += SCORE_TIMEOUT_IN_NANOSECONDS * 7 * 5 + 1;
@@ -203,14 +227,17 @@ fn streak_crashed_in_middle() {
         contract.finalize(i);
     }
 
-    let user = contract.contract.user(&github_handle(0), None).unwrap();
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
     assert_eq!(user.streaks[0].1.amount, 4);
     assert_eq!(user.streaks[0].1.best, 8);
     assert_eq!(user.streaks[1].1.amount, 1);
     assert_eq!(user.streaks[1].1.best, 2);
 
-    assert_eq!(user.period_data.total_score, 12 * 10);
-    assert_eq!(user.period_data.executed_prs, 12);
+    assert_eq!(user.period_data[0].1.total_score, 12 * 10);
+    assert_eq!(user.period_data[0].1.executed_prs, 12);
 }
 
 #[test]

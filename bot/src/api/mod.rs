@@ -6,8 +6,7 @@ use tracing::{error, info, instrument};
 
 use crate::events::{commands::Command, Event, EventType};
 
-mod types;
-pub use types::*;
+pub use shared::github::*;
 
 #[derive(Clone, Debug)]
 pub struct GithubClient {
@@ -69,7 +68,7 @@ impl GithubClient {
                 }
             };
 
-            let pr_metadata = match types::PrMetadata::try_from(pr) {
+            let pr_metadata = match PrMetadata::try_from(pr) {
                 Ok(pr) => pr,
                 Err(e) => {
                     error!("Failed to convert PR: {:?}", e);

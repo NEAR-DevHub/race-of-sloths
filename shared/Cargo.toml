@@ -1,0 +1,29 @@
+[package]
+name = "shared"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+
+[dependencies]
+near-sdk.workspace = true
+strum = { workspace = true, features = ["derive"] }
+chrono.workspace = true
+
+near-workspaces = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+
+octocrab = { workspace = true, optional = true }
+
+[features]
+github = ["dep:octocrab"]
+client = [
+    "dep:near-workspaces",
+    "dep:anyhow",
+    "dep:serde_json",
+    "dep:tracing",
+    "github",
+]

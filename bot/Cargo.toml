@@ -1,0 +1,23 @@
+[package]
+name = "race-of-sloths-bot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+envy.workspace = true
+octocrab.workspace = true
+dotenv.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber.workspace = true
+tracing.workspace = true
+serde_json.workspace = true
+futures.workspace = true
+rand.workspace = true
+toml.workspace = true
+
+shared = { workspace = true, features = ["client"] }

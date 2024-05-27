@@ -1,5 +1,5 @@
 [workspace]
-members = ["server", "contract", "shared-types"]
+members = ["bot", "contract", "server", "shared"]
 resolver = "2"
 
 [workspace.package]
@@ -32,7 +32,11 @@ toml = "0.8"
 strum = { version = "0.26", no-default-features = true }
 tracing-subscriber = "0.3"
 
-shared-types = { path = "shared-types" }
+rocket = "0.5"
+rocket_db_pools = "0.2"
+svg = "0.17"
+sqlx = "0.7"
+shared = { path = "shared" }
 
 [profile.release]
 codegen-units = 1

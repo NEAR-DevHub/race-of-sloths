@@ -7,7 +7,7 @@ use near_sdk::{
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
-use shared_types::{
+use shared::{
     GithubHandle, IntoEnumIterator, PRId, Streak, StreakId, StreakType, StreakUserData, TimePeriod,
     TimePeriodString, UserPeriodData, VersionedPR, VersionedStreak, VersionedStreakUserData,
     VersionedUserPeriodData, PR,

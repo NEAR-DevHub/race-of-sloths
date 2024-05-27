@@ -41,7 +41,7 @@ jobs:
                 cargo clippy --release -- -D warnings -A clippy::too_many_arguments
         - name: build bot
           if: steps.git-diff.outputs.diff
-          run: cargo build --release --package race-of-sloths-bot
+          run: cargo build --release
         - name: build contract
           if: steps.git-diff.outputs.diff
           run: cd contract && cargo near build

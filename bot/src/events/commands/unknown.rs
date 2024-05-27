@@ -2,7 +2,7 @@ use tracing::debug;
 
 use crate::messages::MsgCategory;
 
-use self::api::github::User;
+use shared::github::User;
 
 use super::*;
 
