@@ -36,6 +36,8 @@ rocket = "0.5"
 rocket_db_pools = "0.2"
 sqlx = "0.7"
 shared = { path = "shared" }
+reqwest = "0.12"
+base64 = "0.22.1"
 
 [profile.release]
 codegen-units = 1
