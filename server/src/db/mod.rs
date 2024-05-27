@@ -3,13 +3,19 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{StreakId, StreakUserData, TimePeriodString, User, UserPeriodData};
+use shared::{StreakUserData, TimePeriodString, User, UserPeriodData};
 use sqlx::PgPool;
 use tracing::instrument;
 
 #[derive(Database, Clone, Debug)]
 #[database("race-of-sloths")]
 pub struct DB(PgPool);
+
+pub mod types;
+
+use types::LeaderboardRecord;
+
+use self::types::{StreakRecord, UserPeriodRecord, UserRecord};
 
 impl DB {
     #[instrument(skip(self))]
@@ -83,11 +89,7 @@ impl DB {
     }
 
     #[instrument(skip(self))]
-    pub async fn get_user(
-        &self,
-        name: &str,
-        time_string: Option<&str>,
-    ) -> anyhow::Result<Option<User>> {
+    pub async fn get_user(&self, name: &str) -> anyhow::Result<Option<UserRecord>> {
         let user_rec: i32 = match sqlx::query!("SELECT id, name FROM users WHERE name = $1", name)
             .fetch_optional(&self.0)
             .await?
@@ -95,25 +97,23 @@ impl DB {
             Some(rec) => rec.id,
             None => return Ok(None),
         };
-        let time_string = time_string
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "all-time".to_string());
 
-        let period_data_recs = sqlx::query!(
+        let period_data_recs: Vec<UserPeriodRecord> = sqlx::query_as!(
+            UserPeriodRecord,
             r#"
                 SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
                 FROM user_period_data 
-                WHERE user_id = $1 AND period_type = $2
+                WHERE user_id = $1
                 "#,
             user_rec,
-            time_string
         )
         .fetch_all(&self.0)
         .await?;
 
-        let streak_recs = sqlx::query!(
+        let streak_recs: Vec<StreakRecord> = sqlx::query_as!(
+            StreakRecord,
             r#"
-                SELECT streak_id as "streak_id: i32", amount, best, latest_time_string
+                SELECT streak_id, amount, best, latest_time_string
                 FROM streak_user_data
                 WHERE user_id = $1
                 "#,
@@ -122,39 +122,30 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        let user = User {
+        let user = UserRecord {
             name: name.to_string(),
-            period_data: period_data_recs
-                .into_iter()
-                .map(|rec| {
-                    (
-                        rec.period_type,
-                        UserPeriodData {
-                            total_score: rec.total_score as u32,
-                            executed_prs: rec.executed_prs as u32,
-                            largest_score: rec.largest_score as u32,
-                            prs_opened: rec.prs_opened as u32,
-                            prs_merged: rec.prs_merged as u32,
-                        },
-                    )
-                })
-                .collect(),
-            streaks: streak_recs
-                .into_iter()
-                .map(|rec| {
-                    (
-                        rec.streak_id as StreakId,
-                        StreakUserData {
-                            amount: rec.amount as u32,
-                            best: rec.best as u32,
-                            latest_time_string: rec.latest_time_string,
-                        },
-                    )
-                })
-                .collect(),
+            period_data: period_data_recs,
+            streaks: streak_recs,
         };
 
         Ok(Some(user))
+    }
+
+    #[instrument(skip(self))]
+    pub async fn get_leaderboard(
+        &self,
+        period: &str,
+        page: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<LeaderboardRecord>> {
+        Ok(sqlx::query_as!(LeaderboardRecord,r#"
+                                SELECT users.name, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
+                                FROM user_period_data 
+                                JOIN users ON users.id = user_period_data.user_id
+                                WHERE period_type = $1
+                                ORDER BY total_score DESC
+                                LIMIT $2 OFFSET $3
+                                "#,period,limit,page*limit).fetch_all(&self.0,).await? )
     }
 }
 
