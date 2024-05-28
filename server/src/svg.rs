@@ -1,9 +1,12 @@
+use usvg::{fontdb, Options, Tree, WriteOptions};
+
 use crate::db::types::UserRecord;
 
-pub fn generate_badge(
+pub fn generate_svg_badge(
     user_record: UserRecord,
     leaderboard_place: u64,
     image_base64: &str,
+    fontdb: &fontdb::Database,
 ) -> anyhow::Result<Option<String>> {
     let total_period = user_record
         .period_data
@@ -31,8 +34,14 @@ pub fn generate_badge(
     let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{image}", image_base64);
+    let svg_icon = svg_icon.replace("{place}", &leaderboard_place.to_string());
 
-    Ok(Some(
-        svg_icon.replace("{place}", &leaderboard_place.to_string()),
-    ))
+    let tree = Tree::from_str(&svg_icon, &Options::default(), fontdb)?;
+    let write_options = WriteOptions {
+        use_single_quote: true,
+        preserve_text: false,
+        ..Default::default()
+    };
+
+    Ok(Some(tree.to_string(&write_options)))
 }

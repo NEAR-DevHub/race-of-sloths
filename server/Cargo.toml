@@ -16,5 +16,6 @@ serde.workspace = true
 base64.workspace = true
 reqwest.workspace = true
 chrono.workspace = true
+usvg.workspace = true
 
 shared = { workspace = true, features = ["client"] }
