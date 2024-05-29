@@ -61,6 +61,7 @@ Feel free to check [our website]({link}) for additional details!
 - ⭐ **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
 - 🔕 **Pause us:** `@{bot_name} pause` to stop me on your repo.
 </details>
+</details>
 """,
 ]
 

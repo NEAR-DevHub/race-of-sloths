@@ -4,7 +4,7 @@ use futures::future::join_all;
 use race_of_sloths_bot::{
     api::GithubClient,
     events::{actions::Action, Context, Event, EventType},
-    messages::{MessageLoader, MsgCategory},
+    messages::MessageLoader,
 };
 use serde::Deserialize;
 use tokio::signal;
