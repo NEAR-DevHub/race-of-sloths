@@ -56,12 +56,7 @@ impl BotPaused {
         debug!("Pausing the repository in the PR: {}", pr.full_id);
         context.near.send_pause(&pr.owner, &pr.repo).await?;
         context
-            .reply(
-                pr,
-                Some(self.comment_id),
-                MsgCategory::PauseMessage,
-                vec![],
-            )
+            .reply(pr, Some(self.comment_id), MsgCategory::PauseMessage, vec![])
             .await?;
         Ok(true)
     }
