@@ -25,7 +25,7 @@ impl PullRequestFinalize {
         if info.allowed_repo {
             context
                 .reply(
-                    &pr,
+                    pr,
                     None,
                     MsgCategory::FinalMessage,
                     vec![

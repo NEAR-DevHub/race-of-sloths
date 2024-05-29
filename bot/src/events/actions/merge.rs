@@ -15,7 +15,7 @@ impl PullRequestMerge {
         context: Context,
         info: PRInfo,
     ) -> anyhow::Result<bool> {
-        context.near.send_merge(&pr).await?;
+        context.near.send_merge(pr).await?;
 
         if !info.allowed_org {
             return Ok(false);
@@ -23,7 +23,7 @@ impl PullRequestMerge {
 
         if info.votes.is_empty() {
             context
-                .reply(&pr, None, MsgCategory::MergeWithoutScoreMessage, vec![])
+                .reply(pr, None, MsgCategory::MergeWithoutScoreMessage, vec![])
                 .await?;
         }
         Ok(true)

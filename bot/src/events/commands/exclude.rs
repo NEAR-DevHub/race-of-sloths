@@ -28,7 +28,7 @@ impl BotExcluded {
             );
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -39,10 +39,10 @@ impl BotExcluded {
 
         debug!("Excluding PR {}", pr.full_id);
 
-        context.near.send_exclude(&pr).await?;
+        context.near.send_exclude(pr).await?;
         context
             .reply(
-                &pr,
+                pr,
                 Some(self.comment_id),
                 MsgCategory::ExcludeMessages,
                 vec![],

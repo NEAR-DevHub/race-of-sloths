@@ -28,7 +28,7 @@ impl BotPaused {
             );
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorPausePausedMessage,
                     vec![],
@@ -44,7 +44,7 @@ impl BotPaused {
             );
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -57,7 +57,7 @@ impl BotPaused {
         context.near.send_pause(&pr.owner, &pr.repo).await?;
         context
             .reply(
-                &pr,
+                pr,
                 Some(self.comment_id),
                 MsgCategory::PauseMessage,
                 vec![],
@@ -102,7 +102,7 @@ impl BotUnpaused {
             debug!("Unpaused PR {}", pr.full_id);
             context
                 .reply(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::UnpauseMessage,
                     vec![],
@@ -112,7 +112,7 @@ impl BotUnpaused {
         } else {
             context
                 .reply(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorUnpauseUnpausedMessage,
                     vec![],

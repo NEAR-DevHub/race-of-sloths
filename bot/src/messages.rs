@@ -23,7 +23,6 @@ pub enum MsgCategory {
     ErrorLateIncludeMessage,
     ErrorPausePausedMessage,
     ErrorUnpauseUnpausedMessage,
-    // TODO: currently unused
     ErrorPausedMessage,
     ErrorLateScoringMessage,
     ErrorSelfScore,

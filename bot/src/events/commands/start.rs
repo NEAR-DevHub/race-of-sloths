@@ -39,7 +39,7 @@ impl BotIncluded {
             debug!("PR {} is already merged. Skipping", pr.full_id,);
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     self.comment_id,
                     MsgCategory::ErrorLateIncludeMessage,
                     vec![],
@@ -49,11 +49,11 @@ impl BotIncluded {
         }
 
         debug!("Starting PR {}", pr.full_id);
-        context.near.send_start(&pr, sender.is_maintainer()).await?;
+        context.near.send_start(pr, sender.is_maintainer()).await?;
 
         context
             .reply(
-                &pr,
+                pr,
                 self.comment_id,
                 MsgCategory::IncludeBasicMessage,
                 vec![("pr_author_username".to_string(), pr.author.login.clone())],

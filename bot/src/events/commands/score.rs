@@ -66,7 +66,7 @@ impl BotScored {
             );
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorSelfScore,
                     vec![],
@@ -79,7 +79,7 @@ impl BotScored {
             debug!("Non-maintainer tried to score PR {}. Skipping.", pr.full_id,);
             context
                 .reply_with_error(
-                    &pr,
+                    pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -90,7 +90,7 @@ impl BotScored {
 
         context
             .near
-            .send_scored(&pr, &sender.login, number as u64)
+            .send_scored(pr, &sender.login, number as u64)
             .await?;
 
         let (category, args) = match (number, edited) {
@@ -113,7 +113,7 @@ impl BotScored {
         };
 
         context
-            .reply(&pr, Some(self.comment_id), category, args)
+            .reply(pr, Some(self.comment_id), category, args)
             .await?;
         Ok(true)
     }

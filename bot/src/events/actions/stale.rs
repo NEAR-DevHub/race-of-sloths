@@ -20,7 +20,7 @@ impl PullRequestStale {
             return Ok(false);
         }
 
-        context.near.send_stale(&pr).await?;
+        context.near.send_stale(pr).await?;
         if !check_info.allowed_repo {
             return Ok(false);
         }
@@ -30,7 +30,7 @@ impl PullRequestStale {
         }
 
         context
-            .reply(&pr, None, MsgCategory::StaleMessage, vec![])
+            .reply(pr, None, MsgCategory::StaleMessage, vec![])
             .await?;
         Ok(true)
     }
