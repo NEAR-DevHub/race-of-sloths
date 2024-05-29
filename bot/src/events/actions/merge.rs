@@ -5,24 +5,17 @@ use shared::{github::PrMetadata, PRInfo};
 use crate::{events::Context, messages::MsgCategory};
 
 #[derive(Debug, Clone)]
-pub struct PullRequestMerge {
-    pub pr_metadata: PrMetadata,
-}
+pub struct PullRequestMerge {}
 
 impl PullRequestMerge {
-    pub fn new(pr_metadata: PrMetadata) -> Option<Self> {
-        if pr_metadata.merged.is_some() {
-            Some(Self { pr_metadata })
-        } else {
-            None
-        }
-    }
-}
-
-impl PullRequestMerge {
-    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
-        context.near.send_merge(&self.pr_metadata).await?;
+    #[instrument(skip(self, pr, context, info), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        info: PRInfo,
+    ) -> anyhow::Result<bool> {
+        context.near.send_merge(&pr).await?;
 
         if !info.allowed_org {
             return Ok(false);
@@ -30,12 +23,7 @@ impl PullRequestMerge {
 
         if info.votes.is_empty() {
             context
-                .reply(
-                    &self.pr_metadata,
-                    None,
-                    MsgCategory::MergeWithoutScoreMessage,
-                    vec![],
-                )
+                .reply(&pr, None, MsgCategory::MergeWithoutScoreMessage, vec![])
                 .await?;
         }
         Ok(true)

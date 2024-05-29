@@ -21,12 +21,10 @@ pub enum MsgCategory {
     ErrorUnknownCommandMessage,
     ErrorRightsViolationMessage,
     ErrorLateIncludeMessage,
-    // TODO: currently unused
     ErrorPausePausedMessage,
     ErrorUnpauseUnpausedMessage,
     // TODO: currently unused
     ErrorPausedMessage,
-    // TODO: currently unused
     ErrorLateScoringMessage,
     ErrorSelfScore,
     ErrorOrgNotInAllowedListMessage,

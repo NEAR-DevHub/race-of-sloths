@@ -8,23 +8,43 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub struct BotPaused {
-    pub pr_metadata: PrMetadata,
-    pub sender: User,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: u64,
 }
 
 impl BotPaused {
-    #[instrument(skip(self, context, _check_info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, _check_info: PRInfo) -> anyhow::Result<bool> {
-        if !self.sender.is_maintainer() {
+    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        check_info: PRInfo,
+        sender: &User,
+    ) -> anyhow::Result<bool> {
+        if !check_info.allowed_repo {
             info!(
-                "Tried to pause a PR from not maintainer: {}. Skipping",
-                self.pr_metadata.full_id
+                "Tried to pause a PR from paused repo: {}. Skipping",
+                pr.full_id
             );
             context
                 .reply_with_error(
-                    &self.pr_metadata,
+                    &pr,
+                    Some(self.comment_id),
+                    MsgCategory::ErrorPausePausedMessage,
+                    vec![],
+                )
+                .await?;
+            return Ok(false);
+        }
+
+        if !sender.is_maintainer() {
+            info!(
+                "Tried to pause a PR from not maintainer: {}. Skipping",
+                pr.full_id
+            );
+            context
+                .reply_with_error(
+                    &pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -33,17 +53,11 @@ impl BotPaused {
             return Ok(false);
         }
 
-        debug!(
-            "Pausing the repository in the PR: {}",
-            self.pr_metadata.full_id
-        );
-        context
-            .near
-            .send_pause(&self.pr_metadata.owner, &self.pr_metadata.repo)
-            .await?;
+        debug!("Pausing the repository in the PR: {}", pr.full_id);
+        context.near.send_pause(&pr.owner, &pr.repo).await?;
         context
             .reply(
-                &self.pr_metadata,
+                &pr,
                 Some(self.comment_id),
                 MsgCategory::PauseMessage,
                 vec![],
@@ -52,13 +66,8 @@ impl BotPaused {
         Ok(true)
     }
 
-    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
+    pub fn construct(comment: &Comment) -> Command {
         Command::Pause(BotPaused {
-            pr_metadata: pr_metadata.clone(),
-            sender: User {
-                login: comment.user.login.clone(),
-                contributor_type: comment.author_association.clone(),
-            },
             timestamp: comment.created_at,
             comment_id: comment.id.0,
         })
@@ -67,32 +76,33 @@ impl BotPaused {
 
 #[derive(Clone, Debug)]
 pub struct BotUnpaused {
-    pub pr_metadata: PrMetadata,
-    pub sender: User,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: u64,
 }
 
 impl BotUnpaused {
-    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
-        if !self.sender.is_maintainer() {
+    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        info: PRInfo,
+        sender: &User,
+    ) -> anyhow::Result<bool> {
+        if !sender.is_maintainer() {
             info!(
                 "Tried to unpause a PR from not maintainer: {}. Skipping",
-                self.pr_metadata.full_id
+                pr.full_id
             );
             return Ok(false);
         }
 
         if !info.allowed_repo {
-            context
-                .near
-                .send_unpause(&self.pr_metadata.owner, &self.pr_metadata.repo)
-                .await?;
-            debug!("Unpaused PR {}", self.pr_metadata.full_id);
+            context.near.send_unpause(&pr.owner, &pr.repo).await?;
+            debug!("Unpaused PR {}", pr.full_id);
             context
                 .reply(
-                    &self.pr_metadata,
+                    &pr,
                     Some(self.comment_id),
                     MsgCategory::UnpauseMessage,
                     vec![],
@@ -102,7 +112,7 @@ impl BotUnpaused {
         } else {
             context
                 .reply(
-                    &self.pr_metadata,
+                    &pr,
                     Some(self.comment_id),
                     MsgCategory::ErrorUnpauseUnpausedMessage,
                     vec![],
@@ -112,13 +122,8 @@ impl BotUnpaused {
         }
     }
 
-    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
+    pub fn construct(comment: &Comment) -> Command {
         Command::Unpause(BotUnpaused {
-            pr_metadata: pr_metadata.clone(),
-            sender: User {
-                login: comment.user.login.clone(),
-                contributor_type: comment.author_association.clone(),
-            },
             timestamp: comment.created_at,
             comment_id: comment.id.0,
         })

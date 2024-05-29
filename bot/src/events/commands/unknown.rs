@@ -1,5 +1,3 @@
-use tracing::debug;
-
 use crate::messages::MsgCategory;
 
 use shared::github::User;
@@ -8,7 +6,6 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct UnknownCommand {
-    pub pr_metadata: PrMetadata,
     pub user: User,
     pub command: String,
     pub args: String,
@@ -18,7 +15,6 @@ pub struct UnknownCommand {
 
 impl UnknownCommand {
     pub fn new(
-        pr_metadata: PrMetadata,
         user: User,
         command: String,
         args: String,
@@ -26,7 +22,6 @@ impl UnknownCommand {
         timestamp: chrono::DateTime<chrono::Utc>,
     ) -> Self {
         Self {
-            pr_metadata,
             user,
             command,
             args,
@@ -35,23 +30,23 @@ impl UnknownCommand {
         }
     }
 
-    #[instrument(skip(self, context, check_info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
-        let pr = self.pr_metadata.clone();
+    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        check_info: PRInfo,
+        sender: &User,
+    ) -> anyhow::Result<bool> {
         if !check_info.exist {
             // It's first call for this PR, so we will just include it
-            let event = BotIncluded::new(
-                self.user.clone(),
-                pr.clone(),
-                self.timestamp,
-                Some(self.comment_id),
-            );
-            return event.execute(context, check_info).await;
+            let event = BotIncluded::new(self.timestamp, Some(self.comment_id));
+            return event.execute(pr, context, check_info, sender).await;
         }
 
         context
             .reply_with_error(
-                &self.pr_metadata,
+                pr,
                 Some(self.comment_id),
                 MsgCategory::ErrorUnknownCommandMessage,
                 vec![],
@@ -60,18 +55,8 @@ impl UnknownCommand {
         Ok(false)
     }
 
-    pub fn construct(
-        pr_metadata: &PrMetadata,
-        comment: &Comment,
-        command: String,
-        args: String,
-    ) -> Command {
-        debug!(
-            "Constructing unknown command: {command} with {args} for {}",
-            pr_metadata.full_id
-        );
+    pub fn construct(comment: &Comment, command: String, args: String) -> Command {
         Command::Unknown(Self::new(
-            pr_metadata.clone(),
             User::new(
                 comment.user.login.clone(),
                 comment.author_association.clone(),

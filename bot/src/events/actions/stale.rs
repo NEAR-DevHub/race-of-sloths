@@ -5,32 +5,32 @@ use shared::{github::PrMetadata, PRInfo};
 use crate::{events::Context, messages::MsgCategory};
 
 #[derive(Debug, Clone)]
-pub struct PullRequestStale {
-    pub pr_metadata: PrMetadata,
-}
+pub struct PullRequestStale {}
 
 impl PullRequestStale {
-    #[instrument(skip(self, context, check_info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
+    #[instrument(skip(self, context, check_info), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        check_info: PRInfo,
+    ) -> anyhow::Result<bool> {
         if check_info.merged {
-            warn!(
-                "PR {} is already merged. Skipping",
-                self.pr_metadata.full_id
-            );
+            warn!("PR {} is already merged. Skipping", pr.full_id);
             return Ok(false);
         }
 
-        context.near.send_stale(&self.pr_metadata).await?;
+        context.near.send_stale(&pr).await?;
         if !check_info.allowed_repo {
             return Ok(false);
         }
 
-        if self.pr_metadata.closed {
+        if pr.closed {
             return Ok(true);
         }
 
         context
-            .reply(&self.pr_metadata, None, MsgCategory::StaleMessage, vec![])
+            .reply(&pr, None, MsgCategory::StaleMessage, vec![])
             .await?;
         Ok(true)
     }

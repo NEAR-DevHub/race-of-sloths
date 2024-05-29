@@ -84,7 +84,7 @@ async fn event_task(context: Context) {
     let events_per_pr = events.into_iter().fold(
         std::collections::HashMap::new(),
         |mut map: HashMap<String, Vec<Event>>, event| {
-            let pr = event.event.pr();
+            let pr = &event.pr;
             map.entry(pr.full_id.clone()).or_default().push(event);
             map
         },
@@ -148,12 +148,12 @@ async fn execute(context: Context, events: Vec<Event>) {
                 should_update |= res;
             }
             Err(e) => {
-                error!("Failed to execute event for {}: {e}", event.pr().full_id);
+                error!("Failed to execute event for {}: {e}", event.pr.full_id);
             }
         }
     }
     let event = &events[0];
-    let pr = event.pr();
+    let pr = &event.pr;
 
     if !should_update {
         debug!(
@@ -238,21 +238,19 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             if check_for_stale_pr(&pr_metadata) {
                 info!("PR {} is stale. Creating an event", pr_metadata.full_id);
                 results.push(Event {
-                    event: EventType::Action(Action::stale(pr_metadata)),
-                    notification_id: None,
+                    event: EventType::Action(Action::stale()),
+                    pr: pr_metadata,
                     comment_id,
                 });
             }
             continue;
         }
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
-        if let Some(merged) = Action::merge(pr_metadata) {
-            results.push(Event {
-                event: EventType::Action(merged),
-                notification_id: None,
-                comment_id,
-            });
-        }
+        results.push(Event {
+            event: EventType::Action(Action::merge()),
+            pr: pr_metadata,
+            comment_id,
+        });
     }
     info!("Finished merge task with {} events", results.len());
     Ok(results)
@@ -277,8 +275,8 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         .await
         .into_iter()
         .map(|(pr, comment_id)| Event {
-            event: EventType::Action(Action::finalize(pr.into())),
-            notification_id: None,
+            event: EventType::Action(Action::finalize()),
+            pr: pr.into(),
             comment_id,
         })
         .collect())
