@@ -69,7 +69,7 @@ impl BotIncluded {
                 self.comment_id,
                 MsgCategory::IncludeBasicMessage,
                 vec![(
-                    "pr-author-username".to_string(),
+                    "pr_author_username".to_string(),
                     self.pr_metadata.author.login.clone(),
                 )],
             )

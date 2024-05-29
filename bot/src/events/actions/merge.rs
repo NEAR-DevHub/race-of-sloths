@@ -28,16 +28,7 @@ impl PullRequestMerge {
             return Ok(false);
         }
 
-        if !info.votes.is_empty() {
-            context
-                .reply(
-                    &self.pr_metadata,
-                    None,
-                    MsgCategory::MergeWithScoreMessage,
-                    vec![("score".to_string(), info.average_score().to_string())],
-                )
-                .await?;
-        } else {
+        if info.votes.is_empty() {
             context
                 .reply(
                     &self.pr_metadata,

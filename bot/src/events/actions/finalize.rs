@@ -27,7 +27,18 @@ impl PullRequestFinalize {
 
         if info.allowed_repo {
             context
-                .reply(&self.pr_metadata, None, MsgCategory::FinalMessage, vec![])
+                .reply(
+                    &self.pr_metadata,
+                    None,
+                    MsgCategory::FinalMessage,
+                    vec![
+                        (
+                            "pr_author_username".to_string(),
+                            self.pr_metadata.author.login.clone(),
+                        ),
+                        ("score".to_string(), info.average_score().to_string()),
+                    ],
+                )
                 .await?;
         }
         Ok(true)

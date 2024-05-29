@@ -104,7 +104,7 @@ impl BotUnpaused {
                 .reply(
                     &self.pr_metadata,
                     Some(self.comment_id),
-                    MsgCategory::UnpauseUnpausedMessage,
+                    MsgCategory::ErrorUnpauseUnpausedMessage,
                     vec![],
                 )
                 .await?;
