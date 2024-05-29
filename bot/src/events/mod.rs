@@ -60,7 +60,9 @@ impl Event {
                 action.execute(&self.pr, context.clone(), check_info).await
             }
         };
-        context.prometheus.record(&self.event, result.is_ok());
+        context
+            .prometheus
+            .record(&self.event, &self.pr, result.is_ok());
 
         result
     }
