@@ -1,14 +1,30 @@
+use usvg::{fontdb, Options, Tree, WriteOptions};
+
 use crate::db::types::UserRecord;
 
-pub fn generate_badge(user_record: UserRecord, leaderboard_place: u64) -> Option<String> {
+pub fn generate_svg_badge(
+    user_record: UserRecord,
+    leaderboard_place: u64,
+    image_base64: &str,
+    fontdb: &fontdb::Database,
+) -> anyhow::Result<Option<String>> {
     let total_period = user_record
         .period_data
         .iter()
-        .find(|p| p.period_type == "all-time")?;
-    let week_streak = user_record.streaks.iter().find(|s| s.streak_id == 0)?;
-    let month_streak = user_record.streaks.iter().find(|s| s.streak_id == 1)?;
+        .find(|p| p.period_type == "all-time");
+    let week_streak = user_record.streaks.iter().find(|s| s.streak_id == 0);
+    let month_streak = user_record.streaks.iter().find(|s| s.streak_id == 1);
 
-    let svg_icon = include_str!("./public/badge_template.svg").to_owned();
+    if total_period.is_none() || week_streak.is_none() || month_streak.is_none() {
+        return Ok(None);
+    }
+    let (total_period, week_streak, month_streak) = (
+        total_period.unwrap(),
+        week_streak.unwrap(),
+        month_streak.unwrap(),
+    );
+
+    let svg_icon = std::fs::read_to_string("./public/badge_template.svg")?;
     let svg_icon = svg_icon.replace("{name}", &user_record.name);
     let svg_icon = svg_icon.replace(
         "{total-contributions}",
@@ -17,6 +33,15 @@ pub fn generate_badge(user_record: UserRecord, leaderboard_place: u64) -> Option
     let svg_icon = svg_icon.replace("{total-score}", &total_period.total_score.to_string());
     let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
+    let svg_icon = svg_icon.replace("{image}", image_base64);
+    let svg_icon = svg_icon.replace("{place}", &leaderboard_place.to_string());
 
-    Some(svg_icon.replace("{place}", &leaderboard_place.to_string()))
+    let tree = Tree::from_str(&svg_icon, &Options::default(), fontdb)?;
+    let write_options = WriteOptions {
+        use_single_quote: true,
+        preserve_text: false,
+        ..Default::default()
+    };
+
+    Ok(Some(tree.to_string(&write_options)))
 }

@@ -5,7 +5,6 @@ use rocket::{
 use rocket_db_pools::Database;
 use shared::{StreakUserData, TimePeriodString, User, UserPeriodData};
 use sqlx::PgPool;
-use tracing::instrument;
 
 #[derive(Database, Clone, Debug)]
 #[database("race-of-sloths")]
@@ -18,7 +17,6 @@ use types::LeaderboardRecord;
 use self::types::{StreakRecord, UserPeriodRecord, UserRecord};
 
 impl DB {
-    #[instrument(skip(self))]
     pub async fn upsert_user(&self, user: &User) -> anyhow::Result<i32> {
         let rec = sqlx::query!(
             r#"
@@ -36,7 +34,6 @@ impl DB {
         Ok(rec.id)
     }
 
-    #[instrument(skip(self))]
     pub async fn upsert_user_period_data(
         &self,
         period: TimePeriodString,
@@ -61,7 +58,6 @@ impl DB {
         Ok(())
     }
 
-    #[instrument(skip(self))]
     pub async fn upsert_streak_user_data(
         &self,
         data: &StreakUserData,
@@ -88,7 +84,6 @@ impl DB {
         Ok(())
     }
 
-    #[instrument(skip(self))]
     pub async fn get_user(&self, name: &str) -> anyhow::Result<Option<UserRecord>> {
         let user_rec: i32 = match sqlx::query!("SELECT id, name FROM users WHERE name = $1", name)
             .fetch_optional(&self.0)
@@ -131,7 +126,6 @@ impl DB {
         Ok(Some(user))
     }
 
-    #[instrument(skip(self))]
     pub async fn get_leaderboard(
         &self,
         period: &str,
@@ -148,7 +142,6 @@ impl DB {
                                 "#,period,limit,page*limit).fetch_all(&self.0,).await? )
     }
 
-    #[instrument(skip(self))]
     pub async fn get_leaderboard_place(
         &self,
         period: &str,
@@ -178,7 +171,7 @@ async fn run_migrations(rocket: Rocket<Build>) -> fairing::Result {
         Some(db) => match sqlx::migrate!("./migrations").run(&**db).await {
             Ok(_) => Ok(rocket),
             Err(e) => {
-                tracing::error!("Failed to initialize SQLx database: {}", e);
+                rocket::error!("Failed to initialize SQLx database: {}", e);
                 Err(rocket)
             }
         },

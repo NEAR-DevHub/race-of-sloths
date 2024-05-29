@@ -1,40 +1,99 @@
+use base64::Engine;
 use race_of_sloths_server::{
     db::{
         types::{LeaderboardRecord, UserRecord},
         DB,
     },
-    svg::generate_badge,
+    svg::generate_svg_badge,
 };
-use rocket::{fairing::AdHoc, http::ContentType, response::content::RawHtml, serde::json::Json};
-use tracing::instrument;
+use rocket::{
+    fairing::AdHoc,
+    http::{ContentType, Header, Status},
+    response::{self, Responder},
+    serde::json::Json,
+    Request, Response, State,
+};
+
+pub struct Badge {
+    svg: Option<String>,
+    status: Status,
+}
+
+impl Badge {
+    pub fn new(svg: String) -> Self {
+        Self {
+            svg: Some(svg),
+            status: Status::Ok,
+        }
+    }
+
+    pub fn with_status(status: Status) -> Self {
+        Self { status, svg: None }
+    }
+}
+
+impl<'r> Responder<'r, 'static> for Badge {
+    fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
+        let expiration = chrono::Utc::now();
+        //.add(chrono::Duration::minutes(1));
+
+        match self.svg {
+            Some(png) => Response::build()
+                .header(Header::new("Cache-Control", "no-cache"))
+                .header(Header::new("Pragma", "no-cache"))
+                .header(Header::new("Expires", expiration.to_rfc2822()))
+                .header(ContentType::SVG)
+                .sized_body(png.len(), std::io::Cursor::new(png))
+                .ok(),
+            None => Err(self.status),
+        }
+    }
+}
 
 #[get("/badges/<username>")]
-#[instrument]
-async fn get_svg(username: &str, db: &DB) -> Option<(ContentType, RawHtml<String>)> {
+async fn get_svg<'a>(
+    username: &str,
+    db: &State<DB>,
+    font: &State<usvg::fontdb::Database>,
+) -> Badge {
     let user = match db.get_user(username).await {
-        Err(e) => {
-            error!("Failed to get user: {username}: {e}");
-            return None;
-        }
-        Ok(value) => value?,
+        Ok(Some(value)) => value,
+        _ => return Badge::with_status(Status::NotFound),
     };
     let place = match db.get_leaderboard_place("all-time", &user.name).await {
-        Err(e) => {
-            error!("Failed to get leaderboard place: {username}: {e}");
-            return None;
-        }
-        Ok(value) => value?,
+        Ok(Some(value)) => value,
+        _ => return Badge::with_status(Status::NotFound),
     };
-    let svg = generate_badge(user, place as u64)?;
 
-    Some((ContentType::SVG, RawHtml(svg)))
+    let request = match reqwest::get(format!("https://github.com/{}.png", user.name)).await {
+        Ok(value) => value.bytes().await,
+        Err(e) => {
+            rocket::error!("Failed to fetch image for {username}: {e}");
+            return Badge::with_status(Status::InternalServerError);
+        }
+    };
+
+    let image_base64 = match request {
+        Ok(value) => base64::engine::general_purpose::STANDARD.encode(value),
+        Err(e) => {
+            rocket::error!("Failed to fetch bytes from avatar of {username}: {e}");
+            return Badge::with_status(Status::InternalServerError);
+        }
+    };
+
+    let svg = match generate_svg_badge(user, place as u64, &image_base64, font) {
+        Ok(Some(value)) => value,
+        _ => return Badge::with_status(Status::InternalServerError),
+    };
+
+    Badge::new(svg)
 }
 
 #[get("/users/<username>")]
-async fn get_user(username: &str, db: &DB) -> Option<Json<UserRecord>> {
+async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserRecord>> {
     let user = match db.get_user(username).await {
         Err(e) => {
-            error!("Failed to get user: {username}: {e}");
+            rocket::error!("Failed to get user: {username}: {e}");
             return None;
         }
         Ok(value) => value?,
@@ -45,7 +104,7 @@ async fn get_user(username: &str, db: &DB) -> Option<Json<UserRecord>> {
 #[get("/leaderboard/<period>?<page>&<limit>")]
 async fn get_leaderboard(
     period: &str,
-    db: &DB,
+    db: &State<DB>,
     page: Option<u32>,
     limit: Option<u32>,
 ) -> Option<Json<Vec<LeaderboardRecord>>> {
@@ -53,7 +112,7 @@ async fn get_leaderboard(
     let limit = limit.unwrap_or(50);
     let users = match db.get_leaderboard(period, page as i64, limit as i64).await {
         Err(e) => {
-            error!("Failed to get leaderboard: {period}: {e}");
+            rocket::error!("Failed to get leaderboard: {period}: {e}");
             return None;
         }
         Ok(value) => value,
@@ -63,6 +122,12 @@ async fn get_leaderboard(
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("Installing entrypoints", |rocket| async {
-        rocket.mount("/api", routes![get_svg, get_user, get_leaderboard])
+        let mut font = usvg::fontdb::Database::new();
+        font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
+            .expect("Failed to load font");
+
+        rocket
+            .mount("/api", routes![get_svg, get_user, get_leaderboard])
+            .manage(font)
     })
 }
