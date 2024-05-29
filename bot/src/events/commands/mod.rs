@@ -81,7 +81,7 @@ impl Command {
                     pr,
                     None,
                     MsgCategory::ErrorOrgNotInAllowedListMessage,
-                    vec![],
+                    vec![("pr_author_username".to_string(), pr.author.login.clone())],
                 )
                 .await?;
 

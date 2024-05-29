@@ -38,7 +38,7 @@ For contributors:
 - Wait for the maintainer to review and score your pull request
 - Check out your position in the [Leaderboard]({leaderboard_link})
 - Keep weekly and monthly streaks to reach higher positions
-- Boast your contributions with a dynamic picture of your [Profile]({link}/profile)
+- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
 
 For maintainers:
 - Score pull requests that participate in the Race of Sloths
@@ -123,7 +123,7 @@ This pull request is a part of the Race of Sloths and has not been scored yet. S
 variables = ["link", "pr-author-username", "score"]
 message = [
     """### ✅ PR is finalized! 
-Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/{user})! 🎊""",
+Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/u/{pr-author-username})! 🎊""",
 ]
 
 [stale_messages]
@@ -177,7 +177,7 @@ message = ["""### ❌ Self-scoring is not permitted.
 Let's keep it fair! 👍"""]
 
 [error_org_not_in_allowed_list_messages]
-variables = ["form", "link", "leaderboard_link"]
+variables = ["form", "link", "leaderboard_link", "pr_author_username"]
 message = [
     """### 🙁 This repository is not a part of the [Race of Sloths]({link})
 Please ask the maintainer to [contact us]({form}) to join the race!
@@ -193,7 +193,7 @@ For contributors:
 - Wait for the maintainer to review and score your pull request
 - Check out your position in the [Leaderboard]({leaderboard_link})
 - Keep weekly and monthly streaks to reach higher positions
-- Boast your contributions with a dynamic picture of your [Profile]({link}/profile)
+- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
 
 For maintainers:
 - Score pull requests that participate in the Race of Sloths
