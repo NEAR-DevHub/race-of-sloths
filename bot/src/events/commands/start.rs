@@ -8,22 +8,13 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct BotIncluded {
-    pub sender: User,
-    pub pr_metadata: PrMetadata,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: Option<u64>,
 }
 
 impl BotIncluded {
-    pub fn new(
-        sender: User,
-        pr_metadata: PrMetadata,
-        timestamp: chrono::DateTime<chrono::Utc>,
-        comment_id: Option<u64>,
-    ) -> Self {
+    pub fn new(timestamp: chrono::DateTime<chrono::Utc>, comment_id: Option<u64>) -> Self {
         Self {
-            sender,
-            pr_metadata,
             timestamp,
             comment_id,
         }
@@ -31,24 +22,24 @@ impl BotIncluded {
 }
 
 impl BotIncluded {
-    #[instrument(skip(self, context, info), fields(pr = self.pr_metadata.full_id))]
-    pub async fn execute(&self, context: Context, info: PRInfo) -> anyhow::Result<bool> {
+    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        info: PRInfo,
+        sender: &User,
+    ) -> anyhow::Result<bool> {
         if info.exist {
-            debug!(
-                "Sloth is already included in {}. Skipping",
-                self.pr_metadata.full_id,
-            );
+            debug!("Sloth is already included in {}. Skipping", pr.full_id,);
             return Ok(false);
         }
 
-        if self.pr_metadata.merged.is_some() {
-            debug!(
-                "PR {} is already merged. Skipping",
-                self.pr_metadata.full_id,
-            );
+        if pr.merged.is_some() {
+            debug!("PR {} is already merged. Skipping", pr.full_id,);
             context
                 .reply_with_error(
-                    &self.pr_metadata,
+                    pr,
                     self.comment_id,
                     MsgCategory::ErrorLateIncludeMessage,
                     vec![],
@@ -57,36 +48,20 @@ impl BotIncluded {
             return Ok(false);
         }
 
-        debug!("Starting PR {}", self.pr_metadata.full_id);
-        context
-            .near
-            .send_start(&self.pr_metadata, self.sender.is_maintainer())
-            .await?;
+        debug!("Starting PR {}", pr.full_id);
+        context.near.send_start(pr, sender.is_maintainer()).await?;
 
-        context
-            .reply(
-                &self.pr_metadata,
-                self.comment_id,
-                MsgCategory::IncludeBasicMessage,
-                vec![(
-                    "pr-author-username".to_string(),
-                    self.pr_metadata.author.login.clone(),
-                )],
-            )
-            .await?;
-        Ok(false)
+        if let Some(comment_id) = self.comment_id {
+            context
+                .github
+                .like_comment(&pr.owner, &pr.repo, comment_id)
+                .await?;
+        }
+        Ok(true)
     }
 
-    pub fn construct(pr_metadata: &PrMetadata, comment: &Comment) -> Command {
-        Command::Include(BotIncluded::new(
-            User::new(
-                comment.user.login.clone(),
-                comment.author_association.clone(),
-            ),
-            pr_metadata.clone(),
-            comment.created_at,
-            Some(comment.id.0),
-        ))
+    pub fn construct(comment: &Comment) -> Command {
+        Command::Include(BotIncluded::new(comment.created_at, Some(comment.id.0)))
     }
 
     pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {
@@ -97,8 +72,6 @@ impl BotIncluded {
         }
 
         Some(Command::Include(Self {
-            sender: pr_metadata.author.clone(),
-            pr_metadata: pr_metadata.clone(),
             timestamp: pr_metadata.started,
             comment_id: None,
         }))

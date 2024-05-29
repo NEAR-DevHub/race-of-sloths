@@ -1,3 +1,5 @@
+use shared::github::User;
+
 use crate::messages::MsgCategory;
 
 use super::*;
@@ -29,35 +31,24 @@ impl Command {
         let (command, args) = common::extract_command_with_args(bot_name, comment)?;
 
         Some(match command.as_str() {
-            "score" | "rate" | "value" => BotScored::construct(pr_metadata, comment, args),
-            "pause" | "block" => BotPaused::construct(pr_metadata, comment),
-            "unpause" | "unblock" => BotUnpaused::construct(pr_metadata, comment),
-            "exclude" | "leave" => BotExcluded::construct(pr_metadata, comment),
-            "include" | "in" | "start" | "join" => BotIncluded::construct(pr_metadata, comment),
+            "score" | "rate" | "value" => BotScored::construct(comment, args),
+            "pause" | "block" => BotPaused::construct(comment),
+            "unpause" | "unblock" => BotUnpaused::construct(comment),
+            "exclude" | "leave" => BotExcluded::construct(comment),
+            "include" | "in" | "start" | "join" => BotIncluded::construct(comment),
 
             _ => {
                 info!(
                     "Unknown command: {} for PR: {}",
                     command, pr_metadata.full_id
                 );
-                UnknownCommand::construct(pr_metadata, comment, command, args)
+                UnknownCommand::construct(comment, command, args)
             }
         })
     }
 
     pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {
         BotIncluded::parse_body(bot_name, pr_metadata)
-    }
-
-    pub fn pr(&self) -> &PrMetadata {
-        match self {
-            Command::Include(event) => &event.pr_metadata,
-            Command::Score(event) => &event.pr_metadata,
-            Command::Pause(event) => &event.pr_metadata,
-            Command::Unpause(event) => &event.pr_metadata,
-            Command::Excluded(event) => &event.pr_metadata,
-            Command::Unknown(event) => &event.pr_metadata,
-        }
     }
 
     pub fn timestamp(&self) -> &chrono::DateTime<chrono::Utc> {
@@ -71,9 +62,15 @@ impl Command {
         }
     }
 
-    #[instrument(skip(self, context, check_info), fields(pr = self.pr().full_id))]
-    pub async fn execute(&self, context: Context, check_info: PRInfo) -> anyhow::Result<bool> {
-        let pr = self.pr();
+    #[instrument(skip(self, context, check_info, pr), fields(pr = pr.full_id))]
+    pub async fn execute(
+        &self,
+        pr: &PrMetadata,
+        context: Context,
+        check_info: PRInfo,
+        sender: &User,
+        first_reply: bool,
+    ) -> anyhow::Result<bool> {
         if !check_info.allowed_org {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
@@ -84,7 +81,7 @@ impl Command {
                     pr,
                     None,
                     MsgCategory::ErrorOrgNotInAllowedListMessage,
-                    vec![],
+                    vec![("pr_author_username".to_string(), pr.author.login.clone())],
                 )
                 .await?;
 
@@ -96,15 +93,36 @@ impl Command {
                 "Sloth called for a PR that is already executed: {}. Skipping",
                 pr.full_id
             );
+            if let Command::Score(event) = self {
+                context
+                    .reply_with_error(
+                        pr,
+                        Some(event.comment_id),
+                        MsgCategory::ErrorLateScoringMessage,
+                        vec![],
+                    )
+                    .await?;
+            }
 
             return Ok(false);
         }
 
-        if !check_info.allowed_repo && !matches!(self, Command::Unpause(_)) {
+        if !check_info.allowed_repo && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
             info!(
                 "Sloth called for a PR from paused repo: {}. Skipping",
                 pr.full_id
             );
+
+            if first_reply {
+                context
+                    .reply_with_error(
+                        pr,
+                        None,
+                        MsgCategory::ErrorPausedMessage,
+                        vec![("user".to_string(), sender.login.clone())],
+                    )
+                    .await?;
+            }
 
             return Ok(false);
         }
@@ -119,12 +137,12 @@ impl Command {
         }
 
         match self {
-            Command::Include(event) => event.execute(context, check_info).await,
-            Command::Score(event) => event.execute(context, check_info).await,
-            Command::Pause(event) => event.execute(context, check_info).await,
-            Command::Unpause(event) => event.execute(context, check_info).await,
-            Command::Excluded(event) => event.execute(context, check_info).await,
-            Command::Unknown(event) => event.execute(context, check_info).await,
+            Command::Include(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Score(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Pause(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Unpause(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Excluded(event) => event.execute(pr, context, check_info).await,
+            Command::Unknown(event) => event.execute(pr, context, check_info, sender).await,
         }
     }
 }

@@ -1,326 +1,209 @@
 link = "https://github.com/race-of-sloths"
 leaderboard_link = "https://github.com/race-of-sloths"
 form = "https://github.com/race-of-sloths"
+picture_api_link = "https://race-of-sloths.fly.dev/api/badges"
 
-[[common_basic_include_message]]
-message = """
+[include_basic_messages]
+variables = [
+    "pr_author_username",
+    "bot_name",
+    "link",
+    "leaderboard_link",
+    "picture_api_link",
+]
 
-Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
+message = [
+    """<details>
+<summary> 
+
+### 🎉 This pull request is now a part of the [Race of Sloths]({link})🎉
+Thank you @{pr_author_username} for your contribution!
+
+</summary>
+<details>
+<summary><strong>More info about the author - @{pr_author_username}</strong></summary>
+
+![sloth_stats]({picture_api_link}/{pr_author_username})
+
+</details> 
+
+<details><summary><strong>What is the Race of Sloths</strong></summary>
+<p>
+
+Race of Sloths is a friendly competition where you can participate in challenges and compete with other open-source contributors within your normal workflow
+
+For contributors:
+
+- Tag us inside your pull requests
+- Wait for the maintainer to review and score your pull request
+- Check out your position in the [Leaderboard]({leaderboard_link})
+- Keep weekly and monthly streaks to reach higher positions
+- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
+
+For maintainers:
+- Score pull requests that participate in the Race of Sloths
+- Engage contributors with fair scoring and fast responses so they keep their streaks
+- Promote the Race to the point where the Race starts promoting you
+- Grow the community of your contributors
+
+Feel free to check [our website]({link}) for additional details!
+
+</p>
+</details> 
+
+
+
+<details>
+<summary><strong>Bot commands</strong></summary>
+
+- ➕ **Include a PR:** `@{bot_name} include` to enter the Race with your PR
+- 🛑 **Reject this PR:** `@{bot_name} exclude` to send this PR back to the drawing board.
+- ⭐ **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
+- 🔕 **Pause us:** `@{bot_name} pause` to stop me on your repo.
 </details>
-"""
-variables = ["link", "bot-name"]
-
-[[common_basic_include_message]]
-message = """
-
-Use `@{bot-name} reject` to exclude this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to award points, or `@{bot-name} pause` to stop my notifications for your repository. For more on how the race runs and our scoring nuances, check out this [link]({link}).
 </details>
-"""
-variables = ["link", "bot-name"]
+""",
+]
 
-[[common_basic_include_message]]
-message = """
+[correct_nonzero_scoring_messages]
+variables = ["reviewer"]
+message = ["""### 🌟 Score recorded!
 
-Here’s what you can do next: Use `@{bot-name} reject` to remove this PR from the race, `@{bot-name} score [1/2/3/5/8/13]` to assign points, or `@{bot-name} pause` to silence notifications temporarily. For a complete guide on how the Race of Sloths works and our scoring system, click here: [link]({link}).
-</details>
-"""
-variables = ["link", "bot-name"]
+@{reviewer}, thank you for scoring this pull request in the Race of Sloths!
+"""]
 
-[[include_basic_message]]
-message = """Hello, Maintainer! 👋 @{pr-author-username} has submitted another valuable pull request in the Race of Sloths. We appreciate their continued efforts to enhance the project. Your review will help further their contribution's impact.
+[correct_zero_scoring_messages]
+variables = ["pr_author_username"]
 
-<details>
-<summary>Learn more about the race and how your feedback drives our community forward.</summary>
-"""
+message = [
+    """### 0⃣️ Score recorded! 
 
-variables = ["pr-author-username"]
+@{pr_author_username} Keep your spirits up! Every contribution is a learning opportunity, and your effort is genuinely appreciated. """,
+]
 
-[[include_basic_message]]
-message = """Hey there, Maintainer! 🌟 @{pr-author-username} just contributed another pull request to the Race of Sloths. It’s great to see their ongoing dedication! Please review their work to help advance their standing in the race.
+[correctable_scoring_messages]
+variables = ["score", "corrected_score", "reviewer"]
+message = [
+    """### 🏆 Score recorded! 
+It looks like @{reviewer} provided a score of {score}, but based on our Fibonacci scoring rules, we've adjusted it to {corrected_score}.
+> [!TIP]
+We accept only the following Fibonacci numbers [0, 1, 2, 3, 5, 8, 13] for scoring
+""",
+]
 
-<details>
-<summary>Interested in more details about the race and your role in shaping our contributors' paths?</summary>
-"""
-
-variables = ["pr-author-username"]
-
-[[include_basic_message]]
-message = """Greetings, Maintainer! 🛠️ Here’s another contribution by @{pr-author-username} in the Race of Sloths. Their consistent participation is what keeps our project thriving. Your expert review is crucial for their progress.
-
-<details>
-<summary>Click here to dive deeper into how your support impacts our collaborative success.</summary>
-"""
-
-variables = ["pr-author-username"]
-
-
-[[include_streak_message]]
-message = """Hello, Maintainer! 🌟 @{pr-author-username} is in the thick of the Race of Sloths, sporting a 🌟 [{streak} streak of open source contributions]({leaderboard-link}) with a current score of {score}. Your review could be a game-changer for their progress!
-<details>
-<summary>Click here to dive deeper into how your support impacts our collaborative success.</summary>
-"""
-variables = ["pr-author-username", "streak", "leaderboard-link", "score"]
-
-[[include_streak_message]]
-message = """Hey there, Maintainer! 🛠️ @{pr-author-username} is currently making waves in the Race of Sloths and has kept up a 🔥 [{streak} streak of open source contributions]({leaderboard-link}). They've racked up a score of {score} in this contest. Your insightful review could really boost their journey forward!
-<summary>Curious about the race? Click here to discover how you can back this rising star.</summary>
-"""
-variables = ["streak_count"]
-
-[[include_streak_message]]
-message = """Greetings, Maintainer! ⚙️ @{pr-author-username} is charging ahead in the Race of Sloths, currently on a 🚀 [{streak} streak of open source contributions]({leaderboard-link}), scoring {score} points so far. Your review can significantly elevate their standing!
-<summary>Learn more about how you can propel contributors to new heights.</summary>
-"""
-variables = ["pr-author-username", "streak", "leaderboard-link", "score"]
-
-[[include_first_time_message]]
-message = """Welcome aboard, @{pr-author-username}! 🎉 You've just made your first pull request in the Race of Sloths—congratulations on starting your open-source journey! Your contribution is now in the running to score points in this contest. Your reviewer's feedback will be pivotal as you forge ahead.
-<summary>Dear reviewer, please take note on the next steps.</summary>
-"""
-variables = ["pr-author-username"]
-
-[[include_first_time_message]]
-message = """Hello and a big congrats, @{pr-author-username}! 🚀 You’ve submitted your very first pull request in the Race of Sloths. Well done on taking this significant first step in the open-source world! Every review helps you grow and boosts your contribution in the contest.
-<summary>Dear reviewer, please take note on the next steps.</summary>
-"""
-variables = ["pr-author-username"]
-
-
-[[include_first_time_message]]
-message = """Greetings, @{pr-author-username}! 👏 You’ve just launched your first pull request in our Race of Sloths—what an exciting beginning! We're thrilled to see what you bring to the table. Your entry is now set to compete, and the feedback from maintainers will be key to your success.
-<summary>Dear reviewer, please take note on the next steps.</summary>
-"""
-variables = ["pr-author-username"]
-
-[[correct_nonzero_scoring_message]]
-message = """🌟 Fantastic job! Thank you for scoring this pull request in the Race of Sloths! 🦥💥.
-
-Heads-up to other reviewers: You've got 24 hours after the merge to add your scores. Once the pull request is merged, the final score tally will be updated right here in this thread!
-"""
+[exclude_messages]
 variables = []
+message = ["""### 🙁 Pull request excluded
+Probably, it is not something that the project needs right now
+"""]
 
-[[correct_nonzero_scoring_message]]
-message = """🏆 Great work! Your score has been recorded for the Race of Sloths! 🦥✨
+[pause_messages]
+variables = ["bot_name"]
+message = [
+    """### ⏸️ Repository paused 
+Scored PRs will be accepted after the merge. No further actions will be taken by the bot until you call `@{bot_name} unpause` command to restart our service
+""",
+]
 
-Attention, fellow reviewers: Remember, you have 24 hours to submit additional scores after the pull request is merged. Stay tuned to this thread for the final score announcement!
-"""
+[unpause_messages]
 variables = []
+message = ["""### ▶️ Repository unpaused! 
+Feel free to tag us again to participate in the Race of Sloths!
+"""]
 
-[[correct_nonzero_scoring_message]]
-message = """🥇 Superb! Thanks for adding your score to the Race of Sloths! 🦥🚀
-
-Note to all reviewers: There’s a 24-hour window to score this pull request after it’s merged. We’ll finalize and post the scores in this discussion thread!
-"""
+[merge_without_score_messages]
 variables = []
+message = [
+    """### 🔄 The PR has been merged.
+>[!IMPORTANT]
+This pull request is a part of the Race of Sloths and has not been scored yet. Scoring will close in 24 hours! 🕰️""",
+]
 
-[[correct_zero_scoring_message]]
-message = """🏆 Thank you for submitting your score for the Race of Sloths! 🦥 We see that this pull request has received a zero. Let's ensure we provide constructive feedback to help the contributor improve.
+[final_messages]
+variables = ["link", "pr-author-username", "score"]
+message = [
+    """### ✅ PR is finalized! 
+Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/u/{pr-author-username})! 🎊""",
+]
 
-@{pr-author-username} Keep your spirits up! Every contribution is a learning opportunity, and your efforts are genuinely appreciated. Let's use the feedback as a stepping stone!
-"""
+[stale_messages]
 variables = []
+message = [
+    """### ❌ PR inactive
+This PR has been inactive for two weeks. It's now marked as stale. 
+>[!TIP]
+If you think it's a mistake, you can restart the bot with `include` command to proceed 🔄""",
+]
 
-[[correct_zero_scoring_message]]
-message = """🙌 Score recorded! This pull request has been rated a zero. As reviewers, it's important we guide and support contributors with actionable insights.
-
-@{pr-author-username} Don’t be disheartened—each step forward is progress, and your journey in open source is valued. Looking forward to your next contribution!
-"""
-variables = ["pr-author-username"]
-
-
-[[correct_zero_scoring_message]]
-message = """💪 Thanks for your input and for scoring this pull request in the Race of Sloths. A zero score is tough, but it's a chance for us all to learn and improve.
-
-@{pr-author-username} Your dedication is crucial, and every effort brings new learning. Use this as motivation to come back stronger!
-"""
-variables = ["pr-author-username"]
-
-
-[[correctable_scoring_message]]
-message = """🏆 Thanks for your scoring attempt in the Race of Sloths! 🦥 It looks like the score provided was {score}, but based on our Fibonacci scoring rules, we've adjusted it to {corrected_score}.
-
-Reminder to all reviewers: Please remember to score contributions using Fibonacci numbers (1, 2, 3, 5, 8, 13). Your insights are invaluable for guiding our contributors' growth!
-"""
-variables = ["score", "corrected_score"]
-
-[[correctable_scoring_message]]
-message = """🙌 Your score has been noted! You initially entered {score}, but we’ve tweaked it to {corrected_score} to align with our Fibonacci scoring system. Thank you for participating in the Race of Sloths!
-
-Quick tip for reviewers: Ensure to use Fibonacci sequence numbers (1, 2, 3, 5, 8, 13) for scoring to keep things consistent and fair for everyone involved. Keep the feedback coming!
-"""
-variables = ["score", "corrected_score"]
-
-[[correctable_scoring_message]]
-message = """💪 Appreciate your effort in scoring! We noticed you submitted a score of {score}, however, we've adjusted it to {corrected_score} according to our Fibonacci rule set.
-
-To all reviewers: Remember, we use Fibonacci numbers (1, 2, 3, 5, 8, 13) for scoring to maintain a standard measurement. Thanks for helping our community thrive with your thoughtful evaluations!
-"""
-variables = ["score", "corrected_score"]
-
-[[exclude_messages]]
-message = "🙁 We're sorry to see this pull request excluded from the Race of Sloths. While it’s sad to see your effort sidelined, we value every contribution and look forward to your future submissions."
+[error_unknown_command_messages]
 variables = []
+message = ["""### ❓Unknown command 
+Please check the command and try again"""]
 
-[[exclude_messages]]
-message = "😔 It looks like this pull request has been excluded from the Race of Sloths. We understand it’s disappointing, but every contribution matters, and your participation is highly appreciated."
+[error_rights_violation_messages]
 variables = []
+message = ["""### 🚫 Access denied 
+Only maintainers can use this command"""]
 
-[[exclude_messages]]
-message = "🙁 This pull request has been excluded by the maintainer of the project. We’re truly sorry to see your work not make it this time."
+[error_late_include_messages]
 variables = []
+message = ["""### ⏰️ PR is already merged
+It's too late to include us now. Include us before the merge next time!"""]
 
-[[pause_message]]
-message = "⏸️ Time out! We've paused this repository. We won't participate in new PRs, but already scored PRs will be accepted after the merge. 🛠️We’ll remain on standby until you decide to reactivate us with the `@race-of-sloths unpause` command."
+[error_late_scoring_messages]
 variables = []
+message = ["""### ⏰️ Scoring closed
+24 hours have already passed since the merge
+"""]
 
-[[pause_message]]
-message = "🚫 Repository paused. No new PR participation, but scored PRs will be accepted post-merge. 🔨. No further actions will be taken by the bot until you issue an `@race-of-sloths unpause` command to restart our services."
+[error_pause_paused_messages]
 variables = []
+message = ["### ⏸️ This repository is already on pause"]
 
-[[pause_message]]
-message = "⏹️ Hold up! We've paused this repo. New PRs are on hold, but scored PRs will be merged. 🔧 We will not engage until you instruct us otherwise with the `@race-of-sloths unpause` command."
+[error_unpause_unpaused_messages]
 variables = []
+message = ["### ▶️ The repo is already active"]
 
-[[unpause_message]]
-message = "▶️ And we're back! We've unpaused this repository. Please start us again to include us in the PRs. 🔄"
+[error_paused_messages]
+variables = ["user", "bot_name"]
+message = [
+    """### ⏸️ This repository is on pause
+@{user} please reach out to the maintainer to unpause this repo with `@{bot_name} unpause` command""",
+]
+
+[error_selfscore_messages]
 variables = []
+message = ["""### ❌ Self-scoring is not permitted. 
+Let's keep it fair! 👍"""]
 
-[[unpause_message]]
-message = "🔔 The repository is unpaused! Start us again to include us in your PRs. 📢"
-variables = []
+[error_org_not_in_allowed_list_messages]
+variables = ["form", "link", "leaderboard_link", "pr_author_username"]
+message = [
+    """### 🙁 This repository is not a part of the [Race of Sloths]({link})
+Please ask the maintainer to [contact us]({form}) to join the race!
 
-[[unpause_message]]
-message = "🟢 We're live again! The repo is unpaused. Include us in your PRs by starting us up. 🏃‍♂️"
-variables = []
+<details><summary><strong>What is the Race of Sloths</strong></summary>
+<p>
 
-[[merge_without_score_message]]
-message = "🚀 Woohoo! The PR has been merged, but it wasn't scored. The scoring process will close automatically in 24 hours! ⏳🕒"
-variables = []
+Race of Sloths is a friendly competition where you can participate in challenges and compete with other open-source contributors within your normal workflow
 
-[[merge_without_score_message]]
-message = "🔄 The PR has been merged. Heads up, it wasn't scored. Scoring will close in 24 hours! 🕰️"
-variables = []
+For contributors:
 
-[[merge_without_score_message]]
-message = "⚡ The PR is merged! Note: it wasn't scored. The scoring process will end in 24 hours. 🕛"
-variables = []
+- Tag us inside your pull requests
+- Wait for the maintainer to review and score your pull request
+- Check out your position in the [Leaderboard]({leaderboard_link})
+- Keep weekly and monthly streaks to reach higher positions
+- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
 
-[[merge_with_score_message]]
-message = "🚀 Woohoo! The PR has been merged with the current score of {score}. The scoring process will close automatically in 24 hours! ⏳🕒"
-variables = ["score"]
+For maintainers:
+- Score pull requests that participate in the Race of Sloths
+- Engage contributors with fair scoring and fast responses so they keep their streaks
+- Promote the Race to the point where the Race starts promoting you
+- Grow the community of your contributors
 
-[[merge_with_score_message]]
-message = "🔄 The PR has been merged. Current score is {score}, but it still may change. Scoring will close in 24 hours! 🕰️"
-variables = ["score"]
+Feel free to check [our website]({link}) for additional details!
 
-[[merge_with_score_message]]
-message = "⚡ The PR is merged! Note: the current score is {score}, but additional scores may be submitted by the reviewers. The scoring process will end in 24 hours. 🕛"
-variables = ["score"]
-
-[[final_message]]
-message = "🎉 Hooray! The PR has been finalized. Thank you for your epic contribution! The scoring process is now officially closed. 🏁✨"
-variables = []
-
-[[final_message]]
-message = "✅ Great job! The PR is finalized. Your contribution is much appreciated. Scoring is now wrapped up! 🎊"
-variables = []
-
-[[final_message]]
-message = "🎊 Woohoo! The PR has been completed. Thanks for your fantastic contribution! The scoring process is now done. 🏆"
-variables = []
-
-[[error_unknown_command_message]]
-message = "❓ Hmmm, unknown command. Please check the command and try again. 🕵️‍♂️"
-variables = []
-
-[[error_unknown_command_message]]
-message = "🤔 Unknown command detected. Double-check and try again! 🛠️"
-variables = []
-
-[[error_unknown_command_message]]
-message = "❗ Command not recognized. Please verify and give it another shot. 🔄"
-variables = []
-
-[[error_rights_violation_message]]
-message = "👮‍♂️ Hold up! Only maintainers can call this command. Please, ask them nicely, and maybe they'll run it. 🤞"
-variables = []
-
-[[error_rights_violation_message]]
-message = "🔐 This command is for maintainers only. A polite request might get it run for you. 🙂"
-variables = []
-
-[[error_rights_violation_message]]
-message = "🚫 Access denied! Only maintainers can use this command. Try asking them nicely! 🙏"
-variables = []
-
-[[error_late_include_message]]
-message = "⚠️ Oops! The PR is already merged. It's too late to include us now. Better luck next time! 🚀"
-variables = []
-
-[[error_late_include_message]]
-message = "🔒 Oh no! This PR is already merged. We're too late to join the party. Maybe next time! 🎉"
-variables = []
-
-[[error_late_include_message]]
-message = "🛑 Whoops! The PR is already merged. Looks like we missed the boat. Catch you on the next one! ⏭️"
-variables = []
-
-[[error_late_scoring_message]]
-message = "⚠️ Oops! 24 hours have already passed since the merge. It's too late to score it now. Better luck next time! 🚀"
-variables = []
-
-[[error_late_scoring_message]]
-message = "🛑 Whoops! 24 hours have already passed since the merge. Looks like we missed the boat. Catch you on the next one! ⏭️"
-variables = []
-
-[[error_late_scoring_message]]
-message = "⚠️ Oops! 24 hours have already passed since the merge. It's too late to score it now. Better luck next time! 🚀"
-variables = []
-
-[[unpause_unpaused_message]]
-message = "ℹ️ Heads up! The repository is already unpaused. 📣"
-variables = []
-
-[[unpause_unpaused_message]]
-message = "ℹ️ Heads up! The repository is already unpaused. 📣"
-variables = []
-
-[[unpause_unpaused_message]]
-message = "📢 Note: The repository is already unpaused. Carry on! ✅"
-variables = []
-
-[[error_selfscore_message]]
-message = "🚫 No self-scoring allowed! Nice try though. 😉"
-variables = []
-
-[[error_selfscore_message]]
-message = "❌ Self-scoring is not permitted. Let's keep it fair! 👍"
-variables = []
-
-[[error_selfscore_message]]
-message = "🔒 You can't score your own PR. Thanks for understanding! 🙏"
-variables = []
-
-[[stale_message]]
-message = "🕰️ Uh-oh! The PR has been inactive for two weeks. Marking it as stale. To continue, please restart the bot with the `include` command. ⏮️"
-variables = []
-
-[[stale_message]]
-message = "⏳ This PR has been inactive for two weeks. It's now marked as stale. Restart the bot with `include` to proceed. 🔄"
-variables = []
-
-[[stale_message]]
-message = "📅 Two weeks of inactivity! This PR is now stale. Use the `include` command to restart the bot. 🆙"
-variables = []
-
-[[error_org_not_in_allowed_list_message]]
-message = "Hey there! 🌱 It looks like your organization isn't part of the allowed ones just yet. No worries, just reach out to the maintainers and they'll help you out! 🌟 [Fill out this form]({form}) to get started."
-variables = ["form"]
-
-[[error_org_not_in_allowed_list_message]]
-message = "Hey! 🌼 Your organization isn't on the allowed list right now. It's all good, just give the maintainers a heads up and they'll take care of it! ✨ [Fill out this form]({form}) to get in touch."
-variables = ["form"]
-
-[[error_org_not_in_allowed_list_message]]
-message = "Hi there! 🌿 Seems like your organization isn't in the allowed group. No biggie, just contact the maintainers and they'll sort it out for you! 🌟 [Fill out this form]({form}) and we'll handle the rest."
-variables = ["form"]
+</p>
+</details> 
+""",
+]

@@ -5,7 +5,11 @@ use tracing::{info, instrument};
 
 use crate::{api, messages::MessageLoader};
 
-use shared::{github::PrMetadata, near::NearClient, PRInfo};
+use shared::{
+    github::{PrMetadata, User},
+    near::NearClient,
+    PRInfo,
+};
 
 use self::{actions::Action, commands::Command};
 
@@ -22,47 +26,50 @@ pub struct Context {
 
 pub struct Event {
     pub event: EventType,
-    pub notification_id: Option<NotificationId>,
+    pub pr: PrMetadata,
     pub comment_id: Option<CommentId>,
 }
 
 impl Event {
     pub async fn execute(&self, context: Context) -> anyhow::Result<bool> {
-        let pr = self.event.pr();
-        let check_info = context.check_info(pr).await?;
+        let check_info = context.check_info(&self.pr).await?;
 
         let result = match &self.event {
-            EventType::Command(command) => command.execute(context.clone(), check_info).await,
-            EventType::Action(action) => action.execute(context.clone(), check_info).await,
+            EventType::Command {
+                command,
+                sender,
+                notification_id,
+            } => {
+                let should_update = command
+                    .execute(
+                        &self.pr,
+                        context.clone(),
+                        check_info,
+                        sender,
+                        self.comment_id.is_none(),
+                    )
+                    .await;
+                context
+                    .github
+                    .mark_notification_as_read(notification_id.0)
+                    .await?;
+                should_update
+            }
+            EventType::Action(action) => {
+                action.execute(&self.pr, context.clone(), check_info).await
+            }
         }?;
 
-        // TODO: this should be done somehow more properly
-        if let Some(notification_id) = self.notification_id {
-            context
-                .github
-                .mark_notification_as_read(notification_id)
-                .await?;
-        }
-
         Ok(result)
-    }
-
-    pub fn pr(&self) -> &PrMetadata {
-        self.event.pr()
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum EventType {
-    Command(Command),
+    Command {
+        command: Command,
+        sender: User,
+        notification_id: NotificationId,
+    },
     Action(Action),
-}
-
-impl EventType {
-    pub fn pr(&self) -> &PrMetadata {
-        match self {
-            EventType::Command(command) => command.pr(),
-            EventType::Action(action) => action.pr(),
-        }
-    }
 }

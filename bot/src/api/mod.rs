@@ -4,7 +4,7 @@ use octocrab::models::{
 };
 use tracing::{error, info, instrument};
 
-use crate::events::{commands::Command, Event, EventType};
+use crate::events::{actions::Action, commands::Command, Event, EventType};
 
 pub use shared::github::*;
 
@@ -106,6 +106,15 @@ impl GithubClient {
 
             let mut results = Vec::new();
             let mut found_us = false;
+
+            if pr_metadata.merged.is_some() {
+                results.push(Event {
+                    event: EventType::Action(Action::merge()),
+                    pr: pr_metadata.clone(),
+                    comment_id,
+                });
+            }
+
             for comment in comments.into_iter().rev() {
                 if comment.user.login == self.user_handle {
                     found_us = true;
@@ -116,8 +125,12 @@ impl GithubClient {
                     Command::parse_command(&self.user_handle, &pr_metadata, &comment)
                 {
                     results.push(Event {
-                        event: EventType::Command(command),
-                        notification_id: Some(event.id),
+                        event: EventType::Command {
+                            command,
+                            notification_id: event.id,
+                            sender: User::new(comment.user.login, comment.author_association),
+                        },
+                        pr: pr_metadata.clone(),
                         comment_id,
                     });
                 }
@@ -127,8 +140,12 @@ impl GithubClient {
             if results.is_empty() && !found_us {
                 if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
                     results.push(Event {
-                        event: EventType::Command(command),
-                        notification_id: Some(event.id),
+                        event: EventType::Command {
+                            command,
+                            notification_id: event.id,
+                            sender: pr_metadata.author.clone(),
+                        },
+                        pr: pr_metadata.clone(),
                         comment_id,
                     });
                 }
@@ -140,6 +157,9 @@ impl GithubClient {
                     error!("Failed to mark notification as read: {:?}", e);
                 }
             }
+
+            // To keep the chronological order, we reverse the results
+            results.reverse();
 
             Some(results)
         });

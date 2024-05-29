@@ -58,18 +58,25 @@ async fn get_svg<'a>(
 ) -> Badge {
     let user = match db.get_user(username).await {
         Ok(Some(value)) => value,
-        _ => return Badge::with_status(Status::NotFound),
+        Ok(None) => {
+            rocket::info!("User {username} not found, fallback to default");
+            UserRecord::newcommer(username.to_string())
+        }
+        Err(e) => {
+            rocket::error!("Failed to get user {username}: {e}");
+            return Badge::with_status(Status::InternalServerError);
+        }
     };
     let place = match db.get_leaderboard_place("all-time", &user.name).await {
-        Ok(Some(value)) => value,
-        _ => return Badge::with_status(Status::NotFound),
+        Ok(Some(value)) => value.to_string(),
+        _ => "N/A".to_owned(),
     };
 
     let request = match reqwest::get(format!("https://github.com/{}.png", user.name)).await {
         Ok(value) => value.bytes().await,
         Err(e) => {
             rocket::error!("Failed to fetch image for {username}: {e}");
-            return Badge::with_status(Status::InternalServerError);
+            return Badge::with_status(Status::NotFound);
         }
     };
 
@@ -81,12 +88,13 @@ async fn get_svg<'a>(
         }
     };
 
-    let svg = match generate_svg_badge(user, place as u64, &image_base64, font) {
-        Ok(Some(value)) => value,
-        _ => return Badge::with_status(Status::InternalServerError),
-    };
-
-    Badge::new(svg)
+    match generate_svg_badge(user, &place, &image_base64, font) {
+        Ok(value) => Badge::new(value),
+        _ => {
+            rocket::error!("Failed to generate badge for {username}");
+            Badge::with_status(Status::InternalServerError)
+        }
+    }
 }
 
 #[get("/users/<username>")]

@@ -20,12 +20,9 @@ impl Context {
         msg: MsgCategory,
         args: Vec<(String, String)>,
     ) -> anyhow::Result<Comment> {
-        let text = self
-            .messages
-            .get_message(msg)
-            .ok_or_else(|| anyhow::anyhow!("Failed to get message for category: {msg}"))?;
+        let text = self.messages.get_message(msg);
 
-        let text = text.format(args.into_iter().collect::<HashMap<_, _>>());
+        let text = text.format(args.into_iter().collect::<HashMap<_, _>>())?;
 
         if let Some(comment_id) = comment_id {
             self.github
