@@ -6,6 +6,7 @@ use race_of_sloths_bot::{
     events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
+use rocket::routes;
 use serde::Deserialize;
 use tokio::signal;
 use tracing::{debug, error, info, instrument, trace};
@@ -21,6 +22,23 @@ struct Env {
     secret_key: String,
     is_mainnet: bool,
     message_file: PathBuf,
+}
+
+#[rocket::get("/metrics")]
+pub async fn metrics(
+    state: &rocket::State<Context>,
+) -> Option<(
+    rocket::http::ContentType,
+    rocket::response::content::RawHtml<String>,
+)> {
+    let metrics = state.prometheus.encode().ok()?;
+    Some((
+        rocket::http::ContentType::new(
+            "application/openmetrics-text",
+            " version=1.0.0; charset=utf-8",
+        ),
+        rocket::response::content::RawHtml(metrics),
+    ))
 }
 
 #[tokio::main]
@@ -40,15 +58,22 @@ async fn main() -> anyhow::Result<()> {
         github: github_api.into(),
         near: near_api.into(),
         messages: messages.into(),
+        prometheus: Default::default(),
     };
 
     tokio::select! {
-        _ = run(context) => {
+        _ = run(context.clone()) => {
             error!("Main loop exited unexpectedly.")
         }
         _ = signal::ctrl_c() => {
             info!("Received SIGINT. Exiting.");
         }
+        _ = rocket::build()
+            .mount("/", routes![metrics])
+            .manage(context)
+            .launch() => {
+
+            }
     }
 
     Ok(())

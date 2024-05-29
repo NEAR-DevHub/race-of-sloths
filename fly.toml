@@ -27,6 +27,11 @@ force_https = true
 handlers = ["tls", "http"]
 port = 443
 
+[[metrics]]
+port = 8080
+path = "/metrics"
+processes = ["bot"]
+
 [[vm]]
 memory = '256mb'
 cpu_kind = 'shared'

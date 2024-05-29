@@ -8,6 +8,8 @@ use crate::events::{actions::Action, commands::Command, Event, EventType};
 
 pub use shared::github::*;
 
+pub mod prometheus;
+
 #[derive(Clone, Debug)]
 pub struct GithubClient {
     octocrab: octocrab::Octocrab,
@@ -107,14 +109,6 @@ impl GithubClient {
             let mut results = Vec::new();
             let mut found_us = false;
 
-            if pr_metadata.merged.is_some() {
-                results.push(Event {
-                    event: EventType::Action(Action::merge()),
-                    pr: pr_metadata.clone(),
-                    comment_id,
-                });
-            }
-
             for comment in comments.into_iter().rev() {
                 if comment.user.login == self.user_handle {
                     found_us = true;
@@ -160,6 +154,14 @@ impl GithubClient {
 
             // To keep the chronological order, we reverse the results
             results.reverse();
+
+            if pr_metadata.merged.is_some() {
+                results.push(Event {
+                    event: EventType::Action(Action::merge()),
+                    pr: pr_metadata.clone(),
+                    comment_id,
+                });
+            }
 
             Some(results)
         });

@@ -22,6 +22,7 @@ pub struct Context {
     pub github: Arc<api::GithubClient>,
     pub near: Arc<NearClient>,
     pub messages: Arc<MessageLoader>,
+    pub prometheus: Arc<api::prometheus::PrometheusClient>,
 }
 
 pub struct Event {
@@ -58,9 +59,10 @@ impl Event {
             EventType::Action(action) => {
                 action.execute(&self.pr, context.clone(), check_info).await
             }
-        }?;
+        };
+        context.prometheus.record(&self.event, result.is_ok());
 
-        Ok(result)
+        result
     }
 }
 
