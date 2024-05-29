@@ -1,6 +1,8 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
+use shared::github::PrMetadata;
+use shared::PRInfo;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
@@ -180,5 +182,59 @@ impl MessageLoader {
             MsgCategory::ErrorPausedMessage => &self.error_paused_messages,
         };
         elem.clone()
+    }
+
+    pub fn pr_status_message(
+        &self,
+        bot_name: &str,
+        check_info: &PRInfo,
+        pr: &PrMetadata,
+    ) -> String {
+        let mut message = self
+            .get_message(MsgCategory::IncludeBasicMessage)
+            .format(
+                [("pr_author_username".to_string(), pr.author.login.clone())]
+                    .into_iter()
+                    .collect(),
+            )
+            .unwrap_or_default();
+
+        let status = if !check_info.exist {
+            "stale" //  PR was removed for inactivity
+        } else if check_info.executed {
+            "executed"
+        } else if check_info.excluded {
+            "excluded"
+        } else if check_info.votes.is_empty() {
+            "waiting for scoring"
+        } else {
+            "waiting for merge"
+        };
+
+        message.push_str(&format!("\n#### Current status: [{status}]\n",));
+
+        if status == "waiting for scoring" {
+            message.push_str(&format!(">[!IMPORTANT]\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command\n"));
+        }
+
+        if !check_info.votes.is_empty() {
+            message.push_str("\n| Reviewer | Score |\n");
+            message.push_str("|--------|--------|\n");
+
+            for vote in &check_info.votes {
+                message.push_str(&format!("| @{}  | {} |\n", vote.user, vote.score));
+            }
+            let final_score = check_info.average_score();
+            message.push_str(&format!("\n**Final score: {}**\n", final_score));
+        }
+
+        if status == "executed" {
+            message.push_str(&format!(
+                "\n@{} check out your results on the [Race of Sloths Leaderboard!]({})\n",
+                pr.author.login, self.leaderboard_link
+            ));
+        }
+
+        message
     }
 }

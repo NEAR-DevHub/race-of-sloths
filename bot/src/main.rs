@@ -4,7 +4,7 @@ use futures::future::join_all;
 use race_of_sloths_bot::{
     api::GithubClient,
     events::{actions::Action, Context, Event, EventType},
-    messages::MessageLoader,
+    messages::{MessageLoader, MsgCategory},
 };
 use serde::Deserialize;
 use tokio::signal;
@@ -189,7 +189,9 @@ async fn execute(context: Context, events: Vec<Event>) {
             &pr.owner,
             &pr.repo,
             event.comment_id.unwrap().0,
-            &info.status_message(),
+            &context
+                .messages
+                .pr_status_message(&context.github.user_handle, &info, pr),
         )
         .await
     {
