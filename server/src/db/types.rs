@@ -12,7 +12,7 @@ pub struct LeaderboardRecord {
     pub prs_merged: i32,
 }
 
-#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
 pub struct UserPeriodRecord {
     pub period_type: TimePeriodString,
     pub total_score: i32,
@@ -22,7 +22,7 @@ pub struct UserPeriodRecord {
     pub prs_merged: i32,
 }
 
-#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
 pub struct StreakRecord {
     pub streak_id: i32,
     pub amount: i32,
@@ -35,4 +35,14 @@ pub struct UserRecord {
     pub name: String,
     pub period_data: Vec<UserPeriodRecord>,
     pub streaks: Vec<StreakRecord>,
+}
+
+impl UserRecord {
+    pub fn newcommer(name: String) -> Self {
+        Self {
+            name,
+            period_data: vec![],
+            streaks: vec![],
+        }
+    }
 }

@@ -4,25 +4,26 @@ use crate::db::types::UserRecord;
 
 pub fn generate_svg_badge(
     user_record: UserRecord,
-    leaderboard_place: u64,
+    leaderboard_place: &str,
     image_base64: &str,
     fontdb: &fontdb::Database,
-) -> anyhow::Result<Option<String>> {
+) -> anyhow::Result<String> {
     let total_period = user_record
         .period_data
+        .into_iter()
+        .find(|p| p.period_type == "all-time")
+        .unwrap_or_default();
+    let week_streak = user_record
+        .streaks
         .iter()
-        .find(|p| p.period_type == "all-time");
-    let week_streak = user_record.streaks.iter().find(|s| s.streak_id == 0);
-    let month_streak = user_record.streaks.iter().find(|s| s.streak_id == 1);
-
-    if total_period.is_none() || week_streak.is_none() || month_streak.is_none() {
-        return Ok(None);
-    }
-    let (total_period, week_streak, month_streak) = (
-        total_period.unwrap(),
-        week_streak.unwrap(),
-        month_streak.unwrap(),
-    );
+        .find(|s| s.streak_id == 0)
+        .cloned()
+        .unwrap_or_default();
+    let month_streak = user_record
+        .streaks
+        .into_iter()
+        .find(|s| s.streak_id == 1)
+        .unwrap_or_default();
 
     let svg_icon = std::fs::read_to_string("./public/badge_template.svg")?;
     let svg_icon = svg_icon.replace("{name}", &user_record.name);
@@ -34,7 +35,7 @@ pub fn generate_svg_badge(
     let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{image}", image_base64);
-    let svg_icon = svg_icon.replace("{place}", &leaderboard_place.to_string());
+    let svg_icon = svg_icon.replace("{place}", leaderboard_place);
 
     let tree = Tree::from_str(&svg_icon, &Options::default(), fontdb)?;
     let write_options = WriteOptions {
@@ -43,5 +44,5 @@ pub fn generate_svg_badge(
         ..Default::default()
     };
 
-    Ok(Some(tree.to_string(&write_options)))
+    Ok(tree.to_string(&write_options))
 }

@@ -5,6 +5,7 @@ use shared::github::PrMetadata;
 use shared::PRInfo;
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::ops::Add;
 use std::path::PathBuf;
 use tracing::error;
 
@@ -199,27 +200,32 @@ impl MessageLoader {
             )
             .unwrap_or_default();
 
-        let status = if !check_info.exist {
-            "stale" //  PR was removed for inactivity
+        let status = if check_info.excluded {
+            "excluded"
+        } else if !check_info.exist {
+            "stale" // PR was removed for inactivity
         } else if check_info.executed {
             "executed"
-        } else if check_info.excluded {
-            "excluded"
         } else if check_info.votes.is_empty() {
             "waiting for scoring"
-        } else {
+        } else if !check_info.merged {
             "waiting for merge"
+        } else {
+            "waiting for finalization"
         };
 
         message.push_str(&format!("\n#### Current status: {status}\n",));
 
         if status == "waiting for scoring" {
-            message.push_str(&format!(">[!IMPORTANT]\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command\n"));
+            message.push_str(&format!(">[!IMPORTANT]\n>We're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command\n"));
         }
 
         if status == "stale" {
-            message.push_str(&format!("
-                >[!IMPORTANT]\nThis pull request was removed from the race, but you can include it again with `@{bot_name} include` command\n"));
+            message.push_str(&format!(">[!IMPORTANT]\n>This pull request was removed from the race, but you can include it again with `@{bot_name} include` command\n"));
+        }
+
+        if status == "waiting for finalization" {
+            message.push_str(&format!(">[!IMPORTANT]\n>The pull request is merged, you have 24 hours to finalize your scoring. The scoring ends {}\n", pr.merged.unwrap().add(chrono::Duration::days(1)).format("%c")));
         }
 
         if !check_info.votes.is_empty() {

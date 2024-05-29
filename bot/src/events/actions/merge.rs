@@ -15,6 +15,10 @@ impl PullRequestMerge {
         context: Context,
         info: PRInfo,
     ) -> anyhow::Result<bool> {
+        if info.merged {
+            return Ok(false);
+        }
+
         context.near.send_merge(pr).await?;
 
         if !info.allowed_org {
