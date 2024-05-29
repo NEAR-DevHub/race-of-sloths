@@ -163,14 +163,6 @@ async fn execute(context: Context, events: Vec<Event>) {
         return;
     }
 
-    if event.comment_id.is_none() {
-        debug!(
-            "No comment id for {}. Skipping status comment update",
-            pr.full_id
-        );
-        return;
-    }
-
     debug!(
         "Finished executing events. Updating status comment for {}",
         pr.full_id
@@ -183,18 +175,24 @@ async fn execute(context: Context, events: Vec<Event>) {
         }
     };
 
-    if let Err(e) = context
-        .github
-        .edit_comment(
-            &pr.owner,
-            &pr.repo,
-            event.comment_id.unwrap().0,
-            &context
-                .messages
-                .pr_status_message(&context.github.user_handle, &info, pr),
-        )
-        .await
-    {
+    let message = context
+        .messages
+        .pr_status_message(&context.github.user_handle, &info, pr);
+    let result = match event.comment_id {
+        Some(id) => {
+            context
+                .github
+                .edit_comment(&pr.owner, &pr.repo, id.0, &message)
+                .await
+        }
+        None => context
+            .github
+            .reply(&pr.owner, &pr.repo, pr.number, &message)
+            .await
+            .map(|_| ()),
+    };
+
+    if let Err(e) = result {
         error!("Failed to update status comment for {}: {e}", pr.full_id);
     }
 }

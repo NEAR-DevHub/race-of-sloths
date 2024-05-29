@@ -50,19 +50,6 @@ impl BotIncluded {
 
         debug!("Starting PR {}", pr.full_id);
         context.near.send_start(pr, sender.is_maintainer()).await?;
-        let message = context.messages.pr_status_message(
-            &context.github.user_handle,
-            &PRInfo {
-                exist: true,
-                ..Default::default()
-            },
-            pr,
-        );
-
-        context
-            .github
-            .reply(&pr.owner, &pr.repo, pr.number, &message)
-            .await?;
 
         if let Some(comment_id) = self.comment_id {
             context
@@ -70,7 +57,7 @@ impl BotIncluded {
                 .like_comment(&pr.owner, &pr.repo, comment_id)
                 .await?;
         }
-        Ok(false)
+        Ok(true)
     }
 
     pub fn construct(comment: &Comment) -> Command {

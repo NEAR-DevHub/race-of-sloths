@@ -211,10 +211,15 @@ impl MessageLoader {
             "waiting for merge"
         };
 
-        message.push_str(&format!("\n#### Current status: [{status}]\n",));
+        message.push_str(&format!("\n#### Current status: {status}\n",));
 
         if status == "waiting for scoring" {
             message.push_str(&format!(">[!IMPORTANT]\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command\n"));
+        }
+
+        if status == "stale" {
+            message.push_str(&format!("
+                >[!IMPORTANT]\nThis pull request was removed from the race, but you can include it again with `@{bot_name} include` command\n"));
         }
 
         if !check_info.votes.is_empty() {
