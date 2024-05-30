@@ -116,6 +116,10 @@ impl PR {
         self.merged_at = Some(merged_at);
     }
 
+    pub fn ready_to_move_timestamp(&self) -> Option<Timestamp> {
+        self.merged_at.map(|t| t + SCORE_TIMEOUT_IN_NANOSECONDS)
+    }
+
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
         self.merged_at.is_some()
             && (timestamp - self.merged_at.unwrap()) > SCORE_TIMEOUT_IN_NANOSECONDS

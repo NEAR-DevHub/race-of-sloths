@@ -266,6 +266,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
                     event: EventType::Action(Action::stale()),
                     pr: pr_metadata,
                     comment_id,
+                    event_time: chrono::Utc::now(),
                 });
             }
             continue;
@@ -273,6 +274,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
         results.push(Event {
             event: EventType::Action(Action::merge()),
+            event_time: pr_metadata.merged.unwrap(),
             pr: pr_metadata,
             comment_id,
         });
@@ -301,6 +303,10 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         .into_iter()
         .map(|(pr, comment_id)| Event {
             event: EventType::Action(Action::finalize()),
+            event_time: pr
+                .ready_to_move_timestamp()
+                .map(|t| chrono::DateTime::from_timestamp_nanos(t as i64))
+                .unwrap_or_else(chrono::Utc::now),
             pr: pr.into(),
             comment_id,
         })

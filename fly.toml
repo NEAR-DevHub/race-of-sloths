@@ -30,7 +30,7 @@ port = 443
 [[metrics]]
 port = 8080
 path = "/metrics"
-processes = ["bot"]
+processes = ["bot", "server"]
 
 [[vm]]
 memory = '256mb'

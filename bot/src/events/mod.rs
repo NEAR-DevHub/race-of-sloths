@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::Utc;
 use octocrab::models::{issues::Comment, CommentId, NotificationId};
 use tracing::{info, instrument};
 
@@ -29,6 +30,7 @@ pub struct Event {
     pub event: EventType,
     pub pr: PrMetadata,
     pub comment_id: Option<CommentId>,
+    pub event_time: chrono::DateTime<Utc>,
 }
 
 impl Event {
@@ -62,7 +64,7 @@ impl Event {
         };
         context
             .prometheus
-            .record(&self.event, &self.pr, result.is_ok());
+            .record(&self.event, &self.pr, result.is_ok(), self.event_time);
 
         result
     }
