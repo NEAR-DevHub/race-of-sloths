@@ -126,6 +126,7 @@ impl GithubClient {
                         },
                         pr: pr_metadata.clone(),
                         comment_id,
+                        event_time: comment.updated_at.unwrap_or(comment.created_at),
                     });
                 }
             }
@@ -141,6 +142,7 @@ impl GithubClient {
                         },
                         pr: pr_metadata.clone(),
                         comment_id,
+                        event_time: pr_metadata.updated_at,
                     });
                 }
             }
@@ -160,6 +162,7 @@ impl GithubClient {
                     event: EventType::Action(Action::merge()),
                     pr: pr_metadata.clone(),
                     comment_id,
+                    event_time: pr_metadata.merged.unwrap(),
                 });
             }
 

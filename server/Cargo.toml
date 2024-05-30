@@ -17,5 +17,6 @@ base64.workspace = true
 reqwest.workspace = true
 chrono.workspace = true
 usvg.workspace = true
+rocket_prometheus.workspace = true
 
 shared = { workspace = true, features = ["client"] }

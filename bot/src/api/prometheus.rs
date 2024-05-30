@@ -2,10 +2,11 @@ use prometheus_client::encoding::text::encode;
 use prometheus_client::encoding::{EncodeLabelSet, EncodeLabelValue};
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
 use shared::github::PrMetadata;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelValue)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, EncodeLabelValue)]
 
 pub enum EventType {
     Include,
@@ -47,28 +48,68 @@ pub struct MetricRecord {
     pub repository: String,
     pub pr_number: u64,
     pub success: u32,
-    pub timestamp: u64,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
+pub struct TimeMetric {
+    pub event_type: EventType,
+    pub success: u32,
 }
 
 #[derive(Debug)]
 pub struct PrometheusClient {
     registry: Registry,
     event: Family<MetricRecord, Counter>,
+    event_processing_time: Family<TimeMetric, Histogram>,
 }
 
 impl Default for PrometheusClient {
     fn default() -> Self {
         let mut registry = Registry::default();
         let event = Family::default();
+        let event_processing_time: Family<TimeMetric, Histogram> =
+            Family::new_with_constructor(|| {
+                Histogram::new(
+                    [
+                        10.,
+                        30.,
+                        60.,
+                        120.,
+                        300.,
+                        600.,
+                        1800.,
+                        3600.,
+                        7200.,
+                        86400.,
+                        172800.,
+                        f64::INFINITY,
+                    ]
+                    .into_iter(),
+                )
+            });
 
         registry.register("bot_event", "Processing event that happened", event.clone());
-
-        Self { registry, event }
+        registry.register(
+            "bot_event_processing_time",
+            "Processing time for events",
+            event_processing_time.clone(),
+        );
+        Self {
+            registry,
+            event,
+            event_processing_time,
+        }
     }
 }
 
 impl PrometheusClient {
-    pub fn record(&self, event: &crate::events::EventType, pr: &PrMetadata, success: bool) {
+    pub fn record(
+        &self,
+        event: &crate::events::EventType,
+        pr: &PrMetadata,
+        success: bool,
+        time: chrono::DateTime<chrono::Utc>,
+    ) {
         let event_type = event.into();
         let record = MetricRecord {
             event_type,
@@ -77,16 +118,21 @@ impl PrometheusClient {
             repository: pr.repo.clone(),
             pr_number: pr.number,
             success: success as u32,
-            timestamp: chrono::Utc::now().timestamp() as u64,
         };
         self.event.get_or_create(&record).inc();
+
+        let time = chrono::Utc::now() - time;
+        self.event_processing_time
+            .get_or_create(&TimeMetric {
+                event_type,
+                success: success as u32,
+            })
+            .observe(time.num_milliseconds() as f64 / 1000.0);
     }
 
     pub fn encode(&self) -> anyhow::Result<String> {
         let mut body = String::new();
         encode(&mut body, &self.registry)?;
-        self.event.clear();
-
         Ok(body)
     }
 }
