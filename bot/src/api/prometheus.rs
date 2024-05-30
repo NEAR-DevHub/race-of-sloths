@@ -47,7 +47,6 @@ pub struct MetricRecord {
     pub repository: String,
     pub pr_number: u64,
     pub success: u32,
-    pub timestamp: u64,
 }
 
 #[derive(Debug)]
@@ -77,7 +76,6 @@ impl PrometheusClient {
             repository: pr.repo.clone(),
             pr_number: pr.number,
             success: success as u32,
-            timestamp: chrono::Utc::now().timestamp() as u64,
         };
         self.event.get_or_create(&record).inc();
     }
@@ -85,8 +83,6 @@ impl PrometheusClient {
     pub fn encode(&self) -> anyhow::Result<String> {
         let mut body = String::new();
         encode(&mut body, &self.registry)?;
-        self.event.clear();
-
         Ok(body)
     }
 }

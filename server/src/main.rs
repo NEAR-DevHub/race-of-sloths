@@ -29,6 +29,7 @@ async fn rocket() -> _ {
         Duration::from_secs(env.sleep_duration_in_minutes.unwrap_or(10) as u64 * 60);
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let atomic_bool_clone = atomic_bool.clone();
+    let prometheus = rocket_prometheus::PrometheusMetrics::new();
 
     rocket::build()
         .attach(db::stage())
@@ -70,7 +71,9 @@ async fn rocket() -> _ {
                 })
             },
         ))
+        .attach(prometheus.clone())
         .attach(entrypoints::stage())
+        .mount("/metrics", prometheus)
 }
 
 async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
