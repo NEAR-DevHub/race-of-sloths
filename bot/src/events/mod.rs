@@ -18,7 +18,7 @@ pub mod actions;
 pub mod commands;
 pub(crate) mod common;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Context {
     pub github: Arc<api::GithubClient>,
     pub near: Arc<NearClient>,

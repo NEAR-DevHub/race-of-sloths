@@ -21,7 +21,15 @@ async fn sender_task(
             ("text", &message),
             ("parse_mode", "MarkdownV2"),
         ];
-        let _ = client.post(&url).form(&params).send().await;
+        match client.post(&url).form(&params).send().await {
+            Ok(response) if response.status().is_success() => {}
+            // We use eprintln! here because it doesn't make sense to send back a message to the chat
+            Ok(response) => eprintln!(
+                "Failed to send message: Received HTTP {}:",
+                response.status()
+            ),
+            Err(e) => eprintln!("Failed to send message: {}", e),
+        }
     }
 }
 
@@ -49,6 +57,9 @@ impl<S: Subscriber> tracing_subscriber::Layer<S> for TelegramSubscriber {
 
         let message = format!("{}", visitor);
 
+        // Currently, we don't have a solution to store logs
+        // but we want to have a way to notify and react on warnings and errors
+        // so we send them to the telegram chat
         let level = event.metadata().level();
         if level <= &Level::WARN {
             self.send_to_telegram(&message, level);
