@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use futures::future::join_all;
 use race_of_sloths_bot::{
-    api::{telegram, GithubClient},
+    api::{prometheus::PrometheusClient, telegram, GithubClient},
     events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
@@ -33,6 +33,10 @@ pub async fn metrics(
     rocket::http::ContentType,
     rocket::response::content::RawHtml<String>,
 )> {
+    let rate_linits = state.github.get_rate_limits().await.ok()?;
+    state
+        .prometheus
+        .set_read_requests(rate_linits.resources.core.used as i64);
     let metrics = state.prometheus.encode().ok()?;
     Some((
         rocket::http::ContentType::new(
@@ -54,14 +58,15 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer());
     tracing::subscriber::set_global_default(subscriber)?;
 
-    let github_api = GithubClient::new(env.github_token).await?;
+    let prometheus: Arc<PrometheusClient> = Default::default();
+    let github_api = GithubClient::new(env.github_token, prometheus.clone()).await?;
     let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
     let near_api = NearClient::new(env.contract, env.secret_key, env.is_mainnet).await?;
     let context = Context {
         github: github_api.into(),
         near: near_api.into(),
         messages: messages.into(),
-        prometheus: Default::default(),
+        prometheus,
     };
 
     tokio::select! {

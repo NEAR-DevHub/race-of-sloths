@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use futures::future::join_all;
 use octocrab::models::{
     activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
+    RateLimit,
 };
 use tracing::{error, info, instrument};
 
@@ -11,14 +14,18 @@ pub use shared::github::*;
 pub mod prometheus;
 pub mod telegram;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct GithubClient {
     octocrab: octocrab::Octocrab,
+    prometheus: Arc<prometheus::PrometheusClient>,
     pub user_handle: String,
 }
 
 impl GithubClient {
-    pub async fn new(github_token: String) -> anyhow::Result<Self> {
+    pub async fn new(
+        github_token: String,
+        prometheus: Arc<prometheus::PrometheusClient>,
+    ) -> anyhow::Result<Self> {
         let octocrab = octocrab::Octocrab::builder()
             .personal_token(github_token)
             .build()?;
@@ -27,6 +34,7 @@ impl GithubClient {
         Ok(Self {
             octocrab,
             user_handle,
+            prometheus,
         })
     }
 
@@ -221,6 +229,7 @@ impl GithubClient {
         id: u64,
         text: &str,
     ) -> anyhow::Result<Comment> {
+        self.prometheus.add_write_request();
         Ok(self
             .octocrab
             .issues(owner, repo)
@@ -235,6 +244,7 @@ impl GithubClient {
         repo: &str,
         comment_id: u64,
     ) -> anyhow::Result<()> {
+        self.prometheus.add_write_request();
         self.octocrab
             .issues(owner, repo)
             .create_comment_reaction(
@@ -246,23 +256,11 @@ impl GithubClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn like_pr(&self, owner: &str, repo: &str, pr_number: u64) -> anyhow::Result<()> {
-        self.octocrab
-            .issues(owner, repo)
-            .create_reaction(
-                pr_number,
-                octocrab::models::reactions::ReactionContent::PlusOne,
-            )
-            .await?;
-
-        Ok(())
-    }
-
     pub async fn mark_notification_as_read(
         &self,
         id: impl Into<NotificationId>,
     ) -> anyhow::Result<()> {
+        self.prometheus.add_write_request();
         self.octocrab
             .activity()
             .notifications()
@@ -279,23 +277,11 @@ impl GithubClient {
         comment_id: u64,
         text: &str,
     ) -> anyhow::Result<()> {
+        self.prometheus.add_write_request();
+
         self.octocrab
             .issues(owner, repo)
             .update_comment(CommentId(comment_id), text)
-            .await?;
-        Ok(())
-    }
-
-    #[instrument(skip(self, comment_id))]
-    pub async fn delete_comment(
-        &self,
-        owner: &str,
-        repo: &str,
-        comment_id: CommentId,
-    ) -> anyhow::Result<()> {
-        self.octocrab
-            .issues(owner, repo)
-            .delete_comment(comment_id)
             .await?;
         Ok(())
     }
@@ -329,5 +315,9 @@ impl GithubClient {
                 return Ok(None);
             }
         }
+    }
+
+    pub async fn get_rate_limits(&self) -> anyhow::Result<RateLimit> {
+        Ok(self.octocrab.ratelimit().get().await?)
     }
 }

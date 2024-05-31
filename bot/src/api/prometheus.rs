@@ -2,6 +2,7 @@ use prometheus_client::encoding::text::encode;
 use prometheus_client::encoding::{EncodeLabelSet, EncodeLabelValue};
 use prometheus_client::metrics::counter::Counter;
 use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::gauge::Gauge;
 use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
 use shared::github::PrMetadata;
@@ -56,17 +57,26 @@ pub struct TimeMetric {
     pub success: u32,
 }
 
-#[derive(Debug)]
 pub struct PrometheusClient {
     registry: Registry,
     event: Family<MetricRecord, Counter>,
     event_processing_time: Family<TimeMetric, Histogram>,
+
+    // We can get this from the github api so we can track it as gauge
+    github_api_read_request: Gauge,
+    // Unfortunately, github api doesn't show secondary metrics in the rate-limit response
+    // so we will increment this counter for each write request
+    // TODO: actually, github shows it in the response headers, but the octocrab doesn't expose it
+    // we might need to expose it to make it better
+    github_api_write_request: Counter,
 }
 
 impl Default for PrometheusClient {
     fn default() -> Self {
         let mut registry = Registry::default();
         let event = Family::default();
+        let github_api_read_request = Gauge::default();
+        let github_api_write_request = Counter::default();
         let event_processing_time: Family<TimeMetric, Histogram> =
             Family::new_with_constructor(|| {
                 Histogram::new(
@@ -88,6 +98,17 @@ impl Default for PrometheusClient {
                 )
             });
 
+        registry.register(
+            "github_api_read_requests",
+            "Display used github read requests at a metric time",
+            github_api_read_request.clone(),
+        );
+        registry.register(
+            "github_api_write_requests",
+            "Display total used github write requests from the start at a metric time",
+            github_api_write_request.clone(),
+        );
+
         registry.register("bot_event", "Processing event that happened", event.clone());
         registry.register(
             "bot_event_processing_time",
@@ -98,6 +119,8 @@ impl Default for PrometheusClient {
             registry,
             event,
             event_processing_time,
+            github_api_read_request,
+            github_api_write_request,
         }
     }
 }
@@ -128,6 +151,14 @@ impl PrometheusClient {
                 success: success as u32,
             })
             .observe(time.num_milliseconds() as f64 / 1000.0);
+    }
+
+    pub fn add_write_request(&self) {
+        self.github_api_write_request.inc();
+    }
+
+    pub fn set_read_requests(&self, value: i64) {
+        self.github_api_read_request.set(value);
     }
 
     pub fn encode(&self) -> anyhow::Result<String> {
