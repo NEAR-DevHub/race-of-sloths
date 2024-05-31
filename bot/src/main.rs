@@ -78,11 +78,14 @@ async fn main() -> anyhow::Result<()> {
 
             }
     }
+    tracing::warn!("Exiting bot...");
 
     Ok(())
 }
 
 async fn run(context: Context) {
+    tracing::warn!("Starting bot...");
+
     let minute = tokio::time::Duration::from_secs(60);
     let mut interval: tokio::time::Interval = tokio::time::interval(minute);
     let mut merge_time = std::time::SystemTime::now();
