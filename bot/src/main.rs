@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use futures::future::join_all;
 use race_of_sloths_bot::{
-    api::GithubClient,
+    api::{telegram, GithubClient},
     events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
@@ -22,6 +22,8 @@ struct Env {
     secret_key: String,
     is_mainnet: bool,
     message_file: PathBuf,
+    telegram_token: String,
+    telegram_chat_id: String,
 }
 
 #[rocket::get("/metrics")]
@@ -44,12 +46,13 @@ pub async fn metrics(
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
+    let env = envy::from_env::<Env>()?;
+
     let subscriber = tracing_subscriber::registry()
+        .with(telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await)
         .with(EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer());
     tracing::subscriber::set_global_default(subscriber)?;
-
-    let env = envy::from_env::<Env>()?;
 
     let github_api = GithubClient::new(env.github_token).await?;
     let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
@@ -75,11 +78,14 @@ async fn main() -> anyhow::Result<()> {
 
             }
     }
+    tracing::warn!("Exiting bot...");
 
     Ok(())
 }
 
 async fn run(context: Context) {
+    tracing::warn!("Starting bot...");
+
     let minute = tokio::time::Duration::from_secs(60);
     let mut interval: tokio::time::Interval = tokio::time::interval(minute);
     let mut merge_time = std::time::SystemTime::now();

@@ -3569,6 +3569,7 @@ dependencies = [
  "octocrab",
  "prometheus-client",
  "rand 0.8.5",
+ "reqwest 0.12.4",
  "rocket",
  "serde",
  "serde_json",
