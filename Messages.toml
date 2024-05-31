@@ -120,10 +120,10 @@ This pull request is a part of the Race of Sloths and has not been scored yet. S
 ]
 
 [final_messages]
-variables = ["link", "pr-author-username", "score"]
+variables = ["link", "pr_author_username", "score"]
 message = [
     """### ✅ PR is finalized! 
-Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/u/{pr-author-username})! 🎊""",
+Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/u/{pr_author_username})! 🎊""",
 ]
 
 [stale_messages]

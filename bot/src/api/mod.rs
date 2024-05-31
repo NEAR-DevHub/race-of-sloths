@@ -9,6 +9,7 @@ use crate::events::{actions::Action, commands::Command, Event, EventType};
 pub use shared::github::*;
 
 pub mod prometheus;
+pub mod telegram;
 
 #[derive(Clone, Debug)]
 pub struct GithubClient {
