@@ -3,7 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{StreakUserData, TimePeriodString, User, UserPeriodData};
+use shared::{StreakUserData, TimePeriodString, UserPeriodData};
 use sqlx::PgPool;
 
 #[derive(Database, Clone, Debug)]
@@ -14,10 +14,10 @@ pub mod types;
 
 use types::LeaderboardRecord;
 
-use self::types::{StreakRecord, UserPeriodRecord, UserRecord};
+use self::types::{RepoRecord, StreakRecord, UserContributionRecord, UserPeriodRecord, UserRecord};
 
 impl DB {
-    pub async fn upsert_user(&self, user: &User) -> anyhow::Result<i32> {
+    pub async fn upsert_user(&self, user: &str) -> anyhow::Result<i32> {
         let rec = sqlx::query!(
             r#"
         INSERT INTO users (name)
@@ -26,7 +26,76 @@ impl DB {
         SET name = EXCLUDED.name
         RETURNING id
         "#,
-            user.name
+            user
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok(rec.id)
+    }
+
+    pub async fn upsert_organization(&self, name: &str) -> anyhow::Result<i32> {
+        let rec = sqlx::query!(
+            r#"
+        INSERT INTO organizations (name)
+        VALUES ($1)
+        ON CONFLICT (name) DO UPDATE
+        SET name = EXCLUDED.name
+        RETURNING id
+        "#,
+            name
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok(rec.id)
+    }
+
+    pub async fn upsert_repo(&self, organization_id: i32, name: &str) -> anyhow::Result<i32> {
+        let rec = sqlx::query!(
+            r#"
+        INSERT INTO repos (organization_id, name)
+        VALUES ($1, $2)
+        ON CONFLICT (organization_id, name) DO UPDATE
+        SET name = EXCLUDED.name
+        RETURNING id
+        "#,
+            organization_id,
+            name
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok(rec.id)
+    }
+
+    pub async fn upsert_pull_request(
+        &self,
+        repo_id: i32,
+        number: i32,
+        author_id: i32,
+        created_at: chrono::NaiveDateTime,
+        merged_at: Option<chrono::NaiveDateTime>,
+        score: Option<u32>,
+        executed: bool,
+    ) -> anyhow::Result<i32> {
+        let rec = sqlx::query!(
+            r#"
+        INSERT INTO pull_requests (repo_id, number, author_id, created_at, merged_at, executed, score)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (repo_id, number) DO UPDATE
+        SET 
+            merged_at = EXCLUDED.merged_at,
+            executed = EXCLUDED.executed
+        RETURNING id
+        "#,
+            repo_id,
+            number,
+            author_id,
+            Some(created_at),
+            merged_at,
+            executed,
+            score.map(|s| s as i32),
         )
         .fetch_one(&self.0)
         .await?;
@@ -163,6 +232,119 @@ impl DB {
         .await?;
 
         Ok(rec.place)
+    }
+
+    pub async fn get_repo_leaderboard(
+        &self,
+        page: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<RepoRecord>> {
+        let offset = page * limit;
+        // COALESCE is used to return 0 if there are no PRs for a repo
+        // But sqlx still thinks that it's NONE
+        let records = sqlx::query_as_unchecked!(
+            RepoRecord,
+            r#"
+            SELECT 
+                o.name as organization, 
+                r.name as name, 
+                COALESCE(COUNT(pr.id), 0) as total_prs,
+                COALESCE(SUM(pr.score), 0) as total_score
+            FROM 
+                repos r
+            JOIN 
+                organizations o ON r.organization_id = o.id
+            LEFT JOIN 
+                pull_requests pr ON pr.repo_id = r.id
+            GROUP BY 
+                o.name, r.name
+            ORDER BY 
+                total_score DESC, total_prs DESC
+            LIMIT $1 OFFSET $2
+            "#,
+            limit,
+            offset
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(records)
+    }
+
+    pub async fn get_user_contributions(
+        &self,
+        user: &str,
+        page: i64,
+        limit: i64,
+    ) -> anyhow::Result<Vec<UserContributionRecord>> {
+        let offset = page * limit;
+        let records = sqlx::query_as!(
+            UserContributionRecord,
+            r#"
+            SELECT 
+                users.name as name, 
+                o.name as organization, 
+                r.name as repo, 
+                pr.number as number,
+                pr.created_at as created_at,
+                pr.merged_at as merged_at,
+                pr.score as score,
+                pr.executed as executed
+            FROM 
+                users
+            JOIN 
+                pull_requests pr ON pr.author_id = users.id
+            JOIN 
+                repos r ON pr.repo_id = r.id
+            JOIN 
+                organizations o ON r.organization_id = o.id
+            WHERE
+                users.name = $1
+            GROUP BY 
+                users.name, o.name, r.name, pr.number, pr.created_at, pr.merged_at, pr.score, pr.executed
+            ORDER BY 
+                pr.created_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            user,
+            limit,
+            offset
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(records)
+    }
+
+    pub async fn get_contributors_of_the_month(
+        &self,
+        repo: &str,
+        org: &str,
+    ) -> anyhow::Result<Vec<(String, i64)>> {
+        let rec = sqlx::query!(
+            r#"
+        SELECT users.name, SUM(pr.score) as total_score
+        FROM organizations o
+        JOIN repos r ON r.organization_id = o.id
+        JOIN pull_requests pr ON pr.repo_id = r.id
+        JOIN users ON pr.author_id = users.id
+        WHERE pr.created_at >= (now() - INTERVAL '1 MONTH')
+        AND r.name = $1
+        AND o.name = $2
+        GROUP BY users.name
+        ORDER BY COUNT(pr.id) DESC
+        LIMIT 3
+        "#,
+            repo,
+            org
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(rec
+            .into_iter()
+            .map(|r| (r.name, r.total_score.unwrap_or_default()))
+            .collect())
     }
 }
 

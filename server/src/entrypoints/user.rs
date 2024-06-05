@@ -1,13 +1,12 @@
 use base64::Engine;
 use race_of_sloths_server::{
     db::{
-        types::{LeaderboardRecord, UserRecord},
+        types::{UserContributionRecord, UserRecord},
         DB,
     },
     svg::generate_svg_badge,
 };
 use rocket::{
-    fairing::AdHoc,
     http::{ContentType, Header, Status},
     response::{self, Responder},
     serde::json::Json,
@@ -50,7 +49,7 @@ impl<'r> Responder<'r, 'static> for Badge {
     }
 }
 
-#[get("/badges/<username>")]
+#[get("/<username>/badge")]
 async fn get_svg<'a>(
     username: &str,
     db: &State<DB>,
@@ -97,7 +96,7 @@ async fn get_svg<'a>(
     }
 }
 
-#[get("/users/<username>")]
+#[get("/<username>")]
 async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserRecord>> {
     let user = match db.get_user(username).await {
         Err(e) => {
@@ -109,33 +108,37 @@ async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserRecord>> {
     Some(Json(user))
 }
 
-#[get("/leaderboard/<period>?<page>&<limit>")]
-async fn get_leaderboard(
-    period: &str,
-    db: &State<DB>,
+#[get("/<username>/contributions?<page>&<limit>")]
+async fn get_user_contributions(
+    username: &str,
     page: Option<u32>,
     limit: Option<u32>,
-) -> Option<Json<Vec<LeaderboardRecord>>> {
+    db: &State<DB>,
+) -> Option<Json<Vec<UserContributionRecord>>> {
     let page = page.unwrap_or(0);
     let limit = limit.unwrap_or(50);
-    let users = match db.get_leaderboard(period, page as i64, limit as i64).await {
+    let repos = match db
+        .get_user_contributions(username, page as i64, limit as i64)
+        .await
+    {
         Err(e) => {
-            rocket::error!("Failed to get leaderboard: {period}: {e}");
+            rocket::error!("Failed to get user contributions: {username}: {e}");
             return None;
         }
         Ok(value) => value,
     };
-    Some(Json(users))
+    Some(Json(repos))
 }
 
-pub fn stage() -> AdHoc {
-    AdHoc::on_ignite("Installing entrypoints", |rocket| async {
+pub fn stage() -> rocket::fairing::AdHoc {
+    rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         let mut font = usvg::fontdb::Database::new();
         font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
             .expect("Failed to load font");
 
-        rocket
-            .mount("/api", routes![get_svg, get_user, get_leaderboard])
-            .manage(font)
+        rocket.manage(font).mount(
+            "/api/user/",
+            rocket::routes![get_user, get_user_contributions, get_svg],
+        )
     })
 }

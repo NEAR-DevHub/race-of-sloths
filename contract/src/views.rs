@@ -27,13 +27,14 @@ impl Contract {
         }
     }
 
-    pub fn prs(&self, page: u64, limit: u64) -> Vec<PR> {
+    /// Returns a list of PRs with the execution status
+    pub fn prs(&self, limit: u64, page: u64) -> Vec<(PR, bool)> {
         self.prs
-            .values()
+            .into_iter()
+            .chain(self.executed_prs.iter())
             .skip((page * limit) as usize)
             .take(limit as usize)
-            .cloned()
-            .map(Into::into)
+            .map(|(id, pr)| (pr.clone().into(), !self.prs.contains_key(id)))
             .collect()
     }
 

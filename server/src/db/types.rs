@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use shared::TimePeriodString;
-
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct LeaderboardRecord {
     pub name: String,
@@ -45,4 +44,24 @@ impl UserRecord {
             streaks: vec![],
         }
     }
+}
+
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+pub struct RepoRecord {
+    pub organization: String,
+    pub name: String,
+    pub total_prs: i64,
+    pub total_score: i64,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+pub struct UserContributionRecord {
+    pub name: String,
+    pub organization: String,
+    pub repo: String,
+    pub number: i32,
+    pub score: Option<i32>,
+    pub executed: bool,
+    pub created_at: chrono::NaiveDateTime,
+    pub merged_at: Option<chrono::NaiveDateTime>,
 }

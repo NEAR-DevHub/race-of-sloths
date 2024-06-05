@@ -6,6 +6,7 @@ mod entrypoints;
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::DateTime;
 use rocket_db_pools::Database;
 use shared::near::NearClient;
 use shared::TimePeriod;
@@ -55,8 +56,8 @@ async fn rocket() -> _ {
                             interval.tick().await;
 
                             // Execute a query of some kind
-                            if let Err(e) = fetch_and_store_users(&near_client, &db).await {
-                                rocket::error!("Failed to fetch and store users: {:#?}", e);
+                            if let Err(e) = fetch_and_store_all_data(&near_client, &db).await {
+                                rocket::error!("Failed to fetch and store data: {:#?}", e);
                             }
                         }
                     });
@@ -86,7 +87,7 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
         .collect();
     let users = near_client.users(periods).await?;
     for user in users {
-        let user_id = db.upsert_user(&user).await?;
+        let user_id = db.upsert_user(&user.name).await?;
         for (period, data) in user.period_data {
             db.upsert_user_period_data(period, &data, user_id).await?;
         }
@@ -96,5 +97,33 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
         }
     }
 
+    Ok(())
+}
+
+async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+    let prs = near_client.prs().await?;
+    for (pr, executed) in prs {
+        let organization_id = db.upsert_organization(&pr.organization).await?;
+        let repo_id = db.upsert_repo(organization_id, &pr.repo).await?;
+        let author_id = db.upsert_user(&pr.author).await?;
+        let _ = db
+            .upsert_pull_request(
+                repo_id,
+                pr.number as i32,
+                author_id,
+                DateTime::from_timestamp_nanos(pr.created_at as i64).naive_utc(),
+                pr.merged_at
+                    .map(|t| DateTime::from_timestamp_nanos(t as i64).naive_utc()),
+                pr.score(),
+                executed,
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+async fn fetch_and_store_all_data(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+    fetch_and_store_users(near_client, db).await?;
+    fetch_and_store_prs(near_client, db).await?;
     Ok(())
 }

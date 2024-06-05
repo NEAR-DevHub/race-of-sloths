@@ -310,4 +310,35 @@ impl NearClient {
         }
         Ok(res)
     }
+
+    #[instrument(skip(self))]
+    pub async fn prs_paged(&self, page: u64, limit: u64) -> anyhow::Result<Vec<(PR, bool)>> {
+        let res = self
+            .contract
+            .view("prs")
+            .args_json(json!({
+                "page": page,
+                "limit": limit,
+            }))
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call prs: {:?}", e))?;
+        let res = res.json()?;
+        Ok(res)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn prs(&self) -> anyhow::Result<Vec<(PR, bool)>> {
+        let mut page = 0;
+        const LIMIT: u64 = 100;
+        let mut res = vec![];
+        loop {
+            let prs = self.prs_paged(page, LIMIT).await?;
+            if prs.is_empty() {
+                break;
+            }
+            res.extend(prs);
+            page += 1;
+        }
+        Ok(res)
+    }
 }
