@@ -1,7 +1,7 @@
 link = "https://github.com/race-of-sloths"
 leaderboard_link = "https://github.com/race-of-sloths"
 form = "https://github.com/race-of-sloths"
-picture_api_link = "https://race-of-sloths.fly.dev/api/badges"
+picture_api_link = "https://race-of-sloths.fly.dev/api/user/{pr_author_username}/badge"
 
 [include_basic_messages]
 variables = [
@@ -23,7 +23,7 @@ Thank you @{pr_author_username} for your contribution!
 <details>
 <summary><strong>More info about the author - @{pr_author_username}</strong></summary>
 
-![sloth_stats]({picture_api_link}/{pr_author_username})
+![sloth_stats]({picture_api_link})
 
 </details> 
 

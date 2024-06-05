@@ -11,11 +11,11 @@ dotenv.workspace = true
 envy.workspace = true
 rocket = { workspace = true, features = ["json"] }
 rocket_db_pools = { workspace = true, features = ["sqlx_postgres"] }
-sqlx = { workspace = true, features = ["postgres", "macros"] }
+sqlx = { workspace = true, features = ["postgres", "macros", "chrono"] }
 serde.workspace = true
 base64.workspace = true
 reqwest.workspace = true
-chrono.workspace = true
+chrono = { workspace = true, features = ["serde"] }
 usvg.workspace = true
 rocket_prometheus.workspace = true
 
