@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                users.name as name, \n                o.name as organization, \n                r.name as repo, \n                pr.number as number,\n                pr.created_at as created_at,\n                pr.merged_at as merged_at,\n                pr.score as score,\n                pr.executed as executed\n            FROM \n                users\n            JOIN \n                pull_requests pr ON pr.author_id = users.id\n            JOIN \n                repos r ON pr.repo_id = r.id\n            JOIN \n                organizations o ON r.organization_id = o.id\n            WHERE\n                users.name = $1\n            GROUP BY \n                users.name, o.name, r.name, pr.number, pr.created_at, pr.merged_at, pr.score, pr.executed\n            ORDER BY \n                pr.created_at DESC\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "repo",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 5,
+        "name": "merged_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "executed",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "53ab6c0af66ee62fccbd3d7ce4dabaf8a10c46bae063728d96c003c39d2651dd"
+}

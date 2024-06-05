@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO organizations (name)\n        VALUES ($1)\n        ON CONFLICT (name) DO UPDATE\n        SET name = EXCLUDED.name\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1553edd9cf0f11e111ab3dcc189f7ec93e364fd626e40db9e2269ad2c04d26a3"
+}

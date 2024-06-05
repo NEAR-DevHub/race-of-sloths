@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                o.name as organization, \n                r.name as name, \n                COALESCE(COUNT(pr.id), 0) as total_prs,\n                COALESCE(SUM(pr.score), 0) as total_score\n            FROM \n                repos r\n            JOIN \n                organizations o ON r.organization_id = o.id\n            LEFT JOIN \n                pull_requests pr ON pr.repo_id = r.id\n            GROUP BY \n                o.name, r.name\n            ORDER BY \n                total_score DESC, total_prs DESC\n            LIMIT $1 OFFSET $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_prs",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_score",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "bee38d84f8e3077a50d21717ff0704ad1297dc0e05720cfa3c06dfc2e22e462a"
+}

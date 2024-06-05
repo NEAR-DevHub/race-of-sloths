@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT users.name, SUM(pr.score) as total_score\n        FROM organizations o\n        JOIN repos r ON r.organization_id = o.id\n        JOIN pull_requests pr ON pr.repo_id = r.id\n        JOIN users ON pr.author_id = users.id\n        WHERE pr.created_at >= (now() - INTERVAL '1 MONTH')\n        AND r.name = $1\n        AND o.name = $2\n        GROUP BY users.name\n        ORDER BY COUNT(pr.id) DESC\n        LIMIT 3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_score",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "da25415073c344a2a6b4a797f3911b99cc5c2f9c784cbed28f749a969510bb85"
+}
