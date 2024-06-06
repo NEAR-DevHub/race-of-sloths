@@ -200,15 +200,34 @@ impl DB {
         period: &str,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<LeaderboardRecord>> {
-        Ok(sqlx::query_as!(LeaderboardRecord,r#"
-                                SELECT users.name, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
-                                FROM user_period_data 
-                                JOIN users ON users.id = user_period_data.user_id
-                                WHERE period_type = $1
-                                ORDER BY total_score DESC
-                                LIMIT $2 OFFSET $3
-                                "#,period,limit,page*limit).fetch_all(&self.0,).await? )
+    ) -> anyhow::Result<(Vec<LeaderboardRecord>, i64)> {
+        let records = sqlx::query_as!(
+            LeaderboardRecord,
+            r#"
+            SELECT users.name, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
+            FROM user_period_data 
+            JOIN users ON users.id = user_period_data.user_id
+            WHERE period_type = $1
+            ORDER BY total_score DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            period, limit, page * limit
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        // TODO: Replace this with a single query
+        let total_count = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(user_id)) as id
+            FROM user_period_data 
+            WHERE period_type = $1
+            "#,
+            period
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok((records, total_count.id.unwrap_or_default()))
     }
 
     pub async fn get_leaderboard_place(
@@ -238,7 +257,7 @@ impl DB {
         &self,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<RepoRecord>> {
+    ) -> anyhow::Result<(Vec<RepoRecord>, u64)> {
         let offset = page * limit;
         // COALESCE is used to return 0 if there are no PRs for a repo
         // But sqlx still thinks that it's NONE
@@ -268,7 +287,16 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        Ok(records)
+        // TODO: Replace this with a single query
+        let total_count = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(r.organization_id, r.id)) as id
+            FROM repos r
+            "#,
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok((records, total_count.id.unwrap_or_default() as u64))
     }
 
     pub async fn get_user_contributions(
@@ -276,7 +304,7 @@ impl DB {
         user: &str,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<UserContributionRecord>> {
+    ) -> anyhow::Result<(Vec<UserContributionRecord>, u64)> {
         let offset = page * limit;
         let records = sqlx::query_as!(
             UserContributionRecord,
@@ -313,7 +341,17 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        Ok(records)
+        let total = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(pr.id)) as id
+            FROM pull_requests pr
+            JOIN users ON pr.author_id = users.id
+            WHERE users.name = $1
+            "#,
+            user
+        )
+        .fetch_one(&self.0)
+        .await?;
+        Ok((records, total.id.unwrap_or_default() as u64))
     }
 
     pub async fn get_contributors_of_the_month(
