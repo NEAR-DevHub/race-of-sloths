@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use base64::Engine;
 use race_of_sloths_server::{
     db::{types::UserRecord, DB},
@@ -52,7 +54,7 @@ impl<'r> Responder<'r, 'static> for Badge {
 async fn get_svg<'a>(
     username: &str,
     db: &State<DB>,
-    font: &State<usvg::fontdb::Database>,
+    font: &State<Arc<usvg::fontdb::Database>>,
 ) -> Badge {
     let user = match db.get_user(username).await {
         Ok(Some(value)) => value,
@@ -86,7 +88,7 @@ async fn get_svg<'a>(
         }
     };
 
-    match generate_svg_badge(user, &place, &image_base64, font) {
+    match generate_svg_badge(user, &place, &image_base64, font.inner().clone()) {
         Ok(value) => Badge::new(value),
         _ => {
             rocket::error!("Failed to generate badge for {username}");
@@ -141,7 +143,7 @@ pub fn stage() -> rocket::fairing::AdHoc {
         font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
             .expect("Failed to load font");
 
-        rocket.manage(font).mount(
+        rocket.manage(Arc::new(font)).mount(
             "/api/users/",
             rocket::routes![get_user, get_user_contributions, get_svg],
         )

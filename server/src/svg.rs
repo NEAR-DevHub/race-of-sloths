@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
 use crate::db::types::UserRecord;
@@ -6,7 +8,7 @@ pub fn generate_svg_badge(
     user_record: UserRecord,
     leaderboard_place: &str,
     image_base64: &str,
-    fontdb: &fontdb::Database,
+    fontdb: Arc<fontdb::Database>,
 ) -> anyhow::Result<String> {
     let total_period = user_record
         .period_data
@@ -37,7 +39,13 @@ pub fn generate_svg_badge(
     let svg_icon = svg_icon.replace("{image}", image_base64);
     let svg_icon = svg_icon.replace("{place}", leaderboard_place);
 
-    let tree = Tree::from_str(&svg_icon, &Options::default(), fontdb)?;
+    let tree = Tree::from_str(
+        &svg_icon,
+        &Options {
+            fontdb,
+            ..Default::default()
+        },
+    )?;
     let write_options = WriteOptions {
         use_single_quote: true,
         preserve_text: false,

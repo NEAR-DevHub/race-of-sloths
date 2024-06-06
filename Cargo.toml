@@ -39,7 +39,7 @@ sqlx = "0.7"
 shared = { path = "shared" }
 reqwest = "0.12"
 base64 = "0.22.1"
-usvg = "0.41.0"
+usvg = "0.42.0"
 rocket_prometheus = "0.10.0"
 
 
