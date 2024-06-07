@@ -18,7 +18,7 @@ reqwest.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 usvg = { workspace = true, features = ["text"] }
 rocket_prometheus.workspace = true
-utoipa = { workspace = true, features = ["rocket_extras"] }
+utoipa = { workspace = true, features = ["rocket_extras", "chrono"] }
 utoipa-swagger-ui = { workspace = true, features = ["rocket"] }
 
 shared = { workspace = true, features = ["client"] }
