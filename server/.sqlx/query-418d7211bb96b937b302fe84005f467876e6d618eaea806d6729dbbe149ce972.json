@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    users.name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    latest_time_string as streak_latest_time_string\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\nWHERE\n    period_type = $1\n    and streak_user_data.streak_id = $2\nORDER BY\n    total_score DESC\nLIMIT\n    $3 OFFSET $4\n",
+  "query": "SELECT\n    users.name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    period as streak_type,\n    streak.name as streak_name,\n    latest_time_string as streak_latest_time_string\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    period_type = $1\n    and streak_user_data.streak_id = $2\nORDER BY\n    total_score DESC\nLIMIT\n    $3 OFFSET $4\n",
   "describe": {
     "columns": [
       {
@@ -50,6 +50,16 @@
       },
       {
         "ordinal": 9,
+        "name": "streak_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "streak_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
         "name": "streak_latest_time_string",
         "type_info": "Text"
       }
@@ -72,8 +82,10 @@
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "2c2f326af19143665adf083920b4b06312034c42a3a2fae869cd0d0a4bffcedd"
+  "hash": "418d7211bb96b937b302fe84005f467876e6d618eaea806d6729dbbe149ce972"
 }
