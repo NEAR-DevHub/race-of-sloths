@@ -51,8 +51,11 @@ impl<'r> Responder<'r, 'static> for Badge {
     }
 }
 
+#[utoipa::path(context_path = "/api/users", responses(
+    (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
+))]
 #[get("/<username>/badge")]
-async fn get_svg<'a>(
+async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,
@@ -97,6 +100,11 @@ async fn get_svg<'a>(
     }
 }
 
+#[utoipa::path(context_path = "/api/users",
+    responses(
+        (status = 200, description = "Get user profile info", body = UserProfile)
+    )
+)]
 #[get("/<username>")]
 async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
     let time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -116,6 +124,9 @@ async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
     Some(Json(user.into()))
 }
 
+#[utoipa::path(context_path = "/api/users", responses(
+    (status = 200, description = "Get user contributions", body = PaginatedUserContributionResponse)
+))]
 #[get("/<username>/contributions?<page>&<limit>")]
 async fn get_user_contributions(
     username: &str,
@@ -151,7 +162,7 @@ pub fn stage() -> rocket::fairing::AdHoc {
 
         rocket.manage(Arc::new(font)).mount(
             "/api/users/",
-            rocket::routes![get_user, get_user_contributions, get_svg],
+            rocket::routes![get_user, get_user_contributions, get_badge],
         )
     })
 }

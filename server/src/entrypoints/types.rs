@@ -5,9 +5,11 @@ use race_of_sloths_server::db::types::{
     LeaderboardRecord, RepoRecord, UserContributionRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
-use shared::{GithubHandle, TimePeriod};
+use shared::TimePeriod;
+use utoipa::ToSchema;
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
+#[aliases(PaginatedLeaderboardResponse = PaginatedResponse<LeaderboardResponse>, PaginatedRepoResponse = PaginatedResponse<RepoResponse>, PaginatedUserContributionResponse = PaginatedResponse<UserContributionResponse>)]
 pub struct PaginatedResponse<T: Serialize> {
     pub records: Vec<T>,
     pub page: u64,
@@ -30,7 +32,7 @@ impl<T: Serialize> PaginatedResponse<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct GithubMeta {
     name: String,
     image: String,
@@ -43,13 +45,13 @@ impl GithubMeta {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct RepoResponse {
     pub name: String,
     pub organization: GithubMeta,
     pub project_language: String,
     pub project_language_color: String,
-    pub contributor_of_the_month: GithubHandle,
+    pub contributor_of_the_month: String,
     pub open_issues: u32,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
@@ -71,7 +73,7 @@ impl From<RepoRecord> for RepoResponse {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct LeaderboardResponse {
     pub user: GithubMeta,
     pub rating: u32,
@@ -99,7 +101,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
 pub struct Streak {
     current: u32,
     longest: u32,
@@ -128,7 +130,7 @@ impl Streak {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct UserProfile {
     pub user: GithubMeta,
     pub rating: u32,
@@ -170,7 +172,7 @@ impl From<UserRecord> for UserProfile {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct UserContributionResponse {
     pub pull_request_link: String,
     pub repository: String,

@@ -41,7 +41,8 @@ reqwest = "0.12"
 base64 = "0.22.1"
 usvg = "0.42.0"
 rocket_prometheus = "0.10.0"
-
+utoipa = "4.2"
+utoipa-swagger-ui = "7.1"
 
 [profile.release]
 codegen-units = 1
