@@ -1,17 +1,20 @@
+use std::sync::Arc;
+
+use shared::TimePeriod;
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
 use crate::db::types::UserRecord;
 
 pub fn generate_svg_badge(
     user_record: UserRecord,
-    leaderboard_place: &str,
     image_base64: &str,
-    fontdb: &fontdb::Database,
+    fontdb: Arc<fontdb::Database>,
 ) -> anyhow::Result<String> {
+    let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record
         .period_data
         .into_iter()
-        .find(|p| p.period_type == "all-time")
+        .find(|p| p.period_type == all_time)
         .unwrap_or_default();
     let week_streak = user_record
         .streaks
@@ -24,6 +27,12 @@ pub fn generate_svg_badge(
         .into_iter()
         .find(|s| s.streak_id == 1)
         .unwrap_or_default();
+    let all_time_place = user_record
+        .leaderboard_places
+        .iter()
+        .find(|(period, _)| period == &all_time)
+        .map(|(_, place)| place.to_string())
+        .unwrap_or_else(|| "N/A".to_string());
 
     let svg_icon = std::fs::read_to_string("./public/badge_template.svg")?;
     let svg_icon = svg_icon.replace("{name}", &user_record.name);
@@ -35,9 +44,15 @@ pub fn generate_svg_badge(
     let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{image}", image_base64);
-    let svg_icon = svg_icon.replace("{place}", leaderboard_place);
+    let svg_icon = svg_icon.replace("{place}", &all_time_place);
 
-    let tree = Tree::from_str(&svg_icon, &Options::default(), fontdb)?;
+    let tree = Tree::from_str(
+        &svg_icon,
+        &Options {
+            fontdb,
+            ..Default::default()
+        },
+    )?;
     let write_options = WriteOptions {
         use_single_quote: true,
         preserve_text: false,

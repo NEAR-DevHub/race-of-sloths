@@ -153,7 +153,11 @@ impl DB {
         Ok(())
     }
 
-    pub async fn get_user(&self, name: &str) -> anyhow::Result<Option<UserRecord>> {
+    pub async fn get_user(
+        &self,
+        name: &str,
+        place_strings: &[String],
+    ) -> anyhow::Result<Option<UserRecord>> {
         let user_rec: i32 = match sqlx::query!("SELECT id, name FROM users WHERE name = $1", name)
             .fetch_optional(&self.0)
             .await?
@@ -186,10 +190,17 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
+        let mut leaderboard_places = Vec::with_capacity(place_strings.len());
+        for place in place_strings {
+            let record = self.get_leaderboard_place(place, user_rec).await?;
+            leaderboard_places.push((place.clone(), record.unwrap_or_default() as u32));
+        }
+
         let user = UserRecord {
             name: name.to_string(),
             period_data: period_data_recs,
             streaks: streak_recs,
+            leaderboard_places,
         };
 
         Ok(Some(user))
@@ -198,38 +209,43 @@ impl DB {
     pub async fn get_leaderboard(
         &self,
         period: &str,
+        streak_id: i32,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<LeaderboardRecord>> {
-        Ok(sqlx::query_as!(LeaderboardRecord,r#"
-                                SELECT users.name, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
-                                FROM user_period_data 
-                                JOIN users ON users.id = user_period_data.user_id
-                                WHERE period_type = $1
-                                ORDER BY total_score DESC
-                                LIMIT $2 OFFSET $3
-                                "#,period,limit,page*limit).fetch_all(&self.0,).await? )
+    ) -> anyhow::Result<(Vec<LeaderboardRecord>, i64)> {
+        let records = sqlx::query_file_as!(
+            LeaderboardRecord,
+            "sql/get_leaderboard.sql",
+            period,
+            streak_id,
+            limit,
+            page * limit
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        // TODO: Replace this with a single query
+        let total_count = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(user_id)) as id
+            FROM user_period_data 
+            WHERE period_type = $1
+            "#,
+            period
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok((records, total_count.id.unwrap_or_default()))
     }
 
     pub async fn get_leaderboard_place(
         &self,
         period: &str,
-        name: &str,
+        user_id: i32,
     ) -> anyhow::Result<Option<i64>> {
-        let rec = sqlx::query!(
-            r#"
-        SELECT rownum as place
-        FROM (SELECT user_id, RANK() OVER (ORDER BY total_score DESC) as rownum
-              FROM user_period_data
-              WHERE period_type = $1) as ranked
-        JOIN users ON users.id = ranked.user_id
-        WHERE users.name = $2
-        "#,
-            period,
-            name
-        )
-        .fetch_one(&self.0)
-        .await?;
+        let rec = sqlx::query_file!("./sql/get_leaderboard_place.sql", period, user_id)
+            .fetch_one(&self.0)
+            .await?;
 
         Ok(rec.place)
     }
@@ -238,37 +254,29 @@ impl DB {
         &self,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<RepoRecord>> {
+    ) -> anyhow::Result<(Vec<RepoRecord>, u64)> {
         let offset = page * limit;
         // COALESCE is used to return 0 if there are no PRs for a repo
         // But sqlx still thinks that it's NONE
-        let records = sqlx::query_as_unchecked!(
+        let records = sqlx::query_file_as_unchecked!(
             RepoRecord,
-            r#"
-            SELECT 
-                o.name as organization, 
-                r.name as name, 
-                COALESCE(COUNT(pr.id), 0) as total_prs,
-                COALESCE(SUM(pr.score), 0) as total_score
-            FROM 
-                repos r
-            JOIN 
-                organizations o ON r.organization_id = o.id
-            LEFT JOIN 
-                pull_requests pr ON pr.repo_id = r.id
-            GROUP BY 
-                o.name, r.name
-            ORDER BY 
-                total_score DESC, total_prs DESC
-            LIMIT $1 OFFSET $2
-            "#,
+            "./sql/get_repo_leaderboard.sql",
             limit,
             offset
         )
         .fetch_all(&self.0)
         .await?;
 
-        Ok(records)
+        // TODO: Replace this with a single query
+        let total_count = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(r.organization_id, r.id)) as id
+            FROM repos r
+            "#,
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok((records, total_count.id.unwrap_or_default() as u64))
     }
 
     pub async fn get_user_contributions(
@@ -276,36 +284,11 @@ impl DB {
         user: &str,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<Vec<UserContributionRecord>> {
+    ) -> anyhow::Result<(Vec<UserContributionRecord>, u64)> {
         let offset = page * limit;
-        let records = sqlx::query_as!(
+        let records = sqlx::query_file_as!(
             UserContributionRecord,
-            r#"
-            SELECT 
-                users.name as name, 
-                o.name as organization, 
-                r.name as repo, 
-                pr.number as number,
-                pr.created_at as created_at,
-                pr.merged_at as merged_at,
-                pr.score as score,
-                pr.executed as executed
-            FROM 
-                users
-            JOIN 
-                pull_requests pr ON pr.author_id = users.id
-            JOIN 
-                repos r ON pr.repo_id = r.id
-            JOIN 
-                organizations o ON r.organization_id = o.id
-            WHERE
-                users.name = $1
-            GROUP BY 
-                users.name, o.name, r.name, pr.number, pr.created_at, pr.merged_at, pr.score, pr.executed
-            ORDER BY 
-                pr.created_at DESC
-            LIMIT $2 OFFSET $3
-            "#,
+            "./sql/get_user_contributions.sql",
             user,
             limit,
             offset
@@ -313,7 +296,17 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        Ok(records)
+        let total = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(pr.id)) as id
+            FROM pull_requests pr
+            JOIN users ON pr.author_id = users.id
+            WHERE users.name = $1
+            "#,
+            user
+        )
+        .fetch_one(&self.0)
+        .await?;
+        Ok((records, total.id.unwrap_or_default() as u64))
     }
 
     pub async fn get_contributors_of_the_month(

@@ -1,9 +1,8 @@
+use std::sync::Arc;
+
 use base64::Engine;
 use race_of_sloths_server::{
-    db::{
-        types::{UserContributionRecord, UserRecord},
-        DB,
-    },
+    db::{types::UserRecord, DB},
     svg::generate_svg_badge,
 };
 use rocket::{
@@ -12,6 +11,9 @@ use rocket::{
     serde::json::Json,
     Request, Response, State,
 };
+use shared::TimePeriod;
+
+use super::types::{PaginatedResponse, UserContributionResponse, UserProfile};
 
 pub struct Badge {
     svg: Option<String>,
@@ -49,13 +51,19 @@ impl<'r> Responder<'r, 'static> for Badge {
     }
 }
 
+#[utoipa::path(context_path = "/api/users", responses(
+    (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
+))]
 #[get("/<username>/badge")]
-async fn get_svg<'a>(
+async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
-    font: &State<usvg::fontdb::Database>,
+    font: &State<Arc<usvg::fontdb::Database>>,
 ) -> Badge {
-    let user = match db.get_user(username).await {
+    let user = match db
+        .get_user(username, &[TimePeriod::AllTime.time_string(0)])
+        .await
+    {
         Ok(Some(value)) => value,
         Ok(None) => {
             rocket::info!("User {username} not found, fallback to default");
@@ -65,10 +73,6 @@ async fn get_svg<'a>(
             rocket::error!("Failed to get user {username}: {e}");
             return Badge::with_status(Status::InternalServerError);
         }
-    };
-    let place = match db.get_leaderboard_place("all-time", &user.name).await {
-        Ok(Some(value)) => value.to_string(),
-        _ => "N/A".to_owned(),
     };
 
     let request = match reqwest::get(format!("https://github.com/{}.png", user.name)).await {
@@ -87,7 +91,7 @@ async fn get_svg<'a>(
         }
     };
 
-    match generate_svg_badge(user, &place, &image_base64, font) {
+    match generate_svg_badge(user, &image_base64, font.inner().clone()) {
         Ok(value) => Badge::new(value),
         _ => {
             rocket::error!("Failed to generate badge for {username}");
@@ -96,28 +100,43 @@ async fn get_svg<'a>(
     }
 }
 
+#[utoipa::path(context_path = "/api/users",
+    responses(
+        (status = 200, description = "Get user profile info", body = UserProfile)
+    )
+)]
 #[get("/<username>")]
-async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserRecord>> {
-    let user = match db.get_user(username).await {
+async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
+    let time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let leaderboards = [
+        TimePeriod::AllTime.time_string(time as u64),
+        TimePeriod::Month.time_string(time as u64),
+    ];
+
+    let user = match db.get_user(username, &leaderboards).await {
         Err(e) => {
             rocket::error!("Failed to get user: {username}: {e}");
             return None;
         }
         Ok(value) => value?,
     };
-    Some(Json(user))
+
+    Some(Json(user.into()))
 }
 
+#[utoipa::path(context_path = "/api/users", responses(
+    (status = 200, description = "Get user contributions", body = PaginatedUserContributionResponse)
+))]
 #[get("/<username>/contributions?<page>&<limit>")]
 async fn get_user_contributions(
     username: &str,
-    page: Option<u32>,
-    limit: Option<u32>,
+    page: Option<u64>,
+    limit: Option<u64>,
     db: &State<DB>,
-) -> Option<Json<Vec<UserContributionRecord>>> {
+) -> Option<Json<PaginatedResponse<UserContributionResponse>>> {
     let page = page.unwrap_or(0);
     let limit = limit.unwrap_or(50);
-    let repos = match db
+    let (repos, total) = match db
         .get_user_contributions(username, page as i64, limit as i64)
         .await
     {
@@ -127,7 +146,12 @@ async fn get_user_contributions(
         }
         Ok(value) => value,
     };
-    Some(Json(repos))
+    Some(Json(PaginatedResponse::new(
+        repos.into_iter().map(Into::into).collect(),
+        page + 1,
+        limit,
+        total,
+    )))
 }
 
 pub fn stage() -> rocket::fairing::AdHoc {
@@ -136,9 +160,9 @@ pub fn stage() -> rocket::fairing::AdHoc {
         font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
             .expect("Failed to load font");
 
-        rocket.manage(font).mount(
-            "/api/user/",
-            rocket::routes![get_user, get_user_contributions, get_svg],
+        rocket.manage(Arc::new(font)).mount(
+            "/api/users/",
+            rocket::routes![get_user, get_user_contributions, get_badge],
         )
     })
 }

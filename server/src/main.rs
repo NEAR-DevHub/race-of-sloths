@@ -7,11 +7,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::DateTime;
+use entrypoints::ApiDoc;
 use rocket_db_pools::Database;
 use shared::near::NearClient;
 use shared::TimePeriod;
 
 use race_of_sloths_server::db::{self, DB};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct Env {
@@ -72,6 +75,10 @@ async fn rocket() -> _ {
                 })
             },
         ))
+        .mount(
+            "/",
+            SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
         .attach(prometheus.clone())
         .attach(entrypoints::stage())
         .mount("/metrics", prometheus)

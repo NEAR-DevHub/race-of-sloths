@@ -32,6 +32,17 @@ pub enum TimePeriod {
 }
 
 impl TimePeriod {
+    pub fn from_time_period_string(period: &str) -> Option<Self> {
+        match period {
+            a if a.contains('W') => Some(TimePeriod::Week),
+            a if a.contains('Q') => Some(TimePeriod::Quarter),
+            a if a.len() == 8 => Some(TimePeriod::Day),
+            a if a.len() == 6 => Some(TimePeriod::Month),
+            "all-time" => Some(TimePeriod::AllTime),
+            _ => None,
+        }
+    }
+
     pub fn time_string(&self, timestamp: Timestamp) -> TimePeriodString {
         match self {
             TimePeriod::Day => timestamp_to_day_string(timestamp),

@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    users.name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    latest_time_string as streak_latest_time_string\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\nWHERE\n    period_type = $1\n    and streak_user_data.streak_id = $2\nORDER BY\n    total_score DESC\nLIMIT\n    $3 OFFSET $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "period_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "executed_prs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "largest_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "prs_opened",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "prs_merged",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "streak_best",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "streak_amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "streak_latest_time_string",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2c2f326af19143665adf083920b4b06312034c42a3a2fae869cd0d0a4bffcedd"
+}

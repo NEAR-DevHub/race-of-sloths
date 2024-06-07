@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                users.name as name, \n                o.name as organization, \n                r.name as repo, \n                pr.number as number,\n                pr.created_at as created_at,\n                pr.merged_at as merged_at,\n                pr.score as score,\n                pr.executed as executed\n            FROM \n                users\n            JOIN \n                pull_requests pr ON pr.author_id = users.id\n            JOIN \n                repos r ON pr.repo_id = r.id\n            JOIN \n                organizations o ON r.organization_id = o.id\n            WHERE\n                users.name = $1\n            GROUP BY \n                users.name, o.name, r.name, pr.number, pr.created_at, pr.merged_at, pr.score, pr.executed\n            ORDER BY \n                pr.created_at DESC\n            LIMIT $2 OFFSET $3\n            ",
+  "query": "SELECT\n    users.name as name,\n    o.name as organization,\n    r.name as repo,\n    pr.number as number,\n    pr.created_at as created_at,\n    pr.merged_at as merged_at,\n    pr.score as score,\n    pr.executed as executed\nFROM\n    users\n    JOIN pull_requests pr ON pr.author_id = users.id\n    JOIN repos r ON pr.repo_id = r.id\n    JOIN organizations o ON r.organization_id = o.id\nWHERE\n    users.name = $1\nGROUP BY\n    users.name,\n    o.name,\n    r.name,\n    pr.number,\n    pr.created_at,\n    pr.merged_at,\n    pr.score,\n    pr.executed\nORDER BY\n    pr.created_at DESC\nLIMIT\n    $2 OFFSET $3\n",
   "describe": {
     "columns": [
       {
@@ -62,5 +62,5 @@
       false
     ]
   },
-  "hash": "53ab6c0af66ee62fccbd3d7ce4dabaf8a10c46bae063728d96c003c39d2651dd"
+  "hash": "c4e32a937052f0f4d67455f8bdab1bf92794d8c16249d89acfe2289430b4b6de"
 }

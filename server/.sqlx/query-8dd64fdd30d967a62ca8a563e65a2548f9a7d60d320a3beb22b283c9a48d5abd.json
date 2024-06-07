@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    rownum as place\nFROM\n    (\n        SELECT\n            user_id,\n            RANK() OVER (\n                ORDER BY\n                    total_score DESC\n            ) as rownum\n        FROM\n            user_period_data\n        WHERE\n            period_type = $1\n    ) as leaderboard\nWHERE\n    user_id = $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "place",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8dd64fdd30d967a62ca8a563e65a2548f9a7d60d320a3beb22b283c9a48d5abd"
+}

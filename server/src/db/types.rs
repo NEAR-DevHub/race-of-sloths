@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use shared::TimePeriodString;
+use shared::{GithubHandle, TimePeriodString};
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct LeaderboardRecord {
     pub name: String,
@@ -9,6 +9,9 @@ pub struct LeaderboardRecord {
     pub largest_score: i32,
     pub prs_opened: i32,
     pub prs_merged: i32,
+    pub streak_best: i32,
+    pub streak_amount: i32,
+    pub streak_latest_time_string: String,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
@@ -34,6 +37,7 @@ pub struct UserRecord {
     pub name: String,
     pub period_data: Vec<UserPeriodRecord>,
     pub streaks: Vec<StreakRecord>,
+    pub leaderboard_places: Vec<(String, u32)>,
 }
 
 impl UserRecord {
@@ -42,6 +46,7 @@ impl UserRecord {
             name,
             period_data: vec![],
             streaks: vec![],
+            leaderboard_places: vec![],
         }
     }
 }
@@ -52,6 +57,7 @@ pub struct RepoRecord {
     pub name: String,
     pub total_prs: i64,
     pub total_score: i64,
+    pub top_contributor: GithubHandle,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
