@@ -5,6 +5,7 @@ use race_of_sloths_server::db::types::{
     LeaderboardRecord, RepoRecord, UserContributionRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
+use shared::{GithubHandle, TimePeriod};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct PaginatedResponse<T: Serialize> {
@@ -29,13 +30,26 @@ impl<T: Serialize> PaginatedResponse<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GithubMeta {
+    name: String,
+    image: String,
+}
+
+impl GithubMeta {
+    pub fn new(name: String) -> Self {
+        let image = format!("https://github.com/{}.png", name);
+        Self { name, image }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RepoResponse {
     pub name: String,
-    pub organization: String,
-    pub organization_logo_url: String,
+    pub organization: GithubMeta,
     pub project_language: String,
     pub project_language_color: String,
+    pub contributor_of_the_month: GithubHandle,
     pub open_issues: u32,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
@@ -43,14 +57,13 @@ pub struct RepoResponse {
 
 impl From<RepoRecord> for RepoResponse {
     fn from(record: RepoRecord) -> Self {
-        let organization_logo_url = format!("https://github.com/{}/logo", record.organization);
         Self {
             name: record.name,
-            organization: record.organization,
-            organization_logo_url,
+            organization: GithubMeta::new(record.organization),
             // TODO: fix these fields
             project_language: "RUST".to_string(),
             project_language_color: "#000000".to_string(),
+            contributor_of_the_month: record.top_contributor,
             open_issues: 0,
             contributions_with_sloth: record.total_prs as u32,
             total_score: record.total_score as u32,
@@ -58,12 +71,12 @@ impl From<RepoRecord> for RepoResponse {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LeaderboardResponse {
-    pub username: String,
+    pub user: GithubMeta,
     pub rating: u32,
     pub contributions: u32,
-    pub current_streak: u32,
+    pub streak: Streak,
     pub merged_prs: u32,
     pub score: u32,
 }
@@ -71,12 +84,15 @@ pub struct LeaderboardResponse {
 impl From<LeaderboardRecord> for LeaderboardResponse {
     fn from(record: LeaderboardRecord) -> Self {
         Self {
-            username: record.name,
+            user: GithubMeta::new(record.name),
             // TODO: fix ratings
             rating: 0,
             contributions: record.prs_opened as u32,
-            // TODO: fix streaks
-            current_streak: 0,
+            streak: Streak::new(
+                record.streak_amount as u32,
+                record.streak_best as u32,
+                &record.streak_latest_time_string,
+            ),
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
         }
@@ -85,14 +101,36 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Streak {
-    pub current: u32,
-    pub longest: u32,
+    current: u32,
+    longest: u32,
+}
+
+impl Streak {
+    pub fn new(current: u32, longest: u32, time_period_string: &str) -> Self {
+        if let Some(time_period) = TimePeriod::from_time_period_string(time_period_string) {
+            let current_time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+            let previous_period = time_period
+                .previous_period(current_time as u64)
+                .unwrap_or_default();
+            let current_time_string = time_period.time_string(current_time as u64);
+            let previous_period_string = time_period.time_string(previous_period);
+            if current_time_string == time_period_string
+                || previous_period_string == time_period_string
+            {
+                return Self { current, longest };
+            };
+        }
+
+        Self {
+            current: 0,
+            longest,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserProfile {
-    pub github_name: String,
-    pub profile_picture: String,
+    pub user: GithubMeta,
     pub rating: u32,
     pub contributions: u32,
     pub leaderboard_places: HashMap<String, u32>,
@@ -101,16 +139,14 @@ pub struct UserProfile {
 
 impl From<UserRecord> for UserProfile {
     fn from(record: UserRecord) -> Self {
-        let picture = format!("https://github.com/{}.png", record.name);
         let contributions = record
             .period_data
             .iter()
-            .find(|x| x.period_type == "all_time")
+            .find(|x| x.period_type == TimePeriod::AllTime.time_string(0))
             .map(|x| x.prs_opened)
             .unwrap_or(0) as u32;
         Self {
-            github_name: record.name,
-            profile_picture: picture,
+            user: GithubMeta::new(record.name),
             // TODO: fix ratings
             rating: 0,
             contributions,
@@ -121,15 +157,15 @@ impl From<UserRecord> for UserProfile {
                     (
                         // TODO: We should write here a string name
                         streak.streak_id.to_string(),
-                        Streak {
-                            current: streak.amount as u32,
-                            longest: streak.best as u32,
-                        },
+                        Streak::new(
+                            streak.amount as u32,
+                            streak.best as u32,
+                            &streak.latest_time_string,
+                        ),
                     )
                 })
                 .collect(),
-            //TODO: leaderboards data
-            leaderboard_places: HashMap::new(),
+            leaderboard_places: record.leaderboard_places.into_iter().collect(),
         }
     }
 }
@@ -138,8 +174,7 @@ impl From<UserRecord> for UserProfile {
 pub struct UserContributionResponse {
     pub pull_request_link: String,
     pub repository: String,
-    pub organization: String,
-    pub organization_logo_url: String,
+    pub organization: GithubMeta,
     pub status: String,
     pub score: Option<i32>,
     pub created_at: NaiveDateTime,
@@ -148,7 +183,6 @@ pub struct UserContributionResponse {
 
 impl From<UserContributionRecord> for UserContributionResponse {
     fn from(record: UserContributionRecord) -> Self {
-        let organization_logo_url = format!("https://github.com/{}/logo", record.organization);
         let pull_request_link = format!(
             "https://github.com/{}/{}/pull/{}",
             record.organization, record.repo, record.number
@@ -167,8 +201,7 @@ impl From<UserContributionRecord> for UserContributionResponse {
         Self {
             pull_request_link,
             repository: record.repo,
-            organization: record.organization,
-            organization_logo_url,
+            organization: GithubMeta::new(record.organization),
             status: status.to_string(),
             score: record.score,
             created_at: record.created_at,

@@ -11,6 +11,7 @@ use rocket::{
     serde::json::Json,
     Request, Response, State,
 };
+use shared::TimePeriod;
 
 use super::types::{PaginatedResponse, UserContributionResponse, UserProfile};
 
@@ -56,7 +57,10 @@ async fn get_svg<'a>(
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,
 ) -> Badge {
-    let user = match db.get_user(username).await {
+    let user = match db
+        .get_user(username, &[TimePeriod::AllTime.time_string(0)])
+        .await
+    {
         Ok(Some(value)) => value,
         Ok(None) => {
             rocket::info!("User {username} not found, fallback to default");
@@ -66,10 +70,6 @@ async fn get_svg<'a>(
             rocket::error!("Failed to get user {username}: {e}");
             return Badge::with_status(Status::InternalServerError);
         }
-    };
-    let place = match db.get_leaderboard_place("all-time", &user.name).await {
-        Ok(Some(value)) => value.to_string(),
-        _ => "N/A".to_owned(),
     };
 
     let request = match reqwest::get(format!("https://github.com/{}.png", user.name)).await {
@@ -88,7 +88,7 @@ async fn get_svg<'a>(
         }
     };
 
-    match generate_svg_badge(user, &place, &image_base64, font.inner().clone()) {
+    match generate_svg_badge(user, &image_base64, font.inner().clone()) {
         Ok(value) => Badge::new(value),
         _ => {
             rocket::error!("Failed to generate badge for {username}");
@@ -99,7 +99,13 @@ async fn get_svg<'a>(
 
 #[get("/<username>")]
 async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
-    let user = match db.get_user(username).await {
+    let time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let leaderboards = [
+        TimePeriod::AllTime.time_string(time as u64),
+        TimePeriod::Month.time_string(time as u64),
+    ];
+
+    let user = match db.get_user(username, &leaderboards).await {
         Err(e) => {
             rocket::error!("Failed to get user: {username}: {e}");
             return None;

@@ -3,16 +3,21 @@ use rocket::{serde::json::Json, State};
 
 use super::types::{LeaderboardResponse, PaginatedResponse, RepoResponse};
 
-#[get("/users/<period>?<page>&<limit>")]
+#[get("/users/<period>?<page>&<limit>&<streak_id>")]
 async fn get_leaderboard(
     period: &str,
     db: &State<DB>,
     page: Option<u64>,
     limit: Option<u64>,
+    streak_id: Option<i32>,
 ) -> Option<Json<PaginatedResponse<LeaderboardResponse>>> {
+    let streak_id = streak_id.unwrap_or(0);
     let page = page.unwrap_or(0);
     let limit = limit.unwrap_or(50);
-    let (records, total) = match db.get_leaderboard(period, page as i64, limit as i64).await {
+    let (records, total) = match db
+        .get_leaderboard(period, streak_id, page as i64, limit as i64)
+        .await
+    {
         Err(e) => {
             rocket::error!("Failed to get leaderboard: {period}: {e}");
             return None;
