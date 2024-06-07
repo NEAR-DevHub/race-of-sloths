@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(DISTINCT(pr.id)) as id\n            FROM pull_requests pr\n            JOIN users ON pr.author_id = users.id\n            WHERE users.name = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "16f5688f235e51d2e2290f0a190d7308cd0a7b003205822f50ca5fd71c53763e"
+}
