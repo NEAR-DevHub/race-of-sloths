@@ -34,7 +34,9 @@ impl GithubClient {
             stars: repo.stargazers_count.unwrap_or_default(),
             forks: repo.forks_count.unwrap_or_default(),
             open_issues: repo.open_issues_count.unwrap_or_default(),
-            primary_language: repo.language.map(|l| l.to_string()),
+            primary_language: repo
+                .language
+                .and_then(|l| l.as_str().map(ToString::to_string)),
         })
     }
 }
