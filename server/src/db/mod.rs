@@ -14,7 +14,10 @@ pub mod types;
 
 use types::LeaderboardRecord;
 
-use self::types::{RepoRecord, StreakRecord, UserContributionRecord, UserPeriodRecord, UserRecord};
+use self::types::{
+    RepoLeaderboardRecord, RepoRecord, StreakRecord, UserContributionRecord, UserPeriodRecord,
+    UserRecord,
+};
 
 impl DB {
     pub async fn upsert_user(&self, user: &str) -> anyhow::Result<i32> {
@@ -153,6 +156,30 @@ impl DB {
         Ok(())
     }
 
+    pub async fn update_repo_metadata(
+        &self,
+        repo_id: i32,
+        stars: u32,
+        forks: u32,
+        open_issues: u32,
+        primary_language: Option<String>,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            UPDATE repos
+            SET stars = $1, forks = $2, open_issues = $3, primary_language = $4
+            WHERE id = $5"#,
+            stars as i32,
+            forks as i32,
+            open_issues as i32,
+            primary_language,
+            repo_id
+        )
+        .execute(&self.0)
+        .await?;
+        Ok(())
+    }
+
     pub async fn get_user(
         &self,
         name: &str,
@@ -178,17 +205,10 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        let streak_recs: Vec<StreakRecord> = sqlx::query_as!(
-            StreakRecord,
-            r#"
-                SELECT streak_id, amount, best, latest_time_string
-                FROM streak_user_data
-                WHERE user_id = $1
-                "#,
-            user_rec
-        )
-        .fetch_all(&self.0)
-        .await?;
+        let streak_recs: Vec<StreakRecord> =
+            sqlx::query_file_as!(StreakRecord, "./sql/get_streaks_for_user_id.sql", user_rec)
+                .fetch_all(&self.0)
+                .await?;
 
         let mut leaderboard_places = Vec::with_capacity(place_strings.len());
         for place in place_strings {
@@ -254,12 +274,12 @@ impl DB {
         &self,
         page: i64,
         limit: i64,
-    ) -> anyhow::Result<(Vec<RepoRecord>, u64)> {
+    ) -> anyhow::Result<(Vec<RepoLeaderboardRecord>, u64)> {
         let offset = page * limit;
         // COALESCE is used to return 0 if there are no PRs for a repo
         // But sqlx still thinks that it's NONE
         let records = sqlx::query_file_as_unchecked!(
-            RepoRecord,
+            RepoLeaderboardRecord,
             "./sql/get_repo_leaderboard.sql",
             limit,
             offset
@@ -338,6 +358,14 @@ impl DB {
             .into_iter()
             .map(|r| (r.name, r.total_score.unwrap_or_default()))
             .collect())
+    }
+
+    pub async fn get_repos(&self) -> anyhow::Result<Vec<RepoRecord>> {
+        let rec = sqlx::query_file_as!(RepoRecord, "./sql/get_repos.sql")
+            .fetch_all(&self.0)
+            .await?;
+
+        Ok(rec)
     }
 }
 

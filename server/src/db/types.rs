@@ -11,6 +11,8 @@ pub struct LeaderboardRecord {
     pub prs_merged: i32,
     pub streak_best: i32,
     pub streak_amount: i32,
+    pub streak_name: String,
+    pub streak_type: String,
     pub streak_latest_time_string: String,
 }
 
@@ -27,6 +29,8 @@ pub struct UserPeriodRecord {
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
 pub struct StreakRecord {
     pub streak_id: i32,
+    pub name: String,
+    pub streak_type: String,
     pub amount: i32,
     pub best: i32,
     pub latest_time_string: String,
@@ -52,12 +56,16 @@ impl UserRecord {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
-pub struct RepoRecord {
+pub struct RepoLeaderboardRecord {
     pub organization: String,
     pub name: String,
     pub total_prs: i64,
     pub total_score: i64,
     pub top_contributor: GithubHandle,
+    pub stars: i32,
+    pub open_issues: i32,
+    pub primary_language: Option<String>,
+    pub forks: i32,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
@@ -70,4 +78,11 @@ pub struct UserContributionRecord {
     pub executed: bool,
     pub created_at: chrono::NaiveDateTime,
     pub merged_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+pub struct RepoRecord {
+    pub organization: String,
+    pub repo: String,
+    pub repo_id: i32,
 }

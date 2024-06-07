@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chrono::NaiveDateTime;
 use race_of_sloths_server::db::types::{
-    LeaderboardRecord, RepoRecord, UserContributionRecord, UserRecord,
+    LeaderboardRecord, RepoLeaderboardRecord, UserContributionRecord, UserRecord,
 };
 use serde::{Deserialize, Serialize};
 use shared::TimePeriod;
@@ -49,24 +49,25 @@ impl GithubMeta {
 pub struct RepoResponse {
     pub name: String,
     pub organization: GithubMeta,
-    pub project_language: String,
-    pub project_language_color: String,
-    pub contributor_of_the_month: String,
+    pub repo_language: Option<String>,
+    pub stars: u32,
+    pub forks: u32,
     pub open_issues: u32,
+    pub contributor_of_the_month: String,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
 }
 
-impl From<RepoRecord> for RepoResponse {
-    fn from(record: RepoRecord) -> Self {
+impl From<RepoLeaderboardRecord> for RepoResponse {
+    fn from(record: RepoLeaderboardRecord) -> Self {
         Self {
             name: record.name,
             organization: GithubMeta::new(record.organization),
-            // TODO: fix these fields
-            project_language: "RUST".to_string(),
-            project_language_color: "#000000".to_string(),
+            repo_language: record.primary_language,
+            stars: record.stars as u32,
+            forks: record.forks as u32,
+            open_issues: record.open_issues as u32,
             contributor_of_the_month: record.top_contributor,
-            open_issues: 0,
             contributions_with_sloth: record.total_prs as u32,
             total_score: record.total_score as u32,
         }
@@ -91,9 +92,11 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
             rating: 0,
             contributions: record.prs_opened as u32,
             streak: Streak::new(
+                record.streak_name,
                 record.streak_amount as u32,
                 record.streak_best as u32,
-                &record.streak_latest_time_string,
+                record.streak_latest_time_string,
+                record.streak_type,
             ),
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
@@ -103,13 +106,21 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
 pub struct Streak {
+    name: String,
+    streak_type: String,
     current: u32,
     longest: u32,
 }
 
 impl Streak {
-    pub fn new(current: u32, longest: u32, time_period_string: &str) -> Self {
-        if let Some(time_period) = TimePeriod::from_time_period_string(time_period_string) {
+    pub fn new(
+        name: String,
+        current: u32,
+        longest: u32,
+        time_period_string: String,
+        streak_type: String,
+    ) -> Self {
+        if let Some(time_period) = TimePeriod::from_streak_type(&streak_type) {
             let current_time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
             let previous_period = time_period
                 .previous_period(current_time as u64)
@@ -119,11 +130,18 @@ impl Streak {
             if current_time_string == time_period_string
                 || previous_period_string == time_period_string
             {
-                return Self { current, longest };
+                return Self {
+                    name,
+                    streak_type,
+                    current,
+                    longest,
+                };
             };
         }
 
         Self {
+            name,
+            streak_type,
             current: 0,
             longest,
         }
@@ -157,12 +175,13 @@ impl From<UserRecord> for UserProfile {
                 .into_iter()
                 .map(|streak| {
                     (
-                        // TODO: We should write here a string name
-                        streak.streak_id.to_string(),
+                        streak.name.clone(),
                         Streak::new(
+                            streak.name,
                             streak.amount as u32,
                             streak.best as u32,
-                            &streak.latest_time_string,
+                            streak.latest_time_string,
+                            streak.streak_type,
                         ),
                     )
                 })

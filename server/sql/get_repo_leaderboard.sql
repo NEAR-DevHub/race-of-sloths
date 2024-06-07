@@ -20,7 +20,11 @@ SELECT
     r.name AS name,
     COALESCE(COUNT(pr.id), 0) AS total_prs,
     COALESCE(SUM(pr.score), 0) AS total_score,
-    tc.contributor_name AS top_contributor
+    tc.contributor_name AS top_contributor,
+    r.primary_language,
+    r.open_issues,
+    r.stars,
+    r.forks
 FROM
     repos r
     JOIN organizations o ON r.organization_id = o.id
@@ -30,7 +34,11 @@ FROM
 GROUP BY
     o.name,
     r.name,
-    tc.contributor_name
+    tc.contributor_name,
+    r.primary_language,
+    r.open_issues,
+    r.stars,
+    r.forks
 ORDER BY
     total_score DESC,
     total_prs DESC

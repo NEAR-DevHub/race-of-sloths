@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    streak.id as streak_id,\n    name,\n    period as streak_type,\n    amount,\n    best,\n    latest_time_string\nFROM\n    streak_user_data\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    user_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "streak_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "streak_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "best",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "latest_time_string",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8ea1b590ec23cf48854d034b65cfe11b55967c3bab50301ab41f89230d4e8e50"
+}

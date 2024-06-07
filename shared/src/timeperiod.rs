@@ -32,13 +32,14 @@ pub enum TimePeriod {
 }
 
 impl TimePeriod {
-    pub fn from_time_period_string(period: &str) -> Option<Self> {
-        match period {
-            a if a.contains('W') => Some(TimePeriod::Week),
-            a if a.contains('Q') => Some(TimePeriod::Quarter),
-            a if a.len() == 8 => Some(TimePeriod::Day),
-            a if a.len() == 6 => Some(TimePeriod::Month),
-            "all-time" => Some(TimePeriod::AllTime),
+    pub fn from_streak_type(type_: &str) -> Option<Self> {
+        match type_.to_lowercase().as_str() {
+            "daily" => Some(Self::Day),
+            "weekly" => Some(Self::Week),
+            "monthly" => Some(Self::Month),
+            "quarterly" => Some(Self::Quarter),
+            "yearly" => Some(Self::Year),
+            "all-time" => Some(Self::AllTime),
             _ => None,
         }
     }
