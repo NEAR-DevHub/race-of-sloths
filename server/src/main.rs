@@ -36,6 +36,7 @@ async fn rocket() -> _ {
     let near_client = NearClient::new(env.contract.clone(), env.secret_key.clone(), env.is_mainnet)
         .await
         .expect("Failed to create Near client");
+    // TODO: after 0.6.0 release, we should use tracing for redirecting warns and errors to the telegram
 
     rocket::build()
         .attach(db::stage())
