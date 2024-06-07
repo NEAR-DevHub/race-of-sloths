@@ -11,7 +11,7 @@ FROM
         FROM
             user_period_data
         WHERE
-            period_type = $ 1
+            period_type = $1
     ) as leaderboard
 WHERE
-    user_id = $ 2
+    user_id = $2
