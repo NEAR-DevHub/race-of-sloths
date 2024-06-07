@@ -10,6 +10,7 @@ mod timeperiod;
 
 #[cfg(feature = "github")]
 pub mod github;
+
 #[cfg(feature = "client")]
 pub mod near;
 

@@ -3631,6 +3631,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "envy",
+ "octocrab",
  "reqwest 0.12.4",
  "rocket",
  "rocket_db_pools",

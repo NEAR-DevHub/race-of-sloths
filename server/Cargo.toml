@@ -20,5 +20,6 @@ usvg = { workspace = true, features = ["text"] }
 rocket_prometheus.workspace = true
 utoipa = { workspace = true, features = ["rocket_extras", "chrono"] }
 utoipa-swagger-ui = { workspace = true, features = ["rocket"] }
+octocrab.workspace = true
 
 shared = { workspace = true, features = ["client"] }
