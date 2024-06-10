@@ -1,7 +1,9 @@
+use std::ops::Add;
+
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     serde::{Deserialize, Serialize},
-    NearSchema,
+    AccountId, NearSchema,
 };
 
 mod pr;
@@ -23,39 +25,102 @@ pub type GithubHandle = String;
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
+pub enum VersionedAccount {
+    V1(AccountWithPermanentPercentageBonus),
+}
+
+impl From<VersionedAccount> for AccountWithPermanentPercentageBonus {
+    fn from(message: VersionedAccount) -> Self {
+        match message {
+            VersionedAccount::V1(x) => x,
+        }
+    }
+}
+
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct AccountWithPermanentPercentageBonus {
+    pub account_id: Option<AccountId>,
+    permanent_percentage_bonus: Vec<(StreakId, u32)>,
+}
+
+impl AccountWithPermanentPercentageBonus {
+    pub fn add_streak_percent(&mut self, streak_id: StreakId, streak_percent_bonus: u32) -> bool {
+        if let Some((_, percent)) = self
+            .permanent_percentage_bonus
+            .iter_mut()
+            .find(|(id, _)| *id == streak_id)
+        {
+            let old = *percent;
+            *percent = streak_percent_bonus.max(old);
+            *percent > old
+        } else {
+            self.permanent_percentage_bonus
+                .push((streak_id, streak_percent_bonus));
+            true
+        }
+    }
+
+    pub fn lifetime_percentage_bonus(&self) -> u32 {
+        self.permanent_percentage_bonus
+            .iter()
+            .map(|(_, bonus)| *bonus)
+            .reduce(Add::add)
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
 pub enum VersionedUserPeriodData {
     V1(UserPeriodData),
 }
 
 impl VersionedUserPeriodData {
     pub fn pr_opened(&mut self) {
-        match self {
-            VersionedUserPeriodData::V1(data) => data.prs_opened += 1,
-        }
+        let mut data: UserPeriodData = self.clone().into();
+        data.prs_opened += 1;
+        *self = VersionedUserPeriodData::V1(data);
     }
 
     pub fn pr_merged(&mut self) {
-        match self {
-            VersionedUserPeriodData::V1(data) => data.prs_merged += 1,
-        }
+        let mut data: UserPeriodData = self.clone().into();
+        data.prs_merged += 1;
+        *self = VersionedUserPeriodData::V1(data);
     }
 
-    pub fn pr_executed(&mut self, score: u32) {
-        match self {
-            VersionedUserPeriodData::V1(data) => {
-                data.executed_prs += 1;
-                data.total_score += score;
-                if score > data.largest_score {
-                    data.largest_score = score;
-                }
-            }
+    pub fn pr_executed(&mut self, score: u32, rating: u32) {
+        let mut data: UserPeriodData = self.clone().into();
+        data.executed_prs += 1;
+        data.total_score += score;
+        if score > data.largest_score {
+            data.largest_score = score;
         }
+        data.total_rating += rating;
+        if rating > data.largest_rating_per_pr {
+            data.largest_rating_per_pr = rating;
+        }
+        *self = VersionedUserPeriodData::V1(data);
     }
 
     pub fn pr_closed(&mut self) {
-        match self {
-            VersionedUserPeriodData::V1(data) => data.prs_opened -= 1,
+        let mut data: UserPeriodData = self.clone().into();
+        data.prs_opened -= 1;
+        *self = VersionedUserPeriodData::V1(data);
+    }
+
+    pub fn pr_rating_bonus(&mut self, old_pr_rating: u32, new_pr_rating: u32) {
+        let mut data: UserPeriodData = self.clone().into();
+        data.total_rating -= old_pr_rating;
+        data.total_rating += new_pr_rating;
+        if new_pr_rating > data.largest_rating_per_pr {
+            data.largest_rating_per_pr = new_pr_rating;
         }
+        *self = VersionedUserPeriodData::V1(data);
     }
 }
 
@@ -86,6 +151,8 @@ pub struct UserPeriodData {
     pub largest_score: u32,
     pub prs_opened: u32,
     pub prs_merged: u32,
+    pub total_rating: u32,
+    pub largest_rating_per_pr: u32,
 }
 
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
@@ -93,6 +160,7 @@ pub struct UserPeriodData {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct User {
     pub name: GithubHandle,
+    pub percentage_bonus: u32,
     pub period_data: Vec<(TimePeriodString, UserPeriodData)>,
     pub streaks: Vec<(StreakId, StreakUserData)>,
 }

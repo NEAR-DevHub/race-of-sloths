@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO repos (organization_id, name)\n                VALUES ($1, $2)\n                ON CONFLICT (organization_id, name) DO NOTHING\n                RETURNING id\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9cd2be2ea40bcb6993f69ae171006db5afad6ca400b5a9a7aa08e040a8fb6c4a"
+}

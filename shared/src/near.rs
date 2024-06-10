@@ -144,7 +144,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
+    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRWithRating>> {
         let args = json!({
             "page": page,
             "limit": limit,
@@ -162,7 +162,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PR>> {
+    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PRWithRating>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];
@@ -178,7 +178,11 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unfinalized_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PR>> {
+    pub async fn unfinalized_prs(
+        &self,
+        page: u64,
+        limit: u64,
+    ) -> anyhow::Result<Vec<PRWithRating>> {
         let args = json!({
             "page": page,
             "limit": limit,
@@ -196,7 +200,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unfinalized_prs_all(&self) -> anyhow::Result<Vec<PR>> {
+    pub async fn unfinalized_prs_all(&self) -> anyhow::Result<Vec<PRWithRating>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];
@@ -312,7 +316,11 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn prs_paged(&self, page: u64, limit: u64) -> anyhow::Result<Vec<(PR, bool)>> {
+    pub async fn prs_paged(
+        &self,
+        page: u64,
+        limit: u64,
+    ) -> anyhow::Result<Vec<(PRWithRating, bool)>> {
         let res = self
             .contract
             .view("prs")
@@ -327,7 +335,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn prs(&self) -> anyhow::Result<Vec<(PR, bool)>> {
+    pub async fn prs(&self) -> anyhow::Result<Vec<(PRWithRating, bool)>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];

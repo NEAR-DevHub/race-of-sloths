@@ -1,5 +1,5 @@
 use near_sdk::near_bindgen;
-use shared::{PRInfo, User};
+use shared::{PRInfo, PRWithRating, User, UserPeriodData};
 
 use super::*;
 
@@ -9,7 +9,7 @@ impl Contract {
         let pr_id = format!("{}/{}/{}", organization, repo, issue_id);
         let executed_pr = self.executed_prs.get(&pr_id);
         let pr = self.prs.get(&pr_id).or(executed_pr);
-        let pr: Option<PR> = pr.cloned().map(|pr| pr.into());
+        let pr: Option<PRWithRating> = pr.cloned().map(|pr| pr.into());
         let organization = self.organizations.get(&organization);
         PRInfo {
             allowed_org: organization.is_some(),
@@ -28,7 +28,7 @@ impl Contract {
     }
 
     /// Returns a list of PRs with the execution status
-    pub fn prs(&self, limit: u64, page: u64) -> Vec<(PR, bool)> {
+    pub fn prs(&self, limit: u64, page: u64) -> Vec<(PRWithRating, bool)> {
         self.prs
             .into_iter()
             .chain(self.executed_prs.iter())
@@ -38,7 +38,7 @@ impl Contract {
             .collect()
     }
 
-    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PR> {
+    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PRWithRating> {
         self.prs
             .values()
             .filter(|pr| !pr.is_merged())
@@ -49,7 +49,7 @@ impl Contract {
             .collect()
     }
 
-    pub fn unfinalized_prs(&self, page: u64, limit: u64) -> Vec<PR> {
+    pub fn unfinalized_prs(&self, page: u64, limit: u64) -> Vec<PRWithRating> {
         let timestamp = env::block_timestamp();
         self.prs
             .values()
@@ -81,18 +81,22 @@ impl Contract {
     }
 
     pub fn user(&self, user: &String, periods: Vec<TimePeriodString>) -> Option<User> {
-        self.accounts.get(user).map(|_| User {
-            name: user.to_string(),
-            period_data: periods
-                .iter()
-                .map(|period| {
-                    (
-                        period.clone(),
-                        self.period_data(user, period).unwrap_or_default(),
-                    )
-                })
-                .collect(),
-            streaks: self.user_streaks(user),
+        self.accounts.get(user).map(|u| {
+            let u: AccountWithPermanentPercentageBonus = u.clone().into();
+            User {
+                name: user.to_string(),
+                percentage_bonus: u.lifetime_percentage_bonus(),
+                period_data: periods
+                    .iter()
+                    .map(|period| {
+                        (
+                            period.clone(),
+                            self.period_data(user, period).unwrap_or_default(),
+                        )
+                    })
+                    .collect(),
+                streaks: self.user_streaks(user),
+            }
         })
     }
 

@@ -20,7 +20,7 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
         .collect();
     let users = near_client.users(periods).await?;
     for user in users {
-        let user_id = db.upsert_user(&user.name).await?;
+        let user_id = db.upsert_user(&user.name, user.percentage_bonus).await?;
         for (period, data) in user.period_data {
             db.upsert_user_period_data(period, &data, user_id).await?;
         }
@@ -35,10 +35,12 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
 
 async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
     let prs = near_client.prs().await?;
+    // TODO: more efficient way to handle exclude and outdated PRs
+    db.clear_prs().await?;
     for (pr, executed) in prs {
         let organization_id = db.upsert_organization(&pr.organization).await?;
         let repo_id = db.upsert_repo(organization_id, &pr.repo).await?;
-        let author_id = db.upsert_user(&pr.author).await?;
+        let author_id = db.get_user_id(&pr.author).await?;
         let _ = db
             .upsert_pull_request(
                 repo_id,
@@ -48,6 +50,9 @@ async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Resul
                 pr.merged_at
                     .map(|t| DateTime::from_timestamp_nanos(t as i64).naive_utc()),
                 pr.score(),
+                pr.rating(),
+                pr.percentage_multiplier,
+                pr.streak_bonus_rating,
                 executed,
             )
             .await?;
@@ -55,8 +60,10 @@ async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Resul
     Ok(())
 }
 
+// TODO: more efficient way to fetch only updated data
 async fn fetch_and_store_all_data(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
     fetch_and_store_users(near_client, db).await?;
+    // It matters that we fetch users first, because we need to know their IDs
     fetch_and_store_prs(near_client, db).await?;
     Ok(())
 }

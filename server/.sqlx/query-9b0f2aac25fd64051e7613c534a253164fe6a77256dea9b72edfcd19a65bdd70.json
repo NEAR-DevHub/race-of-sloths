@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO organizations (name)\n        VALUES ($1)\n        ON CONFLICT (name) DO UPDATE\n        SET name = EXCLUDED.name\n        RETURNING id\n        ",
+  "query": "\n            UPDATE repos\n            SET name = $2\n            WHERE organization_id = $1 AND name = $2\n            RETURNING id\n            ",
   "describe": {
     "columns": [
       {
@@ -11,6 +11,7 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
         "Text"
       ]
     },
@@ -18,5 +19,5 @@
       false
     ]
   },
-  "hash": "1553edd9cf0f11e111ab3dcc189f7ec93e364fd626e40db9e2269ad2c04d26a3"
+  "hash": "9b0f2aac25fd64051e7613c534a253164fe6a77256dea9b72edfcd19a65bdd70"
 }

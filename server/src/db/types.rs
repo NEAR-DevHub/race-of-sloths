@@ -4,6 +4,7 @@ use shared::{GithubHandle, TimePeriodString};
 pub struct LeaderboardRecord {
     pub name: String,
     pub total_score: i32,
+    pub total_rating: i32,
     pub period_type: TimePeriodString,
     pub executed_prs: i32,
     pub largest_score: i32,
@@ -24,6 +25,7 @@ pub struct UserPeriodRecord {
     pub largest_score: i32,
     pub prs_opened: i32,
     pub prs_merged: i32,
+    pub total_rating: i32,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
@@ -39,6 +41,7 @@ pub struct StreakRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRecord {
     pub name: String,
+    pub lifetime_percent: i32,
     pub period_data: Vec<UserPeriodRecord>,
     pub streaks: Vec<StreakRecord>,
     pub leaderboard_places: Vec<(String, u32)>,
@@ -51,6 +54,7 @@ impl UserRecord {
             period_data: vec![],
             streaks: vec![],
             leaderboard_places: vec![],
+            lifetime_percent: 0,
         }
     }
 }
@@ -75,6 +79,9 @@ pub struct UserContributionRecord {
     pub repo: String,
     pub number: i32,
     pub score: Option<i32>,
+    pub rating: i32,
+    pub percentage_multiplier: i32,
+    pub streak_bonus_rating: i32,
     pub executed: bool,
     pub created_at: chrono::NaiveDateTime,
     pub merged_at: Option<chrono::NaiveDateTime>,

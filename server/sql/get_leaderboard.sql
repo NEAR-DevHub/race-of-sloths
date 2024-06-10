@@ -8,6 +8,7 @@ SELECT
     prs_merged,
     best as streak_best,
     amount as streak_amount,
+    user_period_data.total_rating as total_rating,
     period as streak_type,
     streak.name as streak_name,
     latest_time_string as streak_latest_time_string
