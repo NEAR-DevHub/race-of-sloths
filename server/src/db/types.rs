@@ -93,3 +93,10 @@ pub struct RepoRecord {
     pub repo: String,
     pub repo_id: i32,
 }
+
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+pub struct UserCachedMetadata {
+    pub full_name: String,
+    pub image_base64: String,
+    pub load_time: chrono::NaiveDateTime,
+}

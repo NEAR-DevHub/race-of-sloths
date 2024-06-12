@@ -17,7 +17,7 @@ struct RepoMetadata {
 }
 
 pub struct GithubClient {
-    octocrab: Octocrab,
+    pub octocrab: Octocrab,
 }
 
 impl GithubClient {
@@ -38,6 +38,10 @@ impl GithubClient {
                 .language
                 .and_then(|l| l.as_str().map(ToString::to_string)),
         })
+    }
+
+    pub async fn get_user(&self, username: &str) -> anyhow::Result<octocrab::models::UserProfile> {
+        Ok(self.octocrab.users(username).profile().await?)
     }
 }
 
@@ -62,28 +66,38 @@ pub fn stage(
     sleep_duration: Duration,
     atomic_bool: Arc<AtomicBool>,
 ) -> AdHoc {
-    rocket::fairing::AdHoc::on_liftoff(
-        "Loads github repository metadata every X minutes",
-        move |rocket| {
-            Box::pin(async move {
-                // Get an actual DB connection
-                let db = DB::fetch(rocket)
-                    .expect("Failed to get DB connection")
-                    .clone();
+    AdHoc::on_ignite("Installing entrypoints", move |rocket| async move {
+        rocket
+            .manage(Arc::new(github_client))
+            .attach(AdHoc::on_liftoff(
+                "Loads github repository metadata every X minutes",
+                move |rocket| {
+                    Box::pin(async move {
+                        // Get an actual DB connection
+                        let db = DB::fetch(rocket)
+                            .expect("Failed to get DB connection")
+                            .clone();
+                        let github_client: Arc<GithubClient> = rocket
+                            .state()
+                            .cloned()
+                            .expect("Failed to get github client");
+                        rocket::tokio::spawn(async move {
+                            let mut interval: rocket::tokio::time::Interval =
+                                rocket::tokio::time::interval(sleep_duration);
+                            while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
+                                interval.tick().await;
 
-                rocket::tokio::spawn(async move {
-                    let mut interval = rocket::tokio::time::interval(sleep_duration);
-                    let github_client = github_client;
-                    while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
-                        interval.tick().await;
-
-                        // Execute a query of some kind
-                        if let Err(e) = fetch_repos_metadata(&github_client, &db).await {
-                            rocket::error!("Failed to fetch and store github data: {:#?}", e);
-                        }
-                    }
-                });
-            })
-        },
-    )
+                                // Execute a query of some kind
+                                if let Err(e) = fetch_repos_metadata(&github_client, &db).await {
+                                    rocket::error!(
+                                        "Failed to fetch and store github data: {:#?}",
+                                        e
+                                    );
+                                }
+                            }
+                        });
+                    })
+                },
+            ))
+    })
 }

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE user_cached_metadata\n                SET full_name = $2, image_base64 = $3, load_time = now()\n                WHERE user_id = (SELECT id FROM users WHERE name = $1)\n                RETURNING user_id\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6b3a9a77b1c069095c67db105dfedcbbb2be485cd8f5cebd2cd9f9f449bf1a20"
+}
