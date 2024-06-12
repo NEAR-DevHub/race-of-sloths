@@ -71,10 +71,9 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::select! {
         _ = run(context.clone()) => {
-            error!("Main loop exited unexpectedly.")
         }
         _ = signal::ctrl_c() => {
-            info!("Received SIGINT. Exiting.");
+            tracing::warn!("Received SIGINT. Exiting.");
         }
         _ = rocket::build()
             .mount("/", routes![metrics])

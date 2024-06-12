@@ -52,10 +52,12 @@ impl Event {
                         self.comment_id.is_none(),
                     )
                     .await;
-                context
-                    .github
-                    .mark_notification_as_read(notification_id.0)
-                    .await?;
+                if should_update.is_ok() {
+                    context
+                        .github
+                        .mark_notification_as_read(notification_id.0)
+                        .await?;
+                }
                 should_update
             }
             EventType::Action(action) => {

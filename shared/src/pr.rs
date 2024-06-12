@@ -146,7 +146,7 @@ impl PRWithRating {
 
     pub fn rating(&self) -> u32 {
         ((self.score().unwrap_or_default() * 10 + self.streak_bonus_rating)
-            * self.percentage_multiplier)
+            * (self.percentage_multiplier + 100))
             / 100
     }
 

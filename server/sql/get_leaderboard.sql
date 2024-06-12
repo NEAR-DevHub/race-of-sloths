@@ -21,6 +21,6 @@ WHERE
     period_type = $1
     and streak_user_data.streak_id = $2
 ORDER BY
-    total_score DESC
+    total_rating DESC
 LIMIT
     $3 OFFSET $4

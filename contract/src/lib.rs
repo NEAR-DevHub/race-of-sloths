@@ -15,6 +15,7 @@ use shared::{
 };
 use types::{Organization, VersionedOrganization};
 
+pub mod migrate;
 pub mod storage;
 #[cfg(test)]
 mod tests;
@@ -179,10 +180,10 @@ impl Contract {
             env::panic_str("PR already exists: {pr_id}")
         }
 
-        // Create user if it doesn't exist
         let pr = PRWithRating::new(organization, repo, pr_number, user, started_at);
 
-        self.apply_to_periods(started_at, pr, |data| data.pr_opened());
+        self.apply_to_periods(started_at, &pr, |data| data.pr_opened());
+        self.prs.insert(pr_id, VersionedPR::V1(pr));
     }
 
     pub fn sloth_scored(&mut self, pr_id: String, user: String, score: u32) {
@@ -206,7 +207,8 @@ impl Contract {
         };
         pr.add_merge_info(merged_at);
 
-        self.apply_to_periods(merged_at, pr, |data| data.pr_merged());
+        self.apply_to_periods(merged_at, &pr, |data| data.pr_merged());
+        self.prs.insert(pr_id, VersionedPR::V1(pr));
     }
 
     pub fn sloth_exclude(&mut self, pr_id: String) {
@@ -219,7 +221,7 @@ impl Contract {
             env::panic_str("Merged PR cannot be excluded")
         }
 
-        self.apply_to_periods(pr.created_at, pr, |data| {
+        self.apply_to_periods(pr.created_at, &pr, |data| {
             data.pr_closed();
         });
 
@@ -274,7 +276,7 @@ impl Contract {
         };
         require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
 
-        self.apply_to_periods(pr.created_at, pr, |data| data.pr_closed());
+        self.apply_to_periods(pr.created_at, &pr, |data| data.pr_closed());
         self.prs.remove(&pr_id);
     }
 
@@ -290,16 +292,30 @@ impl Contract {
             env::panic_str("PR is not ready to be finalized")
         }
 
-        let user = self.get_or_create_account(&pr.author);
+        let mut user = self.get_or_create_account(&pr.author);
 
-        // Reward with zero score if PR wasn't scored to track the number of merged PRs
         let score = pr.score().unwrap_or_default();
-        pr.percentage_multiplier = user.lifetime_percentage_bonus();
+        let mut bonus_points = 0;
+        for streak in self.streaks.iter().filter(|s| s.is_active()).cloned() {
+            let streak: Streak = streak.into();
+            let streak_data: StreakUserData = self
+                .user_streaks
+                .get(&(pr.author.to_owned(), streak.id))
+                .cloned()
+                .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
+                .into();
+
+            bonus_points += user.use_flat_bonus(streak.id, streak_data.amount);
+        }
 
         let full_id = pr.pr_id();
+        pr.streak_bonus_rating = bonus_points;
+        pr.percentage_multiplier = user.lifetime_percentage_bonus();
         let rating = pr.rating();
 
-        self.apply_to_periods(pr.merged_at.unwrap(), pr, |data| {
+        self.accounts
+            .insert(pr.author.clone(), VersionedAccount::V1(user));
+        self.apply_to_periods(pr.merged_at.unwrap(), &pr, |data| {
             data.pr_executed(score, rating)
         });
 
@@ -309,30 +325,15 @@ impl Contract {
 }
 
 impl Contract {
-    pub fn calculate_streak(&mut self, user: &str) -> Vec<(StreakId, StreakReward)> {
+    pub fn calculate_streak(&mut self, user: &str) {
         let current_time = env::block_timestamp();
-        let mut streak_hits = vec![];
-        for streak in self.streaks.iter() {
-            let streak: Streak = streak.clone().into();
+        for streak in self.streaks.into_iter().cloned().collect::<Vec<_>>() {
+            let streak: Streak = streak.into();
 
             if !streak.is_active {
                 continue;
             }
-
-            let key = (user.to_owned(), streak.id);
-            let mut streak_data: StreakUserData = self
-                .user_streaks
-                .get(&key)
-                .cloned()
-                .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
-                .into();
-            let current_streak = streak_data.amount;
             let current_time_string = streak.time_period.time_string(current_time);
-            let prev_time_string = streak
-                .time_period
-                .previous_period(current_time)
-                .map(|a| streak.time_period.time_string(a))
-                .unwrap_or_default();
 
             // Check if user accomplished the streak for current period
             let achieved = self
@@ -341,8 +342,34 @@ impl Contract {
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
 
-            let older_streak =
-                self.verify_previous_streak(&streak, &streak_data, user, current_time);
+            let key = (user.to_owned(), streak.id);
+            let mut streak_data: StreakUserData = self
+                .user_streaks
+                .get(&key)
+                .cloned()
+                .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
+                .into();
+
+            if streak_data.latest_time_string == current_time_string && achieved {
+                // Already achieved
+                continue;
+            }
+
+            let current_streak = streak_data.amount;
+            let prev_time_string = streak
+                .time_period
+                .previous_period(current_time)
+                .map(|a| streak.time_period.time_string(a))
+                .unwrap_or_default();
+
+            let older_streak = if streak_data.latest_time_string == prev_time_string {
+                streak_data.amount
+            } else if streak_data.latest_time_string == current_time_string {
+                // Lost the streak
+                streak_data.amount - 1
+            } else {
+                0
+            };
 
             streak_data.amount = older_streak + achieved as u32;
             streak_data.best = streak_data.best.max(streak_data.amount);
@@ -353,58 +380,37 @@ impl Contract {
             };
 
             if streak_data.amount > current_streak {
-                if let Some(reward) = streak.get_streak_reward(streak_data.amount) {
-                    streak_hits.push((streak.id, reward));
-                }
+                self.reward_streak(user, &streak, streak_data.amount);
             }
 
             self.user_streaks
                 .insert(key, VersionedStreakUserData::V1(streak_data));
         }
-
-        streak_hits
     }
 
-    fn verify_previous_streak(
-        &self,
-        streak: &Streak,
-        streak_data: &StreakUserData,
-        user: &str,
-        timestamp: Timestamp,
-    ) -> u32 {
-        for i in 0u32..std::cmp::min(5, streak_data.amount) {
-            let previous_time = if let Some(a) = streak.time_period.previous_period(timestamp) {
-                a
-            } else {
-                // Shouldn't happen, but if it does, we can't verify the streak
-                return i;
-            };
+    pub fn reward_streak(&mut self, user: &str, streak: &Streak, achieved: u32) {
+        let reward = match streak.get_streak_reward(achieved) {
+            Some(reward) => reward,
+            None => return,
+        };
 
-            let previous_time_string = streak.time_period.time_string(previous_time);
-
-            let previous_data = self
-                .sloths_per_period
-                .get(&(user.to_owned(), previous_time_string.clone()))
-                .map(|s| streak.is_streak_achieved(s))
-                .unwrap_or_default();
-            if !previous_data {
-                return i;
+        let mut account = self.get_or_create_account(user);
+        match reward {
+            StreakReward::FlatReward(amount) => {
+                account.add_flat_bonus(streak.id, amount, achieved);
+            }
+            StreakReward::PermanentPercentageBonus(amount) => {
+                account.add_streak_percent(streak.id, amount);
             }
         }
-        // We check only older periods here, but if we have a streak > 5, we might return including the current period
-        if streak_data.latest_time_string == streak.time_period.time_string(timestamp)
-            && streak_data.amount > 0
-        {
-            streak_data.amount - 1
-        } else {
-            streak_data.amount
-        }
+        self.accounts
+            .insert(user.to_owned(), VersionedAccount::V1(account));
     }
 
     pub fn apply_to_periods(
         &mut self,
         timestamp: Timestamp,
-        pr: PRWithRating,
+        pr: &PRWithRating,
         func: impl Fn(&mut VersionedUserPeriodData),
     ) {
         for period in TimePeriod::iter() {
@@ -420,45 +426,7 @@ impl Contract {
             func(entry);
         }
 
-        let streak_hits = self.calculate_streak(&pr.author);
-        self.calculate_streak_based_rewards(timestamp, pr, streak_hits);
-    }
-
-    pub fn calculate_streak_based_rewards(
-        &mut self,
-        timestamp: Timestamp,
-        mut pr: PRWithRating,
-        rewards: Vec<(StreakId, StreakReward)>,
-    ) {
-        let author = pr.author.to_owned();
-        let mut user = self.get_or_create_account(&author);
-
-        let old_rating = pr.rating();
-
-        for (id, reward) in rewards {
-            match reward {
-                StreakReward::FlatReward(r) => pr.streak_bonus_rating += r,
-                StreakReward::PermanentPercentageBonus(percentage) => {
-                    let result = user.add_streak_percent(id, percentage);
-                    if result {
-                        pr.percentage_multiplier = user.lifetime_percentage_bonus();
-                    }
-                }
-            }
-        }
-        let rating = pr.rating();
-
-        self.accounts
-            .insert(author.to_owned(), VersionedAccount::V1(user));
-        self.prs
-            .insert(pr.pr_id().to_owned(), VersionedPR::V1(pr.clone()));
-
-        if old_rating != rating {
-            self.apply_to_periods(timestamp, pr, |data| {
-                // Correct the rating after the streak bonus
-                data.pr_rating_bonus(old_rating, rating)
-            });
-        }
+        self.calculate_streak(&pr.author);
     }
 
     pub fn get_or_create_account(

@@ -6,7 +6,7 @@ FROM
             user_id,
             RANK() OVER (
                 ORDER BY
-                    total_score DESC
+                    total_rating DESC
             ) as rownum
         FROM
             user_period_data

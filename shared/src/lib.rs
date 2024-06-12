@@ -37,6 +37,15 @@ impl From<VersionedAccount> for AccountWithPermanentPercentageBonus {
     }
 }
 
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct FlatBonusStorage {
+    pub streak_id: StreakId,
+    pub reward: u32,
+    pub streak_min: u32,
+}
+
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
 )]
@@ -45,6 +54,7 @@ impl From<VersionedAccount> for AccountWithPermanentPercentageBonus {
 pub struct AccountWithPermanentPercentageBonus {
     pub account_id: Option<AccountId>,
     permanent_percentage_bonus: Vec<(StreakId, u32)>,
+    flat_bonus: Vec<FlatBonusStorage>,
 }
 
 impl AccountWithPermanentPercentageBonus {
@@ -64,12 +74,34 @@ impl AccountWithPermanentPercentageBonus {
         }
     }
 
+    pub fn add_flat_bonus(&mut self, streak_id: StreakId, reward: u32, streak_min: u32) {
+        self.flat_bonus.push(FlatBonusStorage {
+            streak_id,
+            reward,
+            streak_min,
+        });
+    }
+
     pub fn lifetime_percentage_bonus(&self) -> u32 {
         self.permanent_percentage_bonus
             .iter()
             .map(|(_, bonus)| *bonus)
             .reduce(Add::add)
             .unwrap_or_default()
+    }
+
+    // Use bonus reward if result >= streak_min and remove it from the list
+    pub fn use_flat_bonus(&mut self, streak_id: StreakId, result: u32) -> u32 {
+        if let Some((index, _)) = self
+            .flat_bonus
+            .iter()
+            .enumerate()
+            .find(|(_, bonus)| bonus.streak_id == streak_id && result >= bonus.streak_min)
+        {
+            self.flat_bonus.remove(index).reward
+        } else {
+            0
+        }
     }
 }
 
