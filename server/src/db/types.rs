@@ -65,7 +65,7 @@ pub struct RepoLeaderboardRecord {
     pub name: String,
     pub total_prs: i64,
     pub total_score: i64,
-    pub top_contributor: GithubHandle,
+    pub top_contributor: Option<GithubHandle>,
     pub stars: i32,
     pub open_issues: i32,
     pub primary_language: Option<String>,

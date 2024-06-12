@@ -53,7 +53,7 @@ pub struct RepoResponse {
     pub stars: u32,
     pub forks: u32,
     pub open_issues: u32,
-    pub contributor_of_the_month: String,
+    pub contributor_of_the_month: Option<String>,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
 }

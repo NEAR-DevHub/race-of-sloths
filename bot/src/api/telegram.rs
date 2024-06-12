@@ -17,24 +17,24 @@ async fn sender_task(
         let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
 
         let message = message
-            .replace("_", "\\_")
-            .replace("*", "\\*")
-            .replace("[", "\\[")
-            .replace("]", "\\]")
-            .replace("(", "\\(")
-            .replace(")", "\\)")
-            .replace("~", "\\~")
-            .replace("`", "\\`")
-            .replace(">", "\\>")
-            .replace("#", "\\#")
-            .replace("+", "\\+")
-            .replace("-", "\\-")
-            .replace("=", "\\=")
-            .replace("|", "\\|")
-            .replace("{", "\\{")
-            .replace("}", "\\}")
-            .replace(".", "\\.")
-            .replace("!", "\\!");
+            .replace('_', "\\_")
+            .replace('*', "\\*")
+            .replace('[', "\\[")
+            .replace(']', "\\]")
+            .replace('(', "\\(")
+            .replace(')', "\\)")
+            .replace('~', "\\~")
+            .replace('`', "\\`")
+            .replace('>', "\\>")
+            .replace('#', "\\#")
+            .replace('+', "\\+")
+            .replace('-', "\\-")
+            .replace('=', "\\=")
+            .replace('|', "\\|")
+            .replace('{', "\\{")
+            .replace('}', "\\}")
+            .replace('.', "\\.")
+            .replace('!', "\\!");
 
         let message = format!("*{}*: `{message}`", level.as_str());
         let params = [
