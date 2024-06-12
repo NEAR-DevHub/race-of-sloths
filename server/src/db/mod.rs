@@ -15,8 +15,8 @@ pub mod types;
 use types::LeaderboardRecord;
 
 use self::types::{
-    RepoLeaderboardRecord, RepoRecord, StreakRecord, UserContributionRecord, UserPeriodRecord,
-    UserRecord,
+    RepoLeaderboardRecord, RepoRecord, StreakRecord, UserCachedMetadata, UserContributionRecord,
+    UserPeriodRecord, UserRecord,
 };
 
 impl DB {
@@ -518,6 +518,64 @@ impl DB {
         .await?;
 
         Ok(rec.id)
+    }
+
+    pub async fn get_user_cached_metadata(
+        &self,
+        username: &str,
+    ) -> anyhow::Result<Option<UserCachedMetadata>> {
+        Ok(sqlx::query_as!(
+            UserCachedMetadata,
+            r#"
+                    SELECT full_name, image_base64, load_time
+                    FROM user_cached_metadata
+                    JOIN users u ON user_id = u.id
+                    WHERE u.name = $1
+                    "#,
+            username
+        )
+        .fetch_optional(&self.0)
+        .await?)
+    }
+
+    pub async fn upsert_user_cached_metadata(
+        &self,
+        username: &str,
+        full_name: &str,
+        image_base64: &str,
+    ) -> anyhow::Result<()> {
+        // First try to update the user
+        let rec = sqlx::query!(
+            r#"
+                UPDATE user_cached_metadata
+                SET full_name = $2, image_base64 = $3, load_time = now()
+                WHERE user_id = (SELECT id FROM users WHERE name = $1)
+                RETURNING user_id
+                "#,
+            username,
+            full_name,
+            image_base64
+        )
+        .fetch_optional(&self.0)
+        .await?;
+
+        // If the update did not find a matching row, insert the user
+        if rec.is_none() {
+            sqlx::query!(
+                r#"
+                INSERT INTO user_cached_metadata (user_id, full_name, image_base64, load_time)
+                VALUES ((SELECT id FROM users WHERE name = $1), $2, $3, now())
+                ON CONFLICT (user_id) DO NOTHING
+                "#,
+                username,
+                full_name,
+                image_base64
+            )
+            .execute(&self.0)
+            .await?;
+        }
+
+        Ok(())
     }
 }
 

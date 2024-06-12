@@ -14,12 +14,12 @@ rocket_db_pools = { workspace = true, features = ["sqlx_postgres"] }
 sqlx = { workspace = true, features = ["postgres", "macros", "chrono"] }
 serde.workspace = true
 base64.workspace = true
-reqwest.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 usvg = { workspace = true, features = ["text"] }
 rocket_prometheus.workspace = true
 utoipa = { workspace = true, features = ["rocket_extras", "chrono"] }
 utoipa-swagger-ui = { workspace = true, features = ["rocket"] }
 octocrab.workspace = true
+http-body-util.workspace = true
 
 shared = { workspace = true, features = ["client"] }

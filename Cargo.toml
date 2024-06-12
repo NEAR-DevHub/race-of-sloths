@@ -9,7 +9,7 @@ authors = [
     "NEAR DevHub <neardevhub.org>",
     "Artur-Yurii Korchynskyi <artur.yurii.korchynskyi@gmail.com>",
 ]
-license = ""
+license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1.0.82"
@@ -43,6 +43,7 @@ usvg = "0.42.0"
 rocket_prometheus = "0.10.0"
 utoipa = "4.2"
 utoipa-swagger-ui = "7.1"
+http-body-util = "0.1"
 
 [profile.release]
 codegen-units = 1

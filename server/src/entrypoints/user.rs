@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use base64::Engine;
+use http_body_util::BodyExt;
 use race_of_sloths_server::{
-    db::{types::UserRecord, DB},
+    db::{
+        types::{UserCachedMetadata, UserRecord},
+        DB,
+    },
+    github_pull::GithubClient,
     svg::generate_svg_badge,
 };
 use rocket::{
@@ -51,6 +56,39 @@ impl<'r> Responder<'r, 'static> for Badge {
     }
 }
 
+/// Fetches the user metadata lazily, either from the cache or from the web.
+async fn fetch_user_metadata_lazily(
+    db: &DB,
+    client: &State<Arc<GithubClient>>,
+    username: &str,
+) -> anyhow::Result<UserCachedMetadata> {
+    // Check if the metadata is already cached in the database
+    if let Some(cached_metadata) = db.get_user_cached_metadata(username).await? {
+        if chrono::Utc::now().naive_utc() - cached_metadata.load_time < chrono::Duration::days(1) {
+            return Ok(cached_metadata);
+        }
+    }
+
+    let user = client.get_user(username).await?;
+    let user_image_url = user.avatar_url;
+    let full_name = user.name;
+
+    let res = client.octocrab._get(user_image_url.as_str()).await?;
+
+    let image = res.into_body().collect().await?.to_bytes();
+
+    let image_base64 = base64::engine::general_purpose::STANDARD.encode(image);
+
+    db.upsert_user_cached_metadata(username, &full_name, &image_base64)
+        .await?;
+
+    Ok(UserCachedMetadata {
+        full_name,
+        image_base64,
+        load_time: chrono::Utc::now().naive_utc(),
+    })
+}
+
 #[utoipa::path(context_path = "/api/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
@@ -59,6 +97,7 @@ async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,
+    github_client: &State<Arc<GithubClient>>,
 ) -> Badge {
     let user = match db
         .get_user(username, &[TimePeriod::AllTime.time_string(0)])
@@ -75,23 +114,15 @@ async fn get_badge<'a>(
         }
     };
 
-    let request = match reqwest::get(format!("https://github.com/{}.png", user.name)).await {
-        Ok(value) => value.bytes().await,
+    let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
+        Ok(metadata) => metadata,
         Err(e) => {
-            rocket::error!("Failed to fetch image for {username}: {e}");
-            return Badge::with_status(Status::NotFound);
-        }
-    };
-
-    let image_base64 = match request {
-        Ok(value) => base64::engine::general_purpose::STANDARD.encode(value),
-        Err(e) => {
-            rocket::error!("Failed to fetch bytes from avatar of {username}: {e}");
+            rocket::error!("Failed to fetch user metadata: {e}");
             return Badge::with_status(Status::InternalServerError);
         }
     };
 
-    match generate_svg_badge(user, &image_base64, font.inner().clone()) {
+    match generate_svg_badge(user, metadata, font.inner().clone()) {
         Ok(value) => Badge::new(value),
         _ => {
             rocket::error!("Failed to generate badge for {username}");

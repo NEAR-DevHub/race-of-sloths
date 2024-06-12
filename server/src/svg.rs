@@ -3,11 +3,11 @@ use std::sync::Arc;
 use shared::TimePeriod;
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
-use crate::db::types::UserRecord;
+use crate::db::types::{UserCachedMetadata, UserRecord};
 
 pub fn generate_svg_badge(
     user_record: UserRecord,
-    image_base64: &str,
+    user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
 ) -> anyhow::Result<String> {
     let all_time = TimePeriod::AllTime.time_string(0);
@@ -35,7 +35,7 @@ pub fn generate_svg_badge(
         .unwrap_or_else(|| "N/A".to_string());
 
     let svg_icon = std::fs::read_to_string("./public/badge_template.svg")?;
-    let svg_icon = svg_icon.replace("{name}", &user_record.name);
+    let svg_icon = svg_icon.replace("{name}", &user_metadata.full_name);
     let svg_icon = svg_icon.replace(
         "{total-contributions}",
         &total_period.prs_opened.to_string(),
@@ -43,7 +43,7 @@ pub fn generate_svg_badge(
     let svg_icon = svg_icon.replace("{total-score}", &total_period.total_score.to_string());
     let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
-    let svg_icon = svg_icon.replace("{image}", image_base64);
+    let svg_icon = svg_icon.replace("{image}", &user_metadata.image_base64);
     let svg_icon = svg_icon.replace("{place}", &all_time_place);
 
     let tree = Tree::from_str(
