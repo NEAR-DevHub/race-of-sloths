@@ -15,6 +15,27 @@ async fn sender_task(
 ) {
     while let Some((message, level)) = reader.recv().await {
         let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
+
+        let message = message
+            .replace('_', "\\_")
+            .replace('*', "\\*")
+            .replace('[', "\\[")
+            .replace(']', "\\]")
+            .replace('(', "\\(")
+            .replace(')', "\\)")
+            .replace('~', "\\~")
+            .replace('`', "\\`")
+            .replace('>', "\\>")
+            .replace('#', "\\#")
+            .replace('+', "\\+")
+            .replace('-', "\\-")
+            .replace('=', "\\=")
+            .replace('|', "\\|")
+            .replace('{', "\\{")
+            .replace('}', "\\}")
+            .replace('.', "\\.")
+            .replace('!', "\\!");
+
         let message = format!("*{}*: `{message}`", level.as_str());
         let params = [
             ("chat_id", chat_id.as_str()),

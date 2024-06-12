@@ -53,7 +53,7 @@ pub struct RepoResponse {
     pub stars: u32,
     pub forks: u32,
     pub open_issues: u32,
-    pub contributor_of_the_month: String,
+    pub contributor_of_the_month: Option<String>,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
 }
@@ -88,8 +88,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
     fn from(record: LeaderboardRecord) -> Self {
         Self {
             user: GithubMeta::new(record.name),
-            // TODO: fix ratings
-            rating: 0,
+            rating: record.total_rating as u32,
             contributions: record.prs_opened as u32,
             streak: Streak::new(
                 record.streak_name,
@@ -159,17 +158,17 @@ pub struct UserProfile {
 
 impl From<UserRecord> for UserProfile {
     fn from(record: UserRecord) -> Self {
-        let contributions = record
+        let (contributions, rating) = record
             .period_data
             .iter()
             .find(|x| x.period_type == TimePeriod::AllTime.time_string(0))
-            .map(|x| x.prs_opened)
-            .unwrap_or(0) as u32;
+            .map(|x| (x.prs_opened, x.total_rating))
+            .unwrap_or_default();
         Self {
             user: GithubMeta::new(record.name),
             // TODO: fix ratings
-            rating: 0,
-            contributions,
+            rating: rating as u32,
+            contributions: contributions as u32,
             streaks: record
                 .streaks
                 .into_iter()
@@ -198,6 +197,9 @@ pub struct UserContributionResponse {
     pub organization: GithubMeta,
     pub status: String,
     pub score: Option<i32>,
+    pub total_rating: i32,
+    pub percentage_multiplier: i32,
+    pub streak_bonus_rating: i32,
     pub created_at: NaiveDateTime,
     pub merged_at: Option<NaiveDateTime>,
 }
@@ -227,6 +229,9 @@ impl From<UserContributionRecord> for UserContributionResponse {
             score: record.score,
             created_at: record.created_at,
             merged_at: record.merged_at,
+            total_rating: record.rating,
+            percentage_multiplier: record.percentage_multiplier,
+            streak_bonus_rating: record.streak_bonus_rating,
         }
     }
 }

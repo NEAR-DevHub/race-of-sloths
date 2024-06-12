@@ -94,6 +94,7 @@ fn success_flow() {
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
     assert_eq!(user.period_data[0].1.total_score, 10);
+    assert_eq!(user.period_data[0].1.total_rating, 110);
     assert_eq!(user.period_data[0].1.executed_prs, 1);
     assert_eq!(user.period_data[0].1.prs_opened, 1);
     assert_eq!(user.period_data[0].1.prs_merged, 1);
@@ -149,6 +150,16 @@ fn streak_in_a_nutshell() {
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
     assert_eq!(user.streaks[0].1.amount, 1);
+    assert_eq!(user.period_data[0].1.total_rating, 0);
+
+    contract.context.block_timestamp = 1000000000000000000;
+    testing_env!(contract.context.clone());
+    contract.finalize(0);
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
+    assert_eq!(user.period_data[0].1.total_rating, 10);
 }
 
 #[test]
@@ -162,6 +173,7 @@ fn user_had_a_streak_then_lost_then_again_get_it() {
         .unwrap();
 
     assert_eq!(user.streaks[0].1.amount, 1);
+    assert_eq!(user.period_data[0].1.total_rating, 0);
 
     contract.exclude(0);
 
@@ -172,6 +184,7 @@ fn user_had_a_streak_then_lost_then_again_get_it() {
 
     assert_eq!(user.streaks[0].1.amount, 0);
     assert_eq!(user.streaks[0].1.best, 1);
+    assert_eq!(user.period_data[0].1.total_rating, 0);
 
     contract.include_sloth_common_repo(0, 1, 0);
 

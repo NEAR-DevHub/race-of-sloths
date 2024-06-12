@@ -8,6 +8,7 @@ SELECT
     prs_merged,
     best as streak_best,
     amount as streak_amount,
+    user_period_data.total_rating as total_rating,
     period as streak_type,
     streak.name as streak_name,
     latest_time_string as streak_latest_time_string
@@ -20,6 +21,6 @@ WHERE
     period_type = $1
     and streak_user_data.streak_id = $2
 ORDER BY
-    total_score DESC
+    total_rating DESC
 LIMIT
     $3 OFFSET $4

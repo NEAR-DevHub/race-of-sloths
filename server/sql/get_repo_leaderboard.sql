@@ -40,7 +40,7 @@ GROUP BY
     r.stars,
     r.forks
 ORDER BY
-    total_score DESC,
-    total_prs DESC
+    total_prs DESC,
+    total_score DESC
 LIMIT
     $1 OFFSET $2;

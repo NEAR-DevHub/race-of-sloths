@@ -44,24 +44,24 @@ impl PRInfo {
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum VersionedPR {
-    V1(PR),
+    V1(PRWithRating),
 }
 
 impl VersionedPR {
     pub fn is_merged(&self) -> bool {
-        match self {
-            VersionedPR::V1(pr) => pr.merged_at.is_some(),
-        }
+        let data: PRWithRating = self.clone().into();
+
+        data.merged_at.is_some()
     }
 
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
-        match self {
-            VersionedPR::V1(pr) => pr.is_ready_to_move(timestamp),
-        }
+        let data: PRWithRating = self.clone().into();
+
+        data.is_ready_to_move(timestamp)
     }
 }
 
-impl From<VersionedPR> for PR {
+impl From<VersionedPR> for PRWithRating {
     fn from(message: VersionedPR) -> Self {
         match message {
             VersionedPR::V1(x) => x,
@@ -84,7 +84,24 @@ pub struct PR {
     pub merged_at: Option<Timestamp>,
 }
 
-impl PR {
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct PRWithRating {
+    pub organization: String,
+    pub repo: String,
+    pub number: u64,
+    pub author: GithubHandle,
+    pub score: Vec<Score>,
+    pub created_at: Timestamp,
+    pub merged_at: Option<Timestamp>,
+    pub streak_bonus_rating: u32,
+    pub percentage_multiplier: u32,
+}
+
+impl PRWithRating {
     pub fn new(
         organization: String,
         repo: String,
@@ -101,6 +118,8 @@ impl PR {
 
             score: vec![],
             merged_at: None,
+            streak_bonus_rating: 0,
+            percentage_multiplier: 0,
         }
     }
 
@@ -123,6 +142,12 @@ impl PR {
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
         self.merged_at.is_some()
             && (timestamp - self.merged_at.unwrap()) > SCORE_TIMEOUT_IN_NANOSECONDS
+    }
+
+    pub fn rating(&self) -> u32 {
+        ((self.score().unwrap_or_default() * 10 + self.streak_bonus_rating)
+            * (self.percentage_multiplier + 100))
+            / 100
     }
 
     pub fn score(&self) -> Option<u32> {

@@ -33,8 +33,8 @@ strum = { version = "0.26", no-default-features = true }
 tracing-subscriber = "0.3"
 prometheus-client = "0.22.2"
 
-rocket = "0.5"
-rocket_db_pools = "0.2"
+rocket = "0.5.1"
+rocket_db_pools = "0.1"
 sqlx = "0.7"
 shared = { path = "shared" }
 reqwest = "0.12"

@@ -20,56 +20,110 @@ use self::types::{
 };
 
 impl DB {
-    pub async fn upsert_user(&self, user: &str) -> anyhow::Result<i32> {
+    pub async fn upsert_user(&self, user: &str, percent: u32) -> anyhow::Result<i32> {
+        // First try to update the user
         let rec = sqlx::query!(
             r#"
-        INSERT INTO users (name)
-        VALUES ($1)
-        ON CONFLICT (name) DO UPDATE
-        SET name = EXCLUDED.name
-        RETURNING id
-        "#,
-            user
+            UPDATE users
+            SET permanent_bonus = $2
+            WHERE name = $1
+            RETURNING id
+            "#,
+            user,
+            percent as i32
         )
-        .fetch_one(&self.0)
+        .fetch_optional(&self.0)
         .await?;
 
-        Ok(rec.id)
+        // If the update did not find a matching row, insert the user
+        if let Some(record) = rec {
+            Ok(record.id)
+        } else {
+            let rec = sqlx::query!(
+                r#"
+                INSERT INTO users (name, permanent_bonus)
+                VALUES ($1, $2)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+                "#,
+                user,
+                percent as i32
+            )
+            .fetch_one(&self.0)
+            .await?;
+
+            Ok(rec.id)
+        }
     }
 
     pub async fn upsert_organization(&self, name: &str) -> anyhow::Result<i32> {
+        // First try to update the organization
         let rec = sqlx::query!(
             r#"
-        INSERT INTO organizations (name)
-        VALUES ($1)
-        ON CONFLICT (name) DO UPDATE
-        SET name = EXCLUDED.name
-        RETURNING id
-        "#,
+            UPDATE organizations
+            SET name = $1
+            WHERE name = $1
+            RETURNING id
+            "#,
             name
         )
-        .fetch_one(&self.0)
+        .fetch_optional(&self.0)
         .await?;
 
-        Ok(rec.id)
+        // If the update did not find a matching row, insert the organization
+        if let Some(record) = rec {
+            Ok(record.id)
+        } else {
+            let rec = sqlx::query!(
+                r#"
+                INSERT INTO organizations (name)
+                VALUES ($1)
+                ON CONFLICT (name) DO NOTHING
+                RETURNING id
+                "#,
+                name
+            )
+            .fetch_one(&self.0)
+            .await?;
+
+            Ok(rec.id)
+        }
     }
 
     pub async fn upsert_repo(&self, organization_id: i32, name: &str) -> anyhow::Result<i32> {
+        // First try to update the repo
         let rec = sqlx::query!(
             r#"
-        INSERT INTO repos (organization_id, name)
-        VALUES ($1, $2)
-        ON CONFLICT (organization_id, name) DO UPDATE
-        SET name = EXCLUDED.name
-        RETURNING id
-        "#,
+            UPDATE repos
+            SET name = $2
+            WHERE organization_id = $1 AND name = $2
+            RETURNING id
+            "#,
             organization_id,
             name
         )
-        .fetch_one(&self.0)
+        .fetch_optional(&self.0)
         .await?;
 
-        Ok(rec.id)
+        // If the update did not find a matching row, insert the repo
+        if let Some(record) = rec {
+            Ok(record.id)
+        } else {
+            let rec = sqlx::query!(
+                r#"
+                INSERT INTO repos (organization_id, name)
+                VALUES ($1, $2)
+                ON CONFLICT (organization_id, name) DO NOTHING
+                RETURNING id
+                "#,
+                organization_id,
+                name
+            )
+            .fetch_one(&self.0)
+            .await?;
+
+            Ok(rec.id)
+        }
     }
 
     pub async fn upsert_pull_request(
@@ -80,30 +134,58 @@ impl DB {
         created_at: chrono::NaiveDateTime,
         merged_at: Option<chrono::NaiveDateTime>,
         score: Option<u32>,
+        rating: u32,
+        permanent_bonus: u32,
+        streak_bonus: u32,
         executed: bool,
     ) -> anyhow::Result<i32> {
+        // First try to update the pull request
         let rec = sqlx::query!(
             r#"
-        INSERT INTO pull_requests (repo_id, number, author_id, created_at, merged_at, executed, score)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (repo_id, number) DO UPDATE
-        SET 
-            merged_at = EXCLUDED.merged_at,
-            executed = EXCLUDED.executed
-        RETURNING id
-        "#,
+            UPDATE pull_requests
+            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8
+            WHERE repo_id = $1 AND number = $2
+            RETURNING id
+            "#,
             repo_id,
             number,
-            author_id,
-            Some(created_at),
             merged_at,
             executed,
             score.map(|s| s as i32),
+            rating as i32,
+            permanent_bonus as i32,
+            streak_bonus as i32,
         )
-        .fetch_one(&self.0)
+        .fetch_optional(&self.0)
         .await?;
 
-        Ok(rec.id)
+        // If the update did not find a matching row, insert the pull request
+        if let Some(record) = rec {
+            Ok(record.id)
+        } else {
+            let rec = sqlx::query!(
+                r#"
+                INSERT INTO pull_requests (repo_id, number, author_id, created_at, merged_at, executed, score, rating, permanent_bonus, streak_bonus)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (repo_id, number) DO NOTHING
+                RETURNING id
+                "#,
+                repo_id,
+                number,
+                author_id,
+                Some(created_at),
+                merged_at,
+                executed,
+                score.map(|s| s as i32),
+                rating as i32,
+                permanent_bonus as i32,
+                streak_bonus as i32,
+            )
+            .fetch_one(&self.0)
+            .await?;
+
+            Ok(rec.id)
+        }
     }
 
     pub async fn upsert_user_period_data(
@@ -112,21 +194,48 @@ impl DB {
         data: &UserPeriodData,
         user_id: i32,
     ) -> anyhow::Result<()> {
-        sqlx::query!(
-        r#"
-        INSERT INTO user_period_data (user_id, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (user_id, period_type) DO UPDATE
-        SET total_score = EXCLUDED.total_score,
-            executed_prs = EXCLUDED.executed_prs,
-            largest_score = EXCLUDED.largest_score,
-            prs_opened = EXCLUDED.prs_opened,
-            prs_merged = EXCLUDED.prs_merged
-        "#,
-        user_id, period, data.total_score as i32, data.executed_prs as i32, data.largest_score as i32, data.prs_opened as i32, data.prs_merged as i32
-    )
-    .execute(&self.0)
-    .await?;
+        // First try to update the user period data
+        let rec = sqlx::query!(
+            r#"
+            UPDATE user_period_data
+            SET total_score = $3, executed_prs = $4, largest_score = $5, prs_opened = $6, prs_merged = $7, total_rating = $8, largest_rating_per_pr = $9
+            WHERE user_id = $1 AND period_type = $2
+            RETURNING user_id
+            "#,
+            user_id,
+            period,
+            data.total_score as i32,
+            data.executed_prs as i32,
+            data.largest_score as i32,
+            data.prs_opened as i32,
+            data.prs_merged as i32,
+            data.total_rating as i32,
+            data.largest_rating_per_pr as i32
+        )
+        .fetch_optional(&self.0)
+        .await?;
+
+        // If the update did not find a matching row, insert the user period data
+        if rec.is_none() {
+            sqlx::query!(
+                r#"
+                INSERT INTO user_period_data (user_id, period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged, total_rating, largest_rating_per_pr)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (user_id, period_type) DO NOTHING
+                "#,
+                user_id,
+                period,
+                data.total_score as i32,
+                data.executed_prs as i32,
+                data.largest_score as i32,
+                data.prs_opened as i32,
+                data.prs_merged as i32,
+                data.total_rating as i32,
+                data.largest_rating_per_pr as i32
+            )
+            .execute(&self.0)
+            .await?;
+        }
         Ok(())
     }
 
@@ -136,23 +245,40 @@ impl DB {
         streak_id: i32,
         user_id: i32,
     ) -> anyhow::Result<()> {
-        sqlx::query!(
+        // First try to update the streak user data
+        let rec = sqlx::query!(
             r#"
-        INSERT INTO streak_user_data (user_id, streak_id, amount, best, latest_time_string)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id, streak_id) DO UPDATE
-        SET amount = EXCLUDED.amount,
-            best = EXCLUDED.best,
-            latest_time_string = EXCLUDED.latest_time_string
-        "#,
+            UPDATE streak_user_data
+            SET amount = $3, best = $4, latest_time_string = $5
+            WHERE user_id = $1 AND streak_id = $2
+            RETURNING user_id
+            "#,
             user_id,
             streak_id,
             data.amount as i32,
             data.best as i32,
             data.latest_time_string
         )
-        .execute(&self.0)
+        .fetch_optional(&self.0)
         .await?;
+
+        // If the update did not find a matching row, insert the streak user data
+        if rec.is_none() {
+            sqlx::query!(
+                r#"
+                INSERT INTO streak_user_data (user_id, streak_id, amount, best, latest_time_string)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (user_id, streak_id) DO NOTHING
+                "#,
+                user_id,
+                streak_id,
+                data.amount as i32,
+                data.best as i32,
+                data.latest_time_string
+            )
+            .execute(&self.0)
+            .await?;
+        }
         Ok(())
     }
 
@@ -185,18 +311,21 @@ impl DB {
         name: &str,
         place_strings: &[String],
     ) -> anyhow::Result<Option<UserRecord>> {
-        let user_rec: i32 = match sqlx::query!("SELECT id, name FROM users WHERE name = $1", name)
-            .fetch_optional(&self.0)
-            .await?
+        let (user_rec, percent) = match sqlx::query!(
+            "SELECT id, permanent_bonus FROM users WHERE name = $1",
+            name
+        )
+        .fetch_optional(&self.0)
+        .await?
         {
-            Some(rec) => rec.id,
+            Some(rec) => (rec.id, rec.permanent_bonus),
             None => return Ok(None),
         };
 
         let period_data_recs: Vec<UserPeriodRecord> = sqlx::query_as!(
             UserPeriodRecord,
             r#"
-                SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged
+                SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged, total_rating
                 FROM user_period_data 
                 WHERE user_id = $1
                 "#,
@@ -218,6 +347,7 @@ impl DB {
 
         let user = UserRecord {
             name: name.to_string(),
+            lifetime_percent: percent,
             period_data: period_data_recs,
             streaks: streak_recs,
             leaderboard_places,
@@ -366,6 +496,28 @@ impl DB {
             .await?;
 
         Ok(rec)
+    }
+
+    pub async fn clear_prs(&self) -> anyhow::Result<()> {
+        sqlx::query!("DELETE FROM pull_requests")
+            .execute(&self.0)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_user_id(&self, name: &str) -> anyhow::Result<i32> {
+        let rec = sqlx::query!(
+            r#"
+            SELECT id
+            FROM users
+            WHERE name = $1
+            "#,
+            name
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok(rec.id)
     }
 }
 

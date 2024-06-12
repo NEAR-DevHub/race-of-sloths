@@ -1,4 +1,4 @@
-use crate::PR;
+use crate::PRWithRating;
 use octocrab::models::AuthorAssociation;
 
 #[derive(Debug, Clone)]
@@ -46,8 +46,8 @@ pub struct PrMetadata {
     pub closed: bool,
 }
 
-impl From<PR> for PrMetadata {
-    fn from(pr: PR) -> Self {
+impl From<PRWithRating> for PrMetadata {
+    fn from(pr: PRWithRating) -> Self {
         let full_id = format!("{}/{}/{}", pr.organization, pr.repo, pr.number);
         Self {
             owner: pr.organization,
