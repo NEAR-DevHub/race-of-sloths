@@ -16,7 +16,7 @@ anyhow = "1.0.82"
 chrono = { version = "0.4", default-features = false }
 envy = "0.4.2"
 hex = "0.4.3"
-octocrab = "0.38.0"
+octocrab = { git = "https://github.com/XAMPPRocky/octocrab", rev = "f10ab52f7142410c456277a83eae7f1e77f3ba76" }
 dotenv = "0.15"
 serde = "1.0.199"
 tokio = "1.37.0"
@@ -53,6 +53,3 @@ lto = true
 debug = false
 panic = "abort"
 overflow-checks = true
-
-[patch.crates-io]
-octocrab = { git = "https://github.com/akorchyn/octocrab" }
