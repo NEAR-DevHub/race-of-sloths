@@ -3,10 +3,7 @@ use std::sync::Arc;
 use base64::Engine;
 use http_body_util::BodyExt;
 use race_of_sloths_server::{
-    db::{
-        types::{UserCachedMetadata, UserRecord},
-        DB,
-    },
+    db::{types::UserCachedMetadata, DB},
     github_pull::GithubClient,
     svg::generate_svg_badge,
 };
@@ -71,7 +68,7 @@ async fn fetch_user_metadata_lazily(
 
     let user = client.get_user(username).await?;
     let user_image_url = user.avatar_url;
-    let full_name = user.name;
+    let full_name = user.name.unwrap_or_else(|| format!("@{}", username));
 
     let res = client.octocrab._get(user_image_url.as_str()).await?;
 
@@ -105,8 +102,8 @@ async fn get_badge<'a>(
     {
         Ok(Some(value)) => value,
         Ok(None) => {
-            rocket::info!("User {username} not found, fallback to default");
-            UserRecord::newcommer(username.to_string())
+            rocket::info!("User {username} not found, returning 404");
+            return Badge::with_status(Status::NotFound);
         }
         Err(e) => {
             rocket::error!("Failed to get user {username}: {e}");

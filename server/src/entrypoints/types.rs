@@ -166,7 +166,6 @@ impl From<UserRecord> for UserProfile {
             .unwrap_or_default();
         Self {
             user: GithubMeta::new(record.name),
-            // TODO: fix ratings
             rating: rating as u32,
             contributions: contributions as u32,
             streaks: record
