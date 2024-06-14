@@ -35,6 +35,7 @@ prometheus-client = "0.22.2"
 
 rocket = "0.5.1"
 rocket_db_pools = "0.1"
+rocket_cors = '0.6'
 sqlx = "0.7"
 shared = { path = "shared" }
 reqwest = "0.12"

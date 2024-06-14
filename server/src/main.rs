@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use entrypoints::ApiDoc;
+use rocket_cors::AllowedOrigins;
 use shared::near::NearClient;
 
 use race_of_sloths_server::{contract_pull, db, github_pull};
@@ -36,9 +37,19 @@ async fn rocket() -> _ {
     let near_client = NearClient::new(env.contract.clone(), env.secret_key.clone(), env.is_mainnet)
         .await
         .expect("Failed to create Near client");
+
+    let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:3000"]);
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        ..Default::default()
+    }
+    .to_cors()
+    .expect("Failed to create cors config");
+
     // TODO: after 0.6.0 release, we should use tracing for redirecting warns and errors to the telegram
 
     rocket::build()
+        .attach(cors)
         .attach(db::stage())
         .attach(contract_pull::stage(
             near_client,
