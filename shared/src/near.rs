@@ -35,7 +35,7 @@ impl NearClient {
         result
             .logs()
             .into_iter()
-            .flat_map(|l| serde_json::from_str::<Event>(&l).ok())
+            .flat_map(|l| serde_json::from_str::<Event>(l).ok())
             .collect()
     }
 
