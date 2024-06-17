@@ -20,7 +20,12 @@ impl PullRequestFinalize {
             return Ok(false);
         }
 
-        context.near.send_finalize(&pr.full_id).await?;
+        let events = context.near.send_finalize(&pr.full_id).await?;
+
+        for event in events {
+            // TODO: Handle streak update
+            tracing::info!("Event: {:?}", event);
+        }
 
         if info.allowed_repo {
             context

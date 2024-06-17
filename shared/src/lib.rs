@@ -6,6 +6,7 @@ use near_sdk::{
     AccountId, NearSchema,
 };
 
+mod event;
 mod pr;
 mod streak;
 mod timeperiod;
@@ -16,6 +17,7 @@ pub mod github;
 #[cfg(feature = "client")]
 pub mod near;
 
+pub use event::*;
 pub use pr::*;
 pub use streak::*;
 pub use timeperiod::*;

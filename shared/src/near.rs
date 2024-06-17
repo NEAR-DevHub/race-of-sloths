@@ -1,7 +1,11 @@
 use std::str::FromStr;
 
 use anyhow::bail;
-use near_workspaces::{types::SecretKey, Contract};
+use near_workspaces::{
+    result::{ExecutionResult, Value},
+    types::SecretKey,
+    Contract,
+};
 use serde_json::json;
 use tracing::instrument;
 
@@ -27,8 +31,20 @@ impl NearClient {
         Ok(Self { contract })
     }
 
+    fn get_events(&self, result: ExecutionResult<Value>) -> Vec<Event> {
+        result
+            .logs()
+            .into_iter()
+            .flat_map(|l| serde_json::from_str::<Event>(&l).ok())
+            .collect()
+    }
+
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_start(&self, pr: &PrMetadata, is_maintainer: bool) -> anyhow::Result<()> {
+    pub async fn send_start(
+        &self,
+        pr: &PrMetadata,
+        is_maintainer: bool,
+    ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
             "organization": pr.owner,
             "repo": pr.repo,
@@ -38,7 +54,8 @@ impl NearClient {
             "override_exclude": is_maintainer,
         });
 
-        self.contract
+        let result = self
+            .contract
             .call("sloth_include")
             .args_json(args)
             .transact_async()
@@ -46,18 +63,25 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self), fields(pr = pr.full_id, user, score))]
-    pub async fn send_scored(&self, pr: &PrMetadata, user: &str, score: u64) -> anyhow::Result<()> {
+    pub async fn send_scored(
+        &self,
+        pr: &PrMetadata,
+        user: &str,
+        score: u64,
+    ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
             "pr_id": pr.full_id,
             "user": user,
             "score": score,
         });
 
-        self.contract
+        let result = self
+            .contract
             .call("sloth_scored")
             .args_json(args)
             .transact_async()
@@ -65,11 +89,11 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_merge(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+    pub async fn send_merge(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         if pr.merged.is_none() {
             bail!("PR is not merged")
         }
@@ -79,7 +103,8 @@ impl NearClient {
             "merged_at": pr.merged.unwrap().timestamp_nanos_opt().unwrap_or(0),
         });
 
-        self.contract
+        let result = self
+            .contract
             .call("sloth_merged")
             .args_json(args)
             .transact_async()
@@ -87,12 +112,13 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self))]
-    pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
-        self.contract
+    pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
+        let result = self
+            .contract
             .call("exclude_repo")
             .args_json(json!({
                 "organization": organization,
@@ -102,12 +128,13 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self))]
-    pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<()> {
-        self.contract
+    pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
+        let result = self
+            .contract
             .call("include_repo")
             .args_json(json!({
                 "organization": organization,
@@ -117,7 +144,7 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self))]
@@ -216,12 +243,13 @@ impl NearClient {
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_stale(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+    pub async fn send_stale(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         let args = json!({
             "pr_id": pr.full_id,
         });
 
-        self.contract
+        let result = self
+            .contract
             .call("sloth_stale")
             .args_json(args)
             .transact_async()
@@ -229,16 +257,17 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
-    pub async fn send_exclude(&self, pr: &PrMetadata) -> anyhow::Result<()> {
+    pub async fn send_exclude(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         let args = json!({
             "pr_id": pr.full_id,
         });
 
-        self.contract
+        let result = self
+            .contract
             .call("sloth_exclude")
             .args_json(args)
             .transact_async()
@@ -246,12 +275,13 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self))]
-    pub async fn send_finalize(&self, pr_id: &str) -> anyhow::Result<()> {
-        self.contract
+    pub async fn send_finalize(&self, pr_id: &str) -> anyhow::Result<Vec<Event>> {
+        let result = self
+            .contract
             .call("sloth_finalize")
             .args_json(json!({
                 "pr_id": pr_id,
@@ -261,7 +291,7 @@ impl NearClient {
             .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
             .await?
             .into_result()?;
-        Ok(())
+        Ok(self.get_events(result))
     }
 
     #[instrument(skip(self))]
