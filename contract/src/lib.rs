@@ -8,13 +8,14 @@ use near_sdk::{
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
-    AccountWithPermanentPercentageBonus, GithubHandle, IntoEnumIterator, PRId, PRWithRating,
+    AccountWithPermanentPercentageBonus, Event, GithubHandle, IntoEnumIterator, PRId, PRWithRating,
     Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod, TimePeriodString,
     VersionedAccount, VersionedPR, VersionedStreak, VersionedStreakUserData,
     VersionedUserPeriodData,
 };
 use types::{Organization, VersionedOrganization};
 
+pub mod events;
 pub mod migrate;
 pub mod storage;
 #[cfg(test)]
@@ -381,6 +382,12 @@ impl Contract {
 
             if streak_data.amount > current_streak {
                 self.reward_streak(user, &streak, streak_data.amount);
+                events::log_event(Event::StreakIncreased {
+                    streak_id: streak.id,
+                    new_streak: streak_data.amount,
+                    largest_streak: streak_data.best,
+                    name: streak.name.clone(),
+                });
             }
 
             self.user_streaks
