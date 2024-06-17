@@ -126,3 +126,51 @@ impl BotScored {
         Command::Score(BotScored::new(input, comment.created_at, comment.id.0))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::commands::BotScored;
+
+    #[test]
+    pub fn score_parsing() {
+        assert_eq!(
+            (5, false),
+            BotScored::new("5".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (5, false),
+            BotScored::new("5 ".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (5, false),
+            BotScored::new("5 asdasdas".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, true),
+            BotScored::new("as".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, false),
+            BotScored::new("0".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (8, true),
+            BotScored::new("9".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (8, true),
+            BotScored::new("7".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, true),
+            BotScored::new("".to_string(), chrono::Utc::now(), 1).score()
+        );
+    }
+}
