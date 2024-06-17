@@ -62,7 +62,7 @@ pub fn extract_command_with_args(bot_name: &str, comment: &Comment) -> Option<(S
         .or(comment.body_text.as_ref())?
         .to_lowercase();
 
-    let bot_name = format!("@{} ", bot_name);
+    let bot_name = format!("@{}", bot_name);
     let position = body.find(&bot_name)?;
 
     let commands = body[position + bot_name.len()..]
