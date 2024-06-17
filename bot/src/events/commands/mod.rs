@@ -146,3 +146,153 @@ impl Command {
         }
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use octocrab::models::issues::Comment;
+    use shared::github::{PrMetadata, User};
+
+    use super::Command;
+
+    fn generate_comment(text: &str) -> Comment {
+        let string = format!(
+            r#"
+            {{
+            "id": 222,
+            "node_id": "111",
+            "url": "https://example.com/comment",
+            "html_url": "https://example.com/comment/html",
+            "issue_url": "https://example.com/issue",
+            "body": "{text}",
+            "author_association": "CONTRIBUTOR",
+            "user": {{
+              "login": "username",
+              "id": 333,
+              "node_id": "111",
+              "avatar_url": "https://example.com/avatar",
+              "gravatar_id": "",
+              "url": "https://example.com/user",
+              "html_url": "https://example.com/user/html",
+              "followers_url": "https://example.com/user/followers",
+              "following_url": "https://example.com/user/following",
+              "gists_url": "https://example.com/user/gists",
+              "starred_url": "https://example.com/user/starred",
+              "subscriptions_url": "https://example.com/user/subscriptions",
+              "organizations_url": "https://example.com/user/orgs",
+              "repos_url": "https://example.com/user/repos",
+              "events_url": "https://example.com/user/events",
+              "received_events_url": "https://example.com/user/received_events",
+              "type": "User",
+              "site_admin": false
+            }},
+            "created_at": "2023-01-01T00:00:00Z",
+            "updated_at": "2023-01-02T00:00:00Z"
+          }}
+          "#
+        );
+
+        serde_json::from_str(&string).unwrap()
+    }
+
+    fn generate_command_comment(command: &str) -> Comment {
+        generate_comment(&format!("@{NAME} {command}"))
+    }
+
+    const NAME: &str = "@name";
+
+    fn default_pr_metadata() -> PrMetadata {
+        PrMetadata {
+            owner: "a".to_string(),
+            repo: "b".to_string(),
+            number: 1,
+            author: User::new(
+                "a-u".to_string(),
+                octocrab::models::AuthorAssociation::Contributor,
+            ),
+            started: chrono::Utc::now(),
+            merged: None,
+            updated_at: chrono::Utc::now(),
+            full_id: "a/b/1".to_string(),
+            body: "abc".to_string(),
+            closed: false,
+        }
+    }
+
+    #[test]
+    pub fn correct_include() {
+        let aliases = vec!["include", "in", "start", "join"];
+        for alias in aliases {
+            let include_comment = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &include_comment).unwrap();
+
+            assert!(matches!(command, Command::Include(_)))
+        }
+    }
+
+    #[test]
+    pub fn correct_score() {
+        let aliases = vec!["score", "rate", "value", "score 12"];
+        for alias in aliases {
+            let score_comment = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &score_comment).unwrap();
+
+            assert!(matches!(command, Command::Score(_)))
+        }
+    }
+
+    #[test]
+    pub fn correct_pause() {
+        let aliases = vec!["pause", "block"];
+        for alias in aliases {
+            let pause_comment = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &pause_comment).unwrap();
+
+            assert!(matches!(command, Command::Pause(_)))
+        }
+    }
+
+    #[test]
+    pub fn correct_unpause() {
+        let aliases = vec!["unpause", "unblock"];
+        for alias in aliases {
+            let unpause_comment = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &unpause_comment).unwrap();
+
+            assert!(matches!(command, Command::Unpause(_)))
+        }
+    }
+
+    #[test]
+    pub fn correct_exclude() {
+        let aliases = vec!["exclude", "leave"];
+        for alias in aliases {
+            let exclude_comment = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &exclude_comment).unwrap();
+
+            assert!(matches!(command, Command::Excluded(_)))
+        }
+    }
+
+    #[test]
+    pub fn correct_unknown() {
+        let aliases = vec!["", "asdasdasdas", "hello workld"];
+        for alias in aliases {
+            let unknown_command = generate_command_comment(alias);
+            let command =
+                Command::parse_command(NAME, &default_pr_metadata(), &unknown_command).unwrap();
+
+            assert!(matches!(command, Command::Unknown(_)))
+        }
+
+        let unknown_command = generate_comment(&format!("@{NAME}"));
+        let command =
+            Command::parse_command(NAME, &default_pr_metadata(), &unknown_command).unwrap();
+
+        assert!(matches!(command, Command::Unknown(_)))
+    }
+}

@@ -23,16 +23,20 @@ impl BotScored {
     }
 
     pub fn score(&self) -> (u8, bool) {
-        let score = self.score.parse::<u8>().ok();
+        let score: Option<u32> = self
+            .score
+            .split_whitespace()
+            .next()
+            .and_then(|s| s.parse::<u32>().ok());
 
         match score {
             None => (0, true),
             Some(score) => match score {
-                0 | 1 | 2 | 3 | 5 | 8 | 13 => (score, false),
+                0 | 1 | 2 | 3 | 5 | 8 | 13 => (score as u8, false),
                 // edit to nearest valid score
                 number => {
-                    let mut valid_scores: Vec<i32> = vec![0, 1, 2, 3, 5, 8, 13];
-                    valid_scores.sort_by_key(|&x| (x - number as i32).abs());
+                    let mut valid_scores: Vec<i64> = vec![0, 1, 2, 3, 5, 8, 13];
+                    valid_scores.sort_by_key(|&x| (x - number as i64).abs());
                     (valid_scores[0] as u8, true)
                 }
             },
@@ -120,5 +124,53 @@ impl BotScored {
 
     pub fn construct(comment: &Comment, input: String) -> Command {
         Command::Score(BotScored::new(input, comment.created_at, comment.id.0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::commands::BotScored;
+
+    #[test]
+    pub fn score_parsing() {
+        assert_eq!(
+            (5, false),
+            BotScored::new("5".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (5, false),
+            BotScored::new("5 ".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (5, false),
+            BotScored::new("5 asdasdas".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, true),
+            BotScored::new("as".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, false),
+            BotScored::new("0".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (8, true),
+            BotScored::new("9".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (8, true),
+            BotScored::new("7".to_string(), chrono::Utc::now(), 1).score()
+        );
+
+        assert_eq!(
+            (0, true),
+            BotScored::new("".to_string(), chrono::Utc::now(), 1).score()
+        );
     }
 }

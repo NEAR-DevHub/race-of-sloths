@@ -29,12 +29,14 @@ jobs:
         - name: fmt
           run: cargo fmt --all -- --check
           if: steps.git-diff.outputs.diff
-        - name: install cargo-near
+        - name: install system deps
           if: steps.git-diff.outputs.diff
           run:
               sudo apt update -y &&
-              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev &&
-              cargo install cargo-near
+              sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev
+        - uses: taiki-e/install-action@v2
+          with:
+            tool: cargo-near
         - name: clippy 
           if: steps.git-diff.outputs.diff
           run: |
