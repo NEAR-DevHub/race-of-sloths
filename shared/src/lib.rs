@@ -100,7 +100,7 @@ impl AccountWithPermanentPercentageBonus {
             .enumerate()
             .find(|(_, bonus)| bonus.streak_id == streak_id && result >= bonus.streak_min)
         {
-            self.flat_bonus.remove(index).reward
+            self.flat_bonus.swap_remove(index).reward
         } else {
             0
         }

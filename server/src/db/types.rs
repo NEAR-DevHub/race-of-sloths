@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use shared::{GithubHandle, TimePeriodString};
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct LeaderboardRecord {
-    pub name: String,
+    pub login: String,
+    pub full_name: Option<String>,
     pub total_score: i32,
     pub total_rating: i32,
     pub period_type: TimePeriodString,
@@ -39,8 +40,15 @@ pub struct StreakRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub login: String,
+    pub full_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRecord {
-    pub name: String,
+    pub login: String,
+    pub name: Option<String>,
     pub lifetime_percent: i32,
     pub period_data: Vec<UserPeriodRecord>,
     pub streaks: Vec<StreakRecord>,
@@ -48,9 +56,10 @@ pub struct UserRecord {
 }
 
 impl UserRecord {
-    pub fn newcommer(name: String) -> Self {
+    pub fn newcommer(login: String) -> Self {
         Self {
-            name,
+            login,
+            name: None,
             period_data: vec![],
             streaks: vec![],
             leaderboard_places: vec![],
@@ -62,10 +71,12 @@ impl UserRecord {
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct RepoLeaderboardRecord {
     pub organization: String,
+    pub organization_full_name: Option<String>,
     pub name: String,
     pub total_prs: i64,
     pub total_score: i64,
-    pub top_contributor: Option<GithubHandle>,
+    pub contributor_login: Option<GithubHandle>,
+    pub contributor_full_name: Option<String>,
     pub stars: i32,
     pub open_issues: i32,
     pub primary_language: Option<String>,
@@ -74,8 +85,8 @@ pub struct RepoLeaderboardRecord {
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct UserContributionRecord {
-    pub name: String,
-    pub organization: String,
+    pub organization_login: String,
+    pub organization_full_name: Option<String>,
     pub repo: String,
     pub number: i32,
     pub score: Option<i32>,
@@ -91,12 +102,12 @@ pub struct UserContributionRecord {
 pub struct RepoRecord {
     pub organization: String,
     pub repo: String,
+    pub organization_full_name: Option<String>,
     pub repo_id: i32,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct UserCachedMetadata {
-    pub full_name: String,
     pub image_base64: String,
     pub load_time: chrono::NaiveDateTime,
 }

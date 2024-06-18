@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT login, full_name\n            FROM users",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "full_name",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "685549314e9958fc798d1330fff85796d8b4672be537c68bd023d5ebd7ba6adf"
+}

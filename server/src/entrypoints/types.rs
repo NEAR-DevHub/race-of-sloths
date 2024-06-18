@@ -34,14 +34,15 @@ impl<T: Serialize> PaginatedResponse<T> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct GithubMeta {
-    name: String,
+    login: String,
+    name: Option<String>,
     image: String,
 }
 
 impl GithubMeta {
-    pub fn new(name: String) -> Self {
-        let image = format!("https://github.com/{}.png", name);
-        Self { name, image }
+    pub fn new(login: String, name: Option<String>) -> Self {
+        let image = format!("https://github.com/{}.png", login);
+        Self { login, name, image }
     }
 }
 
@@ -53,7 +54,7 @@ pub struct RepoResponse {
     pub stars: u32,
     pub forks: u32,
     pub open_issues: u32,
-    pub contributor_of_the_month: Option<String>,
+    pub contributor_of_the_month: Option<GithubMeta>,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
 }
@@ -62,12 +63,14 @@ impl From<RepoLeaderboardRecord> for RepoResponse {
     fn from(record: RepoLeaderboardRecord) -> Self {
         Self {
             name: record.name,
-            organization: GithubMeta::new(record.organization),
+            organization: GithubMeta::new(record.organization, record.organization_full_name),
             repo_language: record.primary_language,
             stars: record.stars as u32,
             forks: record.forks as u32,
             open_issues: record.open_issues as u32,
-            contributor_of_the_month: record.top_contributor,
+            contributor_of_the_month: record
+                .contributor_login
+                .map(|login| GithubMeta::new(login, record.contributor_full_name)),
             contributions_with_sloth: record.total_prs as u32,
             total_score: record.total_score as u32,
         }
@@ -87,7 +90,7 @@ pub struct LeaderboardResponse {
 impl From<LeaderboardRecord> for LeaderboardResponse {
     fn from(record: LeaderboardRecord) -> Self {
         Self {
-            user: GithubMeta::new(record.name),
+            user: GithubMeta::new(record.login, record.full_name),
             rating: record.total_rating as u32,
             contributions: record.prs_opened as u32,
             streak: Streak::new(
@@ -165,7 +168,7 @@ impl From<UserRecord> for UserProfile {
             .map(|x| (x.prs_opened, x.total_rating))
             .unwrap_or_default();
         Self {
-            user: GithubMeta::new(record.name),
+            user: GithubMeta::new(record.login, record.name),
             rating: rating as u32,
             contributions: contributions as u32,
             streaks: record
@@ -207,7 +210,7 @@ impl From<UserContributionRecord> for UserContributionResponse {
     fn from(record: UserContributionRecord) -> Self {
         let pull_request_link = format!(
             "https://github.com/{}/{}/pull/{}",
-            record.organization, record.repo, record.number
+            record.organization_login, record.repo, record.number
         );
 
         let status = if record.executed {
@@ -223,7 +226,7 @@ impl From<UserContributionRecord> for UserContributionResponse {
         Self {
             pull_request_link,
             repository: record.repo,
-            organization: GithubMeta::new(record.organization),
+            organization: GithubMeta::new(record.organization_login, record.organization_full_name),
             status: status.to_string(),
             score: record.score,
             created_at: record.created_at,

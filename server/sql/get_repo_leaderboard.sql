@@ -1,7 +1,8 @@
 WITH top_contributors AS (
     SELECT
         pr.repo_id,
-        u.name AS contributor_name,
+        u.login AS contributor_login,
+        u.full_name AS contributor_full_name,
         SUM(pr.score) AS total_score,
         ROW_NUMBER() OVER (
             PARTITION BY pr.repo_id
@@ -16,11 +17,13 @@ WITH top_contributors AS (
         u.id
 )
 SELECT
-    o.name AS organization,
+    o.login AS organization,
+    o.full_name AS organization_full_name,
     r.name AS name,
     COALESCE(COUNT(pr.id), 0) AS total_prs,
     COALESCE(SUM(pr.score), 0) AS total_score,
-    tc.contributor_name AS top_contributor,
+    tc.contributor_full_name AS contributor_full_name,
+    tc.contributor_login AS contributor_login,
     r.primary_language,
     r.open_issues,
     r.stars,
@@ -32,9 +35,11 @@ FROM
     LEFT JOIN top_contributors tc ON tc.repo_id = r.id
     AND tc.rank = 1
 GROUP BY
-    o.name,
+    o.login,
+    o.full_name,
     r.name,
-    tc.contributor_name,
+    tc.contributor_login,
+    tc.contributor_full_name,
     r.primary_language,
     r.open_issues,
     r.stars,

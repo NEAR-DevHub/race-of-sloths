@@ -1,6 +1,6 @@
 SELECT
-    users.name as name,
-    o.name as organization,
+    o.login as organization_login,
+    o.full_name as organization_full_name,
     r.name as repo,
     pr.number as number,
     pr.created_at as created_at,
@@ -16,10 +16,10 @@ FROM
     JOIN repos r ON pr.repo_id = r.id
     JOIN organizations o ON r.organization_id = o.id
 WHERE
-    users.name = $1
+    users.login = $1
 GROUP BY
-    users.name,
-    o.name,
+    o.login,
+    o.full_name,
     r.name,
     pr.number,
     pr.created_at,

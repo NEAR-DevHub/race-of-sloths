@@ -1,5 +1,5 @@
 use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId, VMContext};
-use shared::SCORE_TIMEOUT_IN_NANOSECONDS;
+use shared::{PRWithRating, SCORE_TIMEOUT_IN_NANOSECONDS};
 
 use super::*;
 
@@ -60,13 +60,13 @@ impl ContractExt {
         self.contract.sloth_exclude(pr_id_str(pr_id));
     }
 
-    pub fn finalize(&mut self, id: u64) {
-        self.contract.sloth_finalize(pr_id_str(id))
+    pub fn finalize(&mut self, pr_id: u64) {
+        self.contract.sloth_finalize(pr_id_str(pr_id))
     }
 }
 
 #[test]
-fn success_flow() {
+fn success_streak_flow() {
     let mut contract = ContractExt::new();
 
     contract.include_sloth_common_repo(0, 0, 0);
@@ -93,6 +93,7 @@ fn success_flow() {
         .contract
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
+
     assert_eq!(user.period_data[0].1.total_score, 10);
     assert_eq!(user.period_data[0].1.total_rating, 110);
     assert_eq!(user.period_data[0].1.executed_prs, 1);
@@ -100,6 +101,66 @@ fn success_flow() {
     assert_eq!(user.period_data[0].1.prs_merged, 1);
     assert_eq!(user.streaks[0].1.amount, 1);
     assert_eq!(user.streaks[1].1.amount, 1);
+
+    // User received 10 points for weekly streak
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(0))
+        .unwrap()
+        .clone();
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.score(), Some(10));
+    assert_eq!(pr.rating(), 100 + 10);
+    assert_eq!(pr.streak_bonus_rating, 10);
+
+    // New pr with 10 points for monthly streak
+
+    contract.include_sloth_common_repo(0, 1, 0);
+    contract.score(1, 1, 10);
+    contract.merge(1, 1);
+    contract.finalize(1);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(1))
+        .unwrap()
+        .clone();
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.score(), Some(10));
+    assert_eq!(pr.rating(), 100 + 10);
+    assert_eq!(pr.streak_bonus_rating, 10);
+
+    // New pr don't have streak bonus
+    contract.include_sloth_common_repo(0, 2, 0);
+    contract.score(2, 2, 10);
+    contract.merge(2, 1);
+    contract.finalize(2);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(2))
+        .unwrap()
+        .clone();
+
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.score(), Some(10));
+    assert_eq!(pr.streak_bonus_rating, 0);
+    assert_eq!(pr.rating(), 100);
+
+    // Total user rating is 110 + 110 + 100
+
+    let user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
+
+    assert_eq!(user.period_data[0].1.total_rating, 320);
 }
 
 #[test]

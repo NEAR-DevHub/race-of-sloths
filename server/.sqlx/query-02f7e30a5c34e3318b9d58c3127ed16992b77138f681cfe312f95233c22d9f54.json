@@ -1,70 +1,75 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    users.name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    user_period_data.total_rating as total_rating,\n    period as streak_type,\n    streak.name as streak_name,\n    latest_time_string as streak_latest_time_string\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    period_type = $1\n    and streak_user_data.streak_id = $2\nORDER BY\n    total_rating DESC\nLIMIT\n    $3 OFFSET $4\n",
+  "query": "SELECT\n    users.login,\n    users.full_name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    user_period_data.total_rating as total_rating,\n    period as streak_type,\n    streak.name as streak_name,\n    latest_time_string as streak_latest_time_string\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    period_type = $1\n    and streak_user_data.streak_id = $2\nORDER BY\n    total_rating DESC\nLIMIT\n    $3 OFFSET $4\n",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "name",
+        "name": "login",
         "type_info": "Text"
       },
       {
         "ordinal": 1,
-        "name": "period_type",
+        "name": "full_name",
         "type_info": "Text"
       },
       {
         "ordinal": 2,
+        "name": "period_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
         "name": "total_score",
         "type_info": "Int4"
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "executed_prs",
         "type_info": "Int4"
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "largest_score",
         "type_info": "Int4"
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "prs_opened",
         "type_info": "Int4"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "prs_merged",
         "type_info": "Int4"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "streak_best",
         "type_info": "Int4"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "streak_amount",
         "type_info": "Int4"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "total_rating",
         "type_info": "Int4"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "streak_type",
         "type_info": "Text"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "streak_name",
         "type_info": "Text"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "streak_latest_time_string",
         "type_info": "Text"
       }
@@ -79,6 +84,7 @@
     },
     "nullable": [
       false,
+      true,
       false,
       false,
       false,
@@ -93,5 +99,5 @@
       false
     ]
   },
-  "hash": "945c4148b733e041016e96b2f073b1301e77e1237f64d9f8a866ed32a0d0d898"
+  "hash": "02f7e30a5c34e3318b9d58c3127ed16992b77138f681cfe312f95233c22d9f54"
 }

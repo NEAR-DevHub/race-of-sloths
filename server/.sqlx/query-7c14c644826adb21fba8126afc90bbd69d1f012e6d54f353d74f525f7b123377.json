@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    SELECT image_base64, load_time\n                    FROM user_cached_metadata\n                    JOIN users u ON user_id = u.id\n                    WHERE u.login = $1\n                    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "image_base64",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "load_time",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "7c14c644826adb21fba8126afc90bbd69d1f012e6d54f353d74f525f7b123377"
+}

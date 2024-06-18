@@ -68,7 +68,6 @@ async fn fetch_user_metadata_lazily(
 
     let user = client.get_user(username).await?;
     let user_image_url = user.avatar_url;
-    let full_name = user.name.unwrap_or_else(|| format!("@{}", username));
 
     let res = client.octocrab._get(user_image_url.as_str()).await?;
 
@@ -76,11 +75,10 @@ async fn fetch_user_metadata_lazily(
 
     let image_base64 = base64::engine::general_purpose::STANDARD.encode(image);
 
-    db.upsert_user_cached_metadata(username, &full_name, &image_base64)
+    db.upsert_user_cached_metadata(username, &image_base64)
         .await?;
 
     Ok(UserCachedMetadata {
-        full_name,
         image_base64,
         load_time: chrono::Utc::now().naive_utc(),
     })

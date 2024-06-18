@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE organizations\n            SET full_name = $2\n            WHERE login = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "372e6570d05e95c58850c536362e80ac57258a34e4667c71bb83cfa1cc66910c"
+}

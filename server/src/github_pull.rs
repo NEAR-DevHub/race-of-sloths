@@ -61,6 +61,38 @@ async fn fetch_repos_metadata(github: &GithubClient, db: &DB) -> anyhow::Result<
     Ok(())
 }
 
+async fn fetch_missing_user_organization_metadata(
+    github: &GithubClient,
+    db: &DB,
+) -> anyhow::Result<()> {
+    let users = db.get_users().await?;
+    for user in users {
+        if user.full_name.is_some() {
+            // TODO: add user entry to sync cache
+            continue;
+        }
+
+        let profile = github.get_user(&user.login).await?;
+        if let Some(full_name) = &profile.name {
+            db.update_user_full_name(&user.login, full_name).await?;
+        }
+    }
+
+    let orgs = db.get_organizations().await?;
+    for org in orgs {
+        if org.full_name.is_some() {
+            continue;
+        }
+
+        let profile = github.get_user(&org.login).await?;
+        if let Some(full_name) = &profile.name {
+            db.update_organization_full_name(&org.login, full_name)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
 pub fn stage(
     github_client: GithubClient,
     sleep_duration: Duration,
@@ -89,6 +121,16 @@ pub fn stage(
 
                                 // Execute a query of some kind
                                 if let Err(e) = fetch_repos_metadata(&github_client, &db).await {
+                                    rocket::error!(
+                                        "Failed to fetch and store github data: {:#?}",
+                                        e
+                                    );
+                                }
+
+                                if let Err(e) =
+                                    fetch_missing_user_organization_metadata(&github_client, &db)
+                                        .await
+                                {
                                     rocket::error!(
                                         "Failed to fetch and store github data: {:#?}",
                                         e

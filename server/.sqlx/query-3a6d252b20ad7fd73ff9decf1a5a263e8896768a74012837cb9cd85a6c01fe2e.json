@@ -1,16 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, permanent_bonus FROM users WHERE name = $1",
+  "query": "\n            SELECT id\n            FROM users\n            WHERE login = $1\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int4"
-      },
-      {
-        "ordinal": 1,
-        "name": "permanent_bonus",
         "type_info": "Int4"
       }
     ],
@@ -20,9 +15,8 @@
       ]
     },
     "nullable": [
-      false,
       false
     ]
   },
-  "hash": "d837b680c8f84885e92d0b1c9b98daf2d9ef4fd174cee42f50ea2240521abf5d"
+  "hash": "3a6d252b20ad7fd73ff9decf1a5a263e8896768a74012837cb9cd85a6c01fe2e"
 }

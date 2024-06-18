@@ -74,21 +74,6 @@ impl From<VersionedPR> for PRWithRating {
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
-pub struct PR {
-    pub organization: String,
-    pub repo: String,
-    pub number: u64,
-    pub author: GithubHandle,
-    pub score: Vec<Score>,
-    pub created_at: Timestamp,
-    pub merged_at: Option<Timestamp>,
-}
-
-#[derive(
-    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
-)]
-#[serde(crate = "near_sdk::serde")]
-#[borsh(crate = "near_sdk::borsh")]
 pub struct PRWithRating {
     pub organization: String,
     pub repo: String,
