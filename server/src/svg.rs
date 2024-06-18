@@ -35,7 +35,12 @@ pub fn generate_svg_badge(
         .unwrap_or_else(|| "N/A".to_string());
 
     let svg_icon = std::fs::read_to_string("./public/badge_template.svg")?;
-    let svg_icon = svg_icon.replace("{name}", &user_metadata.full_name);
+    let svg_icon = svg_icon.replace(
+        "{name}",
+        &user_record
+            .name
+            .unwrap_or_else(|| format!("@{}", user_record.login)),
+    );
     let svg_icon = svg_icon.replace(
         "{total-contributions}",
         &total_period.prs_opened.to_string(),

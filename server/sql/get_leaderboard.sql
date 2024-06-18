@@ -1,5 +1,6 @@
 SELECT
-    users.name,
+    users.login,
+    users.full_name,
     period_type,
     total_score,
     executed_prs,

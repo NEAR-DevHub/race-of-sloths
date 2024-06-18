@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE users\n            SET permanent_bonus = $2\n            WHERE name = $1\n            RETURNING id\n            ",
+  "query": "\n                INSERT INTO users (login, permanent_bonus)\n                VALUES ($1, $2)\n                ON CONFLICT (login) DO NOTHING\n                RETURNING id\n                ",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       false
     ]
   },
-  "hash": "4fdc9da3f2c4d30d414fa5e9db1c31a9b4eb134f7be5f88718a07e53bbb0516c"
+  "hash": "122194a677b7cc0c726947f174a8dd848cbf6ec09d5555397cda08147f38f21f"
 }

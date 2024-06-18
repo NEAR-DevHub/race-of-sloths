@@ -15,8 +15,8 @@ pub mod types;
 use types::LeaderboardRecord;
 
 use self::types::{
-    RepoLeaderboardRecord, RepoRecord, StreakRecord, UserCachedMetadata, UserContributionRecord,
-    UserPeriodRecord, UserRecord,
+    RepoLeaderboardRecord, RepoRecord, StreakRecord, User, UserCachedMetadata,
+    UserContributionRecord, UserPeriodRecord, UserRecord,
 };
 
 impl DB {
@@ -26,7 +26,7 @@ impl DB {
             r#"
             UPDATE users
             SET permanent_bonus = $2
-            WHERE name = $1
+            WHERE login = $1
             RETURNING id
             "#,
             user,
@@ -41,9 +41,9 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO users (name, permanent_bonus)
+                INSERT INTO users (login, permanent_bonus)
                 VALUES ($1, $2)
-                ON CONFLICT (name) DO NOTHING
+                ON CONFLICT (login) DO NOTHING
                 RETURNING id
                 "#,
                 user,
@@ -56,13 +56,47 @@ impl DB {
         }
     }
 
+    pub async fn update_user_full_name(&self, user: &str, full_name: &str) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            UPDATE users
+            SET full_name = $2
+            WHERE login = $1
+            "#,
+            user,
+            full_name
+        )
+        .execute(&self.0)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_organization_full_name(
+        &self,
+        organization: &str,
+        full_name: &str,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"
+            UPDATE organizations
+            SET full_name = $2
+            WHERE login = $1
+            "#,
+            organization,
+            full_name
+        )
+        .execute(&self.0)
+        .await?;
+        Ok(())
+    }
+
     pub async fn upsert_organization(&self, name: &str) -> anyhow::Result<i32> {
         // First try to update the organization
         let rec = sqlx::query!(
             r#"
             UPDATE organizations
-            SET name = $1
-            WHERE name = $1
+            SET login = $1
+            WHERE login = $1
             RETURNING id
             "#,
             name
@@ -76,9 +110,9 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO organizations (name)
+                INSERT INTO organizations (login)
                 VALUES ($1)
-                ON CONFLICT (name) DO NOTHING
+                ON CONFLICT (login) DO NOTHING
                 RETURNING id
                 "#,
                 name
@@ -308,17 +342,18 @@ impl DB {
 
     pub async fn get_user(
         &self,
-        name: &str,
+        login: &str,
         place_strings: &[String],
     ) -> anyhow::Result<Option<UserRecord>> {
-        let (user_rec, percent) = match sqlx::query!(
-            "SELECT id, permanent_bonus FROM users WHERE name = $1",
-            name
+        let (user_rec, full_name, percent) = match sqlx::query!(
+            "SELECT id, full_name, permanent_bonus FROM users 
+            WHERE login = $1",
+            login
         )
         .fetch_optional(&self.0)
         .await?
         {
-            Some(rec) => (rec.id, rec.permanent_bonus),
+            Some(rec) => (rec.id, rec.full_name, rec.permanent_bonus),
             None => return Ok(None),
         };
 
@@ -346,7 +381,8 @@ impl DB {
         }
 
         let user = UserRecord {
-            name: name.to_string(),
+            login: login.to_string(),
+            name: full_name,
             lifetime_percent: percent,
             period_data: period_data_recs,
             streaks: streak_recs,
@@ -450,7 +486,7 @@ impl DB {
             r#"SELECT COUNT(DISTINCT(pr.id)) as id
             FROM pull_requests pr
             JOIN users ON pr.author_id = users.id
-            WHERE users.name = $1
+            WHERE users.login = $1
             "#,
             user
         )
@@ -466,15 +502,15 @@ impl DB {
     ) -> anyhow::Result<Vec<(String, i64)>> {
         let rec = sqlx::query!(
             r#"
-        SELECT users.name, SUM(pr.score) as total_score
+        SELECT users.login, SUM(pr.score) as total_score
         FROM organizations o
         JOIN repos r ON r.organization_id = o.id
         JOIN pull_requests pr ON pr.repo_id = r.id
         JOIN users ON pr.author_id = users.id
         WHERE pr.created_at >= (now() - INTERVAL '1 MONTH')
         AND r.name = $1
-        AND o.name = $2
-        GROUP BY users.name
+        AND o.login = $2
+        GROUP BY users.login
         ORDER BY COUNT(pr.id) DESC
         LIMIT 3
         "#,
@@ -486,7 +522,7 @@ impl DB {
 
         Ok(rec
             .into_iter()
-            .map(|r| (r.name, r.total_score.unwrap_or_default()))
+            .map(|r| (r.login, r.total_score.unwrap_or_default()))
             .collect())
     }
 
@@ -494,6 +530,32 @@ impl DB {
         let rec = sqlx::query_file_as!(RepoRecord, "./sql/get_repos.sql")
             .fetch_all(&self.0)
             .await?;
+
+        Ok(rec)
+    }
+
+    pub async fn get_users(&self) -> anyhow::Result<Vec<User>> {
+        let rec = sqlx::query_as!(
+            User,
+            r#"
+            SELECT login, full_name
+            FROM users"#
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(rec)
+    }
+
+    pub async fn get_organizations(&self) -> anyhow::Result<Vec<User>> {
+        let rec = sqlx::query_as!(
+            User,
+            r#"
+            SELECT login, full_name
+            FROM organizations"#
+        )
+        .fetch_all(&self.0)
+        .await?;
 
         Ok(rec)
     }
@@ -510,7 +572,7 @@ impl DB {
             r#"
             SELECT id
             FROM users
-            WHERE name = $1
+            WHERE login = $1
             "#,
             name
         )
@@ -527,10 +589,10 @@ impl DB {
         Ok(sqlx::query_as!(
             UserCachedMetadata,
             r#"
-                    SELECT full_name, image_base64, load_time
+                    SELECT image_base64, load_time
                     FROM user_cached_metadata
                     JOIN users u ON user_id = u.id
-                    WHERE u.name = $1
+                    WHERE u.login = $1
                     "#,
             username
         )
@@ -541,19 +603,17 @@ impl DB {
     pub async fn upsert_user_cached_metadata(
         &self,
         username: &str,
-        full_name: &str,
         image_base64: &str,
     ) -> anyhow::Result<()> {
         // First try to update the user
         let rec = sqlx::query!(
             r#"
                 UPDATE user_cached_metadata
-                SET full_name = $2, image_base64 = $3, load_time = now()
-                WHERE user_id = (SELECT id FROM users WHERE name = $1)
+                SET image_base64 = $2, load_time = now()
+                WHERE user_id = (SELECT id FROM users WHERE login = $1)
                 RETURNING user_id
                 "#,
             username,
-            full_name,
             image_base64
         )
         .fetch_optional(&self.0)
@@ -563,12 +623,11 @@ impl DB {
         if rec.is_none() {
             sqlx::query!(
                 r#"
-                INSERT INTO user_cached_metadata (user_id, full_name, image_base64, load_time)
-                VALUES ((SELECT id FROM users WHERE name = $1), $2, $3, now())
+                INSERT INTO user_cached_metadata (user_id, image_base64, load_time)
+                VALUES ((SELECT id FROM users WHERE login = $1), $2, now())
                 ON CONFLICT (user_id) DO NOTHING
                 "#,
                 username,
-                full_name,
                 image_base64
             )
             .execute(&self.0)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "select\n    r.id as repo_id,\n    r.name as repo,\n    o.name as organization\nfrom\n    repos as r\n    JOIN organizations o ON r.organization_id = o.id\n",
+  "query": "select\n    r.id as repo_id,\n    r.name as repo,\n    o.login as organization,\n    o.full_name as organization_full_name\nfrom\n    repos as r\n    JOIN organizations o ON r.organization_id = o.id\n",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,11 @@
         "ordinal": 2,
         "name": "organization",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "organization_full_name",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -25,8 +30,9 @@
     "nullable": [
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "30a16d6f56b3c3f31ae89171e6767b8e32f2b5bd59ced2671fbc3a4f6ff0a52e"
+  "hash": "a45ec4786689df719d3484e0369fe458436521320fda2e43a12fb5fda21e2e60"
 }

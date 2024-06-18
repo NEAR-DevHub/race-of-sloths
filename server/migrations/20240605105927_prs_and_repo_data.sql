@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS organizations (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL
+    login TEXT UNIQUE NOT NULL,
+    full_name TEXT
 );
 
 CREATE TABLE IF NOT EXISTS repos (
