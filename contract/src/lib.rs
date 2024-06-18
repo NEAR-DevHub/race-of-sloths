@@ -320,8 +320,8 @@ impl Contract {
             data.pr_executed(score, rating)
         });
 
-        let data = self.prs.remove(&full_id);
-        self.executed_prs.insert(full_id, data.unwrap());
+        self.prs.remove(&full_id);
+        self.executed_prs.insert(full_id, VersionedPR::V1(pr));
     }
 }
 
