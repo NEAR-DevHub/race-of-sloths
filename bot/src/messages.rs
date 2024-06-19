@@ -85,6 +85,7 @@ pub struct MessageLoader {
     pub form: String,
     pub picture_api_link: String,
 
+    // Messages
     pub include_basic_messages: Messages,
     pub correct_nonzero_scoring_messages: Messages,
     pub correct_zero_scoring_messages: Messages,
@@ -95,6 +96,8 @@ pub struct MessageLoader {
     pub merge_without_score_messages: Messages,
     pub final_messages: Messages,
     pub stale_messages: Messages,
+
+    // Errors
     pub error_unknown_command_messages: Messages,
     pub error_rights_violation_messages: Messages,
     pub error_late_include_messages: Messages,
@@ -104,6 +107,17 @@ pub struct MessageLoader {
     pub error_paused_messages: Messages,
     pub error_selfscore_messages: Messages,
     pub error_org_not_in_allowed_list_messages: Messages,
+
+    // Message by amount of contributions
+    pub first_time_contribution: Messages,
+    pub first_week_contribution: Messages,
+    pub first_month_contribution: Messages,
+    pub contribution_3: Messages,
+    pub contribution_4: Messages,
+    pub contribution_5: Messages,
+    pub contribution_6: Messages,
+    pub contribution_7: Messages,
+    pub contribution_8: Messages,
 }
 
 impl MessageLoader {

@@ -11,4 +11,7 @@ pub enum Event {
         largest_streak: u32,
         name: String,
     },
+    NewSloth {
+        github_handle: String,
+    },
 }

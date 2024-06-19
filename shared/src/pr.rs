@@ -130,11 +130,10 @@ impl PRWithRating {
     }
 
     pub fn rating(&self) -> u32 {
-        ((self.score().unwrap_or_default() * 10 + self.streak_bonus_rating)
-            * (self.percentage_multiplier + 100))
-            / 100
+        let score = self.score().unwrap_or_default() * 10 + self.streak_bonus_rating;
+        let percentage = (self.percentage_multiplier + 100) as f64;
+        ((score as f64 * percentage / 100.0).ceil()) as u32
     }
-
     pub fn score(&self) -> Option<u32> {
         self.score
             .iter()

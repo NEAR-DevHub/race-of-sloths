@@ -55,8 +55,8 @@ pub struct FlatBonusStorage {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct AccountWithPermanentPercentageBonus {
     pub account_id: Option<AccountId>,
-    permanent_percentage_bonus: Vec<(StreakId, u32)>,
-    flat_bonus: Vec<FlatBonusStorage>,
+    pub permanent_percentage_bonus: Vec<(StreakId, u32)>,
+    pub flat_bonus: Vec<FlatBonusStorage>,
 }
 
 impl AccountWithPermanentPercentageBonus {
@@ -76,12 +76,21 @@ impl AccountWithPermanentPercentageBonus {
         }
     }
 
-    pub fn add_flat_bonus(&mut self, streak_id: StreakId, reward: u32, streak_min: u32) {
+    pub fn add_flat_bonus(&mut self, streak_id: StreakId, reward: u32, streak_min: u32) -> bool {
+        if self
+            .flat_bonus
+            .iter()
+            .any(|bonus| bonus.streak_id == streak_id && bonus.streak_min == streak_min)
+        {
+            return false;
+        }
+
         self.flat_bonus.push(FlatBonusStorage {
             streak_id,
             reward,
             streak_min,
         });
+        true
     }
 
     pub fn lifetime_percentage_bonus(&self) -> u32 {

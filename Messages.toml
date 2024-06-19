@@ -207,3 +207,55 @@ Feel free to check [our website]({link}) for additional details!
 </details> 
 """,
 ]
+
+[first_time_contribution]
+variables = ["pr_author_username"]
+message = ["New Sloth joined the Race! Welcome @{pr_author_username}"]
+
+[first_week_contribution]
+variables = ["pr_author_username"]
+message = [
+    "Weekly streak is on the road, smart strategy @{pr_author_username}! Secure your streak with another PR",
+]
+
+[first_month_contribution]
+variables = ["pr_author_username"]
+message = [
+    "Do you @{pr_author_username} want to apply for monthly streak? Get 8+ score for a single PR this month and receive boost for race-of-sloth",
+]
+
+[contribution_3]
+variables = ["pr_author_username"]
+message = [
+    "Are you @{pr_author_username} going to win race-of-sloth this month? If so, you should speed up! Run, Sloth, Run",
+]
+
+[contribution_4]
+variables = ["pr_author_username"]
+message = [
+    "You are true leader @{pr_author_username}! Other sloths hot on your heels, keep moving!",
+]
+
+[contribution_5]
+variables = ["pr_author_username"]
+message = [
+    "Great job @{pr_author_username}! Usain Bolt jealous of your results!",
+]
+
+[contribution_6]
+variables = ["pr_author_username"]
+message = [
+    "King of Sloth shakes your @{pr_author_username} hand! Yellow leader's jersey is yours deservedly",
+]
+
+[contribution_7]
+variables = ["pr_author_username"]
+message = [
+    "We are launching a survey \"Who is faster? @{pr_author_username} vs SpaceX\"",
+]
+
+[contribution_8]
+variables = ["pr_author_username"]
+message = [
+    "“Congratulatory messages are spent out! @{pr_author_username} your results have exceeded our imagination",
+]

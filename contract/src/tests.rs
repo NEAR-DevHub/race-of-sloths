@@ -3,6 +3,9 @@ use shared::{PRWithRating, SCORE_TIMEOUT_IN_NANOSECONDS};
 
 use super::*;
 
+pub const DAY_IN_NANOSECONDS: u64 = 86_400_000_000_000;
+pub const WEEK_IN_NANOSECONDS: u64 = 7 * DAY_IN_NANOSECONDS;
+
 pub fn github_handle(id: u8) -> GithubHandle {
     format!("name-{id}")
 }
@@ -348,4 +351,111 @@ fn not_started_pr() {
     let mut contract = ContractExt::new();
 
     contract.score(0, 1, 13);
+}
+
+#[test]
+fn cannot_double_streak_reward() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    contract.exclude(0);
+
+    contract.include_sloth_common_repo(0, 1, 0);
+    contract.exclude(1);
+
+    contract.include_sloth_common_repo(0, 2, 0);
+    contract.score(2, 1, 5);
+    contract.merge(2, 1);
+
+    contract.context.block_timestamp = 1000000000000000000;
+    testing_env!(contract.context.clone());
+    contract.finalize(2);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(2))
+        .unwrap()
+        .clone();
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.streak_bonus_rating, 10);
+    assert_eq!(pr.rating(), 50 + 10);
+
+    let user: AccountWithPermanentPercentageBonus = contract
+        .contract
+        .accounts
+        .get(&github_handle(0))
+        .unwrap()
+        .clone()
+        .into();
+    assert_eq!(user.flat_bonus.len(), 0);
+}
+
+#[test]
+fn cannot_double_percent_reward() {
+    let mut contract = ContractExt::new();
+
+    let mut start = 0;
+    for i in 0..4 {
+        contract.include_sloth_common_repo(0, i, start);
+        contract.merge(i, start + 1);
+
+        start += WEEK_IN_NANOSECONDS + 1;
+        contract.context.block_timestamp = start;
+        testing_env!(contract.context.clone());
+        contract.finalize(i);
+    }
+
+    let user: AccountWithPermanentPercentageBonus = contract
+        .contract
+        .accounts
+        .get(&github_handle(0))
+        .unwrap()
+        .clone()
+        .into();
+
+    assert_eq!(user.lifetime_percentage_bonus(), 0);
+
+    contract.include_sloth_common_repo(0, 5, start);
+    contract.score(5, 1, 5);
+    contract.merge(5, start + 1);
+
+    contract.context.block_timestamp = start + WEEK_IN_NANOSECONDS;
+    testing_env!(contract.context.clone());
+    contract.finalize(5);
+
+    let user: AccountWithPermanentPercentageBonus = contract
+        .contract
+        .accounts
+        .get(&github_handle(0))
+        .unwrap()
+        .clone()
+        .into();
+
+    assert_eq!(user.permanent_percentage_bonus.len(), 1);
+    assert_eq!(user.lifetime_percentage_bonus(), 5);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(5))
+        .unwrap()
+        .clone();
+
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.rating(), 53);
+
+    let total_user = contract
+        .contract
+        .user(&github_handle(0), vec!["all-time".to_string()])
+        .unwrap();
+
+    println!("{:#?}", contract.contract.prs(50, 0));
+
+    let weekly_streaks = 10 + 15 + 20 + 25;
+    let total_rating = weekly_streaks + 53;
+
+    assert_eq!(total_user.period_data[0].1.total_rating, total_rating)
 }

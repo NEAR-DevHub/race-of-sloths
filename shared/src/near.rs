@@ -301,7 +301,7 @@ impl NearClient {
             .view("user")
             .args_json(json!({
                 "user": user,
-                "periods": vec![TimePeriod::AllTime.time_string(0)]
+                "periods": vec![TimePeriod::Month.time_string(chrono::Utc::now().timestamp() as u64)]
             }))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;

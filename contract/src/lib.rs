@@ -392,8 +392,10 @@ impl Contract {
                 prev_time_string
             };
 
-            if streak_data.amount > current_streak {
-                self.reward_streak(user, &streak, streak_data.amount);
+            if streak_data.amount > current_streak
+                && self.reward_streak(user, &streak, streak_data.amount)
+            {
+                println!("Streak increased: {} {}", streak.name, streak_data.amount);
                 events::log_event(Event::StreakIncreased {
                     streak_id: streak.id,
                     new_streak: streak_data.amount,
@@ -407,23 +409,22 @@ impl Contract {
         }
     }
 
-    pub fn reward_streak(&mut self, user: &str, streak: &Streak, achieved: u32) {
+    pub fn reward_streak(&mut self, user: &str, streak: &Streak, achieved: u32) -> bool {
         let reward = match streak.get_streak_reward(achieved) {
             Some(reward) => reward,
-            None => return,
+            None => return false,
         };
 
         let mut account = self.get_or_create_account(user);
-        match reward {
-            StreakReward::FlatReward(amount) => {
-                account.add_flat_bonus(streak.id, amount, achieved);
-            }
+        let result = match reward {
+            StreakReward::FlatReward(amount) => account.add_flat_bonus(streak.id, amount, achieved),
             StreakReward::PermanentPercentageBonus(amount) => {
-                account.add_streak_percent(streak.id, amount);
+                account.add_streak_percent(streak.id, amount)
             }
-        }
+        };
         self.accounts
             .insert(user.to_owned(), VersionedAccount::V1(account));
+        result
     }
 
     pub fn apply_to_periods(
@@ -454,7 +455,12 @@ impl Contract {
     ) -> AccountWithPermanentPercentageBonus {
         self.accounts
             .entry(account_id.to_owned())
-            .or_insert(VersionedAccount::V1(Default::default()))
+            .or_insert_with(|| {
+                events::log_event(Event::NewSloth {
+                    github_handle: account_id.to_owned(),
+                });
+                VersionedAccount::V1(Default::default())
+            })
             .clone()
             .into()
     }
