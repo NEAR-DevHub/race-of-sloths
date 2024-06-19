@@ -91,7 +91,7 @@ impl std::fmt::Display for EventType {
                 command, sender, ..
             } => write!(
                 f,
-                "Command `{}` send by <[{name}](https://github.com/{name})>",
+                "Command `{}` send by [{name}](https://github.com/{name})",
                 command,
                 name = sender.login
             ),

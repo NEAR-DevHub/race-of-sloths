@@ -18,7 +18,7 @@ async fn sender_task(
         let url = format!("https://api.telegram.org/bot{}/sendMessage", bot_token);
 
         let message = if level == Level::INFO {
-            message
+            message.replace('-', "\\-")
         } else {
             let message = message
                 .replace('_', "\\_")
