@@ -65,7 +65,7 @@ impl Event {
                 action.execute(&self.pr, context.clone(), check_info).await
             }
         };
-        context.telegram.process_event(&self, result.is_ok());
+        context.telegram.process_event(self, result.is_ok());
         context
             .prometheus
             .record(&self.event, &self.pr, result.is_ok(), self.event_time);
@@ -91,11 +91,11 @@ impl std::fmt::Display for EventType {
                 command, sender, ..
             } => write!(
                 f,
-                "Command {} send by <[{name}](https://github.com/{name})>",
+                "Command `{}` send by <[{name}](https://github.com/{name})>",
                 command,
                 name = sender.login
             ),
-            EventType::Action(action) => write!(f, "Action {action}",),
+            EventType::Action(action) => write!(f, "Action `{action}`",),
         }
     }
 }

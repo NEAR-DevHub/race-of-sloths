@@ -37,7 +37,11 @@ async fn sender_task(
             .replace('.', "\\.")
             .replace('!', "\\!");
 
-        let message = format!("*{}*: `{message}`", level.as_str());
+        let message = if level == Level::INFO {
+            message
+        } else {
+            format!("*{}*: `{}`", level.as_str(), message)
+        };
         let params = [
             ("chat_id", chat_id.as_str()),
             ("text", &message),
@@ -73,7 +77,7 @@ impl TelegramSubscriber {
 
     pub fn process_event(&self, event: &crate::events::Event, success: bool) {
         let message = format!(
-            "{} for [{full_id}](https://github.com/{full_id}) was {}",
+            "{} in the [{full_id}](https://github.com/{full_id}) was {}",
             event.event,
             if success { "successful" } else { "failed" },
             full_id = event.pr.full_id,
