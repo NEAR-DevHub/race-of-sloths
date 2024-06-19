@@ -51,9 +51,11 @@ pub async fn metrics(
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     let env = envy::from_env::<Env>()?;
+    let telegram: telegram::TelegramSubscriber =
+        telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await;
 
     let subscriber = tracing_subscriber::registry()
-        .with(telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await)
+        .with(telegram.clone())
         .with(EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer());
     tracing::subscriber::set_global_default(subscriber)?;
@@ -67,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         near: near_api.into(),
         messages: messages.into(),
         prometheus,
+        telegram: telegram.into(),
     };
 
     tokio::select! {

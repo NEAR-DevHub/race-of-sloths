@@ -147,6 +147,19 @@ impl Command {
     }
 }
 
+impl std::fmt::Display for Command {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Command::Include(_) => write!(f, "Include"),
+            Command::Score(_) => write!(f, "Score"),
+            Command::Pause(_) => write!(f, "Pause"),
+            Command::Unpause(_) => write!(f, "Unpause"),
+            Command::Excluded(_) => write!(f, "Excluded"),
+            Command::Unknown(_) => write!(f, "Unknown"),
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use octocrab::models::issues::Comment;

@@ -3,6 +3,7 @@ use std::fmt;
 use tokio::sync::mpsc;
 use tracing::{Event, Level, Subscriber};
 
+#[derive(Clone)]
 pub struct TelegramSubscriber {
     sender: mpsc::UnboundedSender<(String, Level)>,
 }
@@ -68,6 +69,16 @@ impl TelegramSubscriber {
 
     fn send_to_telegram(&self, message: &str, level: &Level) {
         let _ = self.sender.send((message.to_string(), *level));
+    }
+
+    pub fn process_event(&self, event: &crate::events::Event, success: bool) {
+        let message = format!(
+            "{} for [{full_id}](https://github.com/{full_id}) was {}",
+            event.event,
+            if success { "successful" } else { "failed" },
+            full_id = event.pr.full_id,
+        );
+        self.send_to_telegram(&message, &Level::INFO);
     }
 }
 

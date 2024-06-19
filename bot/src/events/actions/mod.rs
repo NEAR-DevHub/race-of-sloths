@@ -16,6 +16,16 @@ pub enum Action {
     Stale(PullRequestStale),
 }
 
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Action::Finalize(_) => write!(f, "Finalize"),
+            Action::Merge(_) => write!(f, "Merge"),
+            Action::Stale(_) => write!(f, "Stale"),
+        }
+    }
+}
+
 impl Action {
     pub fn finalize() -> Self {
         Self::Finalize(PullRequestFinalize {})
