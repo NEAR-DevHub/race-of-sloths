@@ -3,8 +3,9 @@ use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     require,
+    serde::{Deserialize, Serialize},
     store::{LookupSet, Vector},
-    Timestamp,
+    NearSchema, Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
@@ -47,10 +48,18 @@ pub struct Contract {
     user_streaks: UnorderedMap<(GithubHandle, StreakId), VersionedStreakUserData>,
 }
 
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]
+#[borsh(crate = "near_sdk::borsh")]
+#[serde(crate = "near_sdk::serde")]
+pub struct AllowedRepos {
+    organization: String,
+    repos: Vec<String>,
+}
+
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(sloth: AccountId) -> Self {
+    pub fn new(sloth: AccountId, allowed_repos: Vec<AllowedRepos>) -> Self {
         let mut contract = Self {
             sloth,
             #[allow(deprecated)]
@@ -69,8 +78,11 @@ impl Contract {
             user_streaks: UnorderedMap::new(storage::StorageKey::UserStreaks),
         };
 
-        contract.allow_organization("NEAR-DevHub".to_owned());
-        contract.allow_organization("akorchyn".to_owned());
+        for org in allowed_repos {
+            for repo in org.repos {
+                contract.include_repo(org.organization.clone(), repo)
+            }
+        }
 
         contract.create_streak(
             "Weekly PR".to_owned(),
