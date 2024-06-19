@@ -26,7 +26,13 @@ impl ContractExt {
         context.predecessor_account_id = admin();
         testing_env!(context.clone());
 
-        let contract = Contract::new(admin());
+        let contract = Contract::new(
+            admin(),
+            vec![AllowedRepos {
+                organization: "NEAR-DevHub".to_owned(),
+                repos: vec!["devbot".to_owned()],
+            }],
+        );
 
         Self { contract, context }
     }

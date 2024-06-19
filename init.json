@@ -1,0 +1,78 @@
+{
+    "sloth": "race-of-sloths.testnet",
+    "allowed_repos": [
+        {
+            "organization": "near",
+            "repos": [
+                "nearcore",
+                "fast-auth-signer",
+                "near-sdk-rs",
+                "cargo-near",
+                "wallet-selector",
+                "near-public-lakehouse",
+                "mpc",
+                "near-api-js",
+                "cargo-near-new-project-template",
+                "docs",
+                "NEPs",
+                "near-jsonrpc-client-rs",
+                "near-sandbox",
+                "queryapi",
+                "near-cli-rs",
+                "near-fastauth-wallet",
+                "near-lake-indexer",
+                "near-workspaces-rs",
+                "near-workspaces-js",
+                "near-lake-framework-rs",
+                "near-lake-framework-js",
+                "chainsig-lib",
+                "node-docs",
+                "read-rpc",
+                "near-social-db-sdk",
+                "near-sdk-js",
+                "borsh-rs",
+                "borsh-js",
+                "pagoda-relayer-rs",
+                "multichain-gas-station-contract",
+                "near-sdk-js-template-project",
+                "create-near-app",
+                "near-sdk-contract-tools"
+            ]
+        },
+        {
+            "organization": "NEAR-DevHub",
+            "repos": [
+                "neardevhub-contract",
+                "neardevhub-bos",
+                "race-of-sloths",
+                "neardevhub-treasury-dashboard",
+                "race-of-sloths-website"
+            ]
+        },
+        {
+            "organization": "bos-cli-rs",
+            "repos": [
+                "near-socialdb-client-rs",
+                "bos-cli-rs"
+            ]
+        },
+        {
+            "organization": "NearSocial",
+            "repos": [
+                "viewer",
+                "VM",
+                "social-db"
+            ]
+        },
+        {
+            "organization": "fastnear",
+            "repos": [
+                "redis-node",
+                "fast-near",
+                "explorer-api",
+                "clickhouse-provider",
+                "neardata-server"
+            ]
+        }
+    ]
+}
