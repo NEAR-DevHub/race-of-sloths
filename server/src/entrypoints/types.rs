@@ -112,6 +112,9 @@ pub struct Streak {
     streak_type: String,
     current: u32,
     longest: u32,
+    achived: bool,
+    start_time: chrono::DateTime<chrono::Utc>,
+    end_time: chrono::DateTime<chrono::Utc>,
 }
 
 impl Streak {
@@ -129,23 +132,31 @@ impl Streak {
                 .unwrap_or_default();
             let current_time_string = time_period.time_string(current_time as u64);
             let previous_period_string = time_period.time_string(previous_period);
-            if current_time_string == time_period_string
-                || previous_period_string == time_period_string
-            {
-                return Self {
-                    name,
-                    streak_type,
-                    current,
-                    longest,
-                };
-            };
-        }
 
-        Self {
-            name,
-            streak_type,
-            current: 0,
-            longest,
+            let mut result = Self {
+                name,
+                streak_type,
+                current,
+                longest,
+                achived: time_period_string == current_time_string,
+                start_time: time_period
+                    .start_period(current_time as u64)
+                    .unwrap_or_default(),
+                end_time: time_period
+                    .end_period(current_time as u64)
+                    .unwrap_or_default(),
+            };
+
+            if current_time_string != time_period_string
+                && previous_period_string != time_period_string
+            {
+                result.current = 0;
+            }
+
+            result
+        } else {
+            // TODO: probably we need to return error here for user request
+            Self::default()
         }
     }
 }
@@ -156,7 +167,7 @@ pub struct UserProfile {
     pub rating: u32,
     pub contributions: u32,
     pub leaderboard_places: HashMap<String, u32>,
-    pub streaks: HashMap<String, Streak>,
+    pub streaks: Vec<Streak>,
 }
 
 impl From<UserRecord> for UserProfile {
@@ -175,15 +186,12 @@ impl From<UserRecord> for UserProfile {
                 .streaks
                 .into_iter()
                 .map(|streak| {
-                    (
-                        streak.name.clone(),
-                        Streak::new(
-                            streak.name,
-                            streak.amount as u32,
-                            streak.best as u32,
-                            streak.latest_time_string,
-                            streak.streak_type,
-                        ),
+                    Streak::new(
+                        streak.name,
+                        streak.amount as u32,
+                        streak.best as u32,
+                        streak.latest_time_string,
+                        streak.streak_type,
                     )
                 })
                 .collect(),
