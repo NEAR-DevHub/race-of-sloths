@@ -166,6 +166,7 @@ pub struct UserProfile {
     pub user: GithubMeta,
     pub rating: u32,
     pub contributions: u32,
+    pub lifetime_bonus: u32,
     pub leaderboard_places: HashMap<String, u32>,
     pub streaks: Vec<Streak>,
 }
@@ -182,6 +183,7 @@ impl From<UserRecord> for UserProfile {
             user: GithubMeta::new(record.login, record.name),
             rating: rating as u32,
             contributions: contributions as u32,
+            lifetime_bonus: record.lifetime_percent as u32,
             streaks: record
                 .streaks
                 .into_iter()
