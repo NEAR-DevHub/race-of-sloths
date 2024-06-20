@@ -77,10 +77,13 @@ impl TelegramSubscriber {
 
     pub fn process_event(&self, event: &crate::events::Event, success: bool) {
         let message = format!(
-            "{} in the [{full_id}](https://github.com/{full_id}) was {}",
+            "{} in the [{}](https://github.com/{}/{}/pull/{}) was {}",
             event.event,
+            event.pr.full_id,
+            event.pr.owner,
+            event.pr.repo,
+            event.pr.number,
             if success { "successful" } else { "failed" },
-            full_id = event.pr.full_id,
         );
         self.send_to_telegram(&message, &Level::INFO);
     }
