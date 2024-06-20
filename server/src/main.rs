@@ -38,7 +38,14 @@ async fn rocket() -> _ {
         .await
         .expect("Failed to create Near client");
 
-    let allowed_origins = AllowedOrigins::some_exact(&["http://localhost:3000"]);
+    let allowed_origins = AllowedOrigins::some_exact(&[
+        "http://localhost:3000",
+        "https://race-of-sloths.ai",
+        "https://race-of-sloths.org",
+        "https://race-of-sloths.io",
+        "https://race-of-sloths.com",
+        "https://race-of-sloths-website.vercel.app",
+    ]);
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
         ..Default::default()
