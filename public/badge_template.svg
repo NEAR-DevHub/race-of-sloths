@@ -3,8 +3,7 @@
     <g clip-path="url(#clip0_2164_6506)">
         <rect width="429" height="40" transform="translate(1)" fill="#0D1116" />
         <rect x="9" y="8" width="32" height="32" rx="15.4622" fill="url(#pattern0_2164_6506)" />
-        <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-            font-weight="bold" letter-spacing="0em">
+        <text fill="white" font-family="Inter" font-size="12" font-weight="bold" letter-spacing="0em">
             <tspan x="51" y="28.3636">{name}</tspan>
         </text>
         <rect width="429" height="47" transform="translate(1 40)" fill="#0D1116" />
@@ -13,8 +12,7 @@
             letter-spacing="0em">
             <tspan x="34.5" y="71.8636">{total-contributions}</tspan>
         </text>
-        <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-            font-weight="500" letter-spacing="0em">
+        <text fill="white" font-family="Inter" font-size="12" font-weight="500" letter-spacing="0em">
             <tspan x="70" y="71.8636">Total ROS contributions</tspan>
         </text>
     </g>
@@ -32,12 +30,10 @@
             d="M26.9998 128.421C32.7552 128.421 37.4208 123.755 37.4208 118C37.4208 112.244 32.7552 107.579 26.9998 107.579C21.2444 107.579 16.5787 112.244 16.5787 118C16.5787 119.933 17.105 121.743 18.0221 123.294C22.2301 116.215 27.1294 111.908 27.587 112.1C27.7863 112.184 27.1292 113.157 25.9982 114.833C24.4323 117.153 21.9582 120.818 19.5919 125.329C19.7897 125.529 19.9955 125.721 20.2088 125.904C24.5844 117.897 30.1775 112.932 30.6695 113.139C30.8689 113.223 30.211 114.198 29.0793 115.874C27.4111 118.346 24.7134 122.342 22.2143 127.259C22.4373 127.375 22.6651 127.483 22.8971 127.582C27.2372 119.81 32.6546 115.014 33.1355 115.218C33.3341 115.302 32.6778 116.274 31.5485 117.946C30.0024 120.235 27.5698 123.836 25.2307 128.271C25.8057 128.369 26.3967 128.421 26.9998 128.421Z"
             fill="url(#paint4_linear_2164_6506)" />
     </g>
-    <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="16"
-        font-weight="500" letter-spacing="0em">
+    <text fill="white" font-family="Inter" font-size="16" font-weight="500" letter-spacing="0em">
         <tspan x="53" y="118.318">{rank}</tspan>
     </text>
-    <text fill="#919399" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-        letter-spacing="0em">
+    <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
         <tspan x="53" y="135.864">Rank</tspan>
     </text>
     <rect x="219.5" y="95" width="210.5" height="52" rx="8" fill="#161B22" />
@@ -45,12 +41,10 @@
     <path
         d="M242.429 107.329C242.556 106.938 242.92 106.673 243.331 106.673H253.01C253.704 106.673 254.164 107.394 253.87 108.023L248.489 119.553C248.196 120.182 248.655 120.903 249.349 120.903H252.502C253.301 120.903 253.742 121.831 253.237 122.451L242.98 135.023C242.317 135.836 241.02 135.131 241.343 134.132L244.139 125.463C244.337 124.85 243.88 124.223 243.236 124.223H238.255C237.611 124.223 237.154 123.594 237.353 122.982L242.429 107.329Z"
         fill="url(#paint5_linear_2164_6506)" />
-    <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="16"
-        font-weight="500" letter-spacing="0em">
+    <text fill="white" font-family="Inter" font-size="16" font-weight="500" letter-spacing="0em">
         <tspan x="271.5" y="118.318">{total-rating}</tspan>
     </text>
-    <text fill="#919399" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-        letter-spacing="0em">
+    <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
         <tspan x="271.5" y="135.864">Sloth Points</tspan>
     </text>
     <rect x="1" y="155" width="210.5" height="52" rx="8" fill="#161B22" />
@@ -61,12 +55,10 @@
     <path
         d="M33.3 190.583C33.3 194.237 30.278 197.2 26.55 197.2C22.8221 197.2 19.8 194.237 19.8 190.583C19.8 187.961 23.2726 183.244 25.2363 180.787C25.9169 179.935 27.1832 179.935 27.8638 180.787C29.8275 183.244 33.3 187.961 33.3 190.583Z"
         fill="url(#paint7_linear_2164_6506)" />
-    <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="16"
-        font-weight="500" letter-spacing="0em">
+    <text fill="white" font-family="Inter" font-size="16" font-weight="500" letter-spacing="0em">
         <tspan x="53" y="178.318">{streak}</tspan>
     </text>
-    <text fill="#919399" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-        letter-spacing="0em">
+    <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
         <tspan x="53" y="195.864">Weekly Streak Record</tspan>
     </text>
     <rect x="219.5" y="155" width="210.5" height="52" rx="8" fill="#161B22" />
@@ -88,12 +80,10 @@
     <path d="M242.671 190.429H248.329L253.043 193.729H237.957L242.671 190.429Z" fill="url(#paint13_linear_2164_6506)" />
     <rect x="237.014" y="193.257" width="16.9712" height="1.88569" rx="0.942844"
         fill="url(#paint14_linear_2164_6506)" />
-    <text fill="white" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="16"
-        font-weight="500" letter-spacing="0em">
+    <text fill="white" font-family="Inter" font-size="16" font-weight="500" letter-spacing="0em">
         <tspan x="271.5" y="178.318">{place}</tspan>
     </text>
-    <text fill="#919399" xml:space="preserve" style="white-space: pre" font-family="Inter" font-size="12"
-        letter-spacing="0em">
+    <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
         <tspan x="271.5" y="195.864">Place </tspan>
     </text>
     <defs>
