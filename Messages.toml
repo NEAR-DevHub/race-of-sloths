@@ -159,7 +159,7 @@ Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in t
 ]
 
 [stale_messages]
-variables = ["link", "pr_author_username", "score"]
+variables = []
 message = [
     """### ❌ PR inactive
 This PR has been inactive for two weeks. It's now marked as stale. 
