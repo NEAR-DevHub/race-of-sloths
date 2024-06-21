@@ -136,33 +136,30 @@ impl VersionedUserPeriodData {
         *self = VersionedUserPeriodData::V1(data);
     }
 
-    pub fn pr_executed(&mut self, score: u32, rating: u32) {
+    pub fn pr_executed_with_score(&mut self, score: u32) {
         let mut data: UserPeriodData = self.clone().into();
         data.executed_prs += 1;
         data.total_score += score;
         if score > data.largest_score {
             data.largest_score = score;
         }
+
+        *self = VersionedUserPeriodData::V1(data);
+    }
+
+    pub fn pr_final_rating(&mut self, rating: u32) {
+        let mut data: UserPeriodData = self.clone().into();
         data.total_rating += rating;
         if rating > data.largest_rating_per_pr {
             data.largest_rating_per_pr = rating;
         }
+
         *self = VersionedUserPeriodData::V1(data);
     }
 
     pub fn pr_closed(&mut self) {
         let mut data: UserPeriodData = self.clone().into();
         data.prs_opened -= 1;
-        *self = VersionedUserPeriodData::V1(data);
-    }
-
-    pub fn pr_rating_bonus(&mut self, old_pr_rating: u32, new_pr_rating: u32) {
-        let mut data: UserPeriodData = self.clone().into();
-        data.total_rating -= old_pr_rating;
-        data.total_rating += new_pr_rating;
-        if new_pr_rating > data.largest_rating_per_pr {
-            data.largest_rating_per_pr = new_pr_rating;
-        }
         *self = VersionedUserPeriodData::V1(data);
     }
 }

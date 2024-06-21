@@ -20,6 +20,10 @@ pub enum MsgCategory {
     UnpauseMessage,
     MergeWithoutScoreMessage,
     FinalMessage,
+    FinalMessagesWeeklyStreak,
+    FinalMessagesMonthlyStreak,
+    FinalMessagesFirstLifetimeBonus,
+    FinalMessagesLifetimeBonus,
     StaleMessage,
     ErrorUnknownCommandMessage,
     ErrorRightsViolationMessage,
@@ -95,6 +99,10 @@ pub struct MessageLoader {
     pub unpause_messages: Messages,
     pub merge_without_score_messages: Messages,
     pub final_messages: Messages,
+    pub final_messages_weekly_streak: Messages,
+    pub final_messages_monthly_streak: Messages,
+    pub final_messages_first_lifetime_bonus: Messages,
+    pub final_messages_lifetime_bonus: Messages,
     pub stale_messages: Messages,
 
     // Errors
@@ -183,6 +191,12 @@ impl MessageLoader {
             MsgCategory::UnpauseMessage => &self.unpause_messages,
             MsgCategory::MergeWithoutScoreMessage => &self.merge_without_score_messages,
             MsgCategory::FinalMessage => &self.final_messages,
+            MsgCategory::FinalMessagesWeeklyStreak => &self.final_messages_weekly_streak,
+            MsgCategory::FinalMessagesMonthlyStreak => &self.final_messages_monthly_streak,
+            MsgCategory::FinalMessagesFirstLifetimeBonus => {
+                &self.final_messages_first_lifetime_bonus
+            }
+            MsgCategory::FinalMessagesLifetimeBonus => &self.final_messages_lifetime_bonus,
             MsgCategory::StaleMessage => &self.stale_messages,
             MsgCategory::ErrorUnknownCommandMessage => &self.error_unknown_command_messages,
             MsgCategory::ErrorRightsViolationMessage => &self.error_rights_violation_messages,

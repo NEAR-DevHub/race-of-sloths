@@ -5,13 +5,17 @@ use crate::StreakId;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Event {
-    StreakIncreased {
-        streak_id: StreakId,
-        new_streak: u32,
-        largest_streak: u32,
-        name: String,
-    },
     NewSloth {
         github_handle: String,
+    },
+    StreakFlatRewarded {
+        streak_id: StreakId,
+        streak_number: u32,
+        bonus_rating: u32,
+    },
+    StreakLifetimeRewarded {
+        streak_id: StreakId,
+        lifetime_percent: u32,
+        total_lifetime_percent: u32,
     },
 }

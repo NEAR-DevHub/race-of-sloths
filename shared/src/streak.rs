@@ -21,8 +21,6 @@ pub enum StreakType {
     TotalScore(u32),
     LargestScore(u32),
     AverageScore(u32),
-    TotalRating(u32),
-    LargestRatingPerPr(u32),
 }
 
 impl StreakType {
@@ -43,8 +41,6 @@ impl StreakType {
             Self::AverageScore(score) => {
                 user_period_data.total_score / user_period_data.executed_prs >= *score
             }
-            Self::TotalRating(rating) => user_period_data.total_rating >= *rating,
-            Self::LargestRatingPerPr(rating) => user_period_data.largest_rating_per_pr >= *rating,
         }
     }
 }

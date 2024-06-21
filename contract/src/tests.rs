@@ -3,8 +3,7 @@ use shared::{PRWithRating, SCORE_TIMEOUT_IN_NANOSECONDS};
 
 use super::*;
 
-pub const DAY_IN_NANOSECONDS: u64 = 86_400_000_000_000;
-pub const WEEK_IN_NANOSECONDS: u64 = 7 * DAY_IN_NANOSECONDS;
+pub const WEEK_IN_NANOSECONDS: u64 = 7 * SCORE_TIMEOUT_IN_NANOSECONDS;
 
 pub fn github_handle(id: u8) -> GithubHandle {
     format!("name-{id}")
@@ -104,7 +103,7 @@ fn success_streak_flow() {
         .unwrap();
 
     assert_eq!(user.period_data[0].1.total_score, 10);
-    assert_eq!(user.period_data[0].1.total_rating, 110);
+    assert_eq!(user.period_data[0].1.total_rating, 120);
     assert_eq!(user.period_data[0].1.executed_prs, 1);
     assert_eq!(user.period_data[0].1.prs_opened, 1);
     assert_eq!(user.period_data[0].1.prs_merged, 1);
@@ -121,8 +120,8 @@ fn success_streak_flow() {
     let pr: PRWithRating = pr.into();
 
     assert_eq!(pr.score(), Some(10));
-    assert_eq!(pr.rating(), 100 + 10);
-    assert_eq!(pr.streak_bonus_rating, 10);
+    assert_eq!(pr.rating(), 100 + 10 + 10);
+    assert_eq!(pr.streak_bonus_rating, 20);
 
     // New pr with 10 points for monthly streak
 
@@ -140,36 +139,17 @@ fn success_streak_flow() {
     let pr: PRWithRating = pr.into();
 
     assert_eq!(pr.score(), Some(10));
-    assert_eq!(pr.rating(), 100 + 10);
-    assert_eq!(pr.streak_bonus_rating, 10);
-
-    // New pr don't have streak bonus
-    contract.include_sloth_common_repo(0, 2, 0);
-    contract.score(2, 2, 10);
-    contract.merge(2, 1);
-    contract.finalize(2);
-
-    let pr = contract
-        .contract
-        .executed_prs
-        .get(&pr_id_str(2))
-        .unwrap()
-        .clone();
-
-    let pr: PRWithRating = pr.into();
-
-    assert_eq!(pr.score(), Some(10));
-    assert_eq!(pr.streak_bonus_rating, 0);
     assert_eq!(pr.rating(), 100);
+    assert_eq!(pr.streak_bonus_rating, 0);
 
-    // Total user rating is 110 + 110 + 100
+    // Total user rating is 120 + 100
 
     let user = contract
         .contract
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
 
-    assert_eq!(user.period_data[0].1.total_rating, 320);
+    assert_eq!(user.period_data[0].1.total_rating, 220);
 }
 
 #[test]
@@ -222,7 +202,7 @@ fn streak_in_a_nutshell() {
     assert_eq!(user.streaks[0].1.amount, 1);
     assert_eq!(user.period_data[0].1.total_rating, 0);
 
-    contract.context.block_timestamp = 1000000000000000000;
+    contract.context.block_timestamp = SCORE_TIMEOUT_IN_NANOSECONDS + 11;
     testing_env!(contract.context.clone());
     contract.finalize(0);
     let user = contract
@@ -367,7 +347,7 @@ fn cannot_double_streak_reward() {
     contract.score(2, 1, 5);
     contract.merge(2, 1);
 
-    contract.context.block_timestamp = 1000000000000000000;
+    contract.context.block_timestamp = SCORE_TIMEOUT_IN_NANOSECONDS + 2;
     testing_env!(contract.context.clone());
     contract.finalize(2);
 
@@ -452,10 +432,32 @@ fn cannot_double_percent_reward() {
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
 
-    println!("{:#?}", contract.contract.prs(50, 0));
-
     let weekly_streaks = 10 + 15 + 20 + 25;
     let total_rating = weekly_streaks + 53;
 
     assert_eq!(total_user.period_data[0].1.total_rating, total_rating)
+}
+
+#[test]
+fn monthly_streak_awarded_imediatly() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    contract.score(0, 1, 8);
+    contract.merge(0, 1);
+
+    contract.context.block_timestamp = SCORE_TIMEOUT_IN_NANOSECONDS + 2;
+    testing_env!(contract.context.clone());
+    contract.finalize(0);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(0))
+        .unwrap()
+        .clone();
+
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.streak_bonus_rating, 10 + 10);
 }
