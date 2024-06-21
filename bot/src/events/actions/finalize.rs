@@ -40,6 +40,7 @@ impl PullRequestFinalize {
         score: u32,
     ) -> anyhow::Result<()> {
         let mut total_lifetime_bonus = 0;
+        let mut lifetime_reward = 0;
         let mut weekly_bonus = 0;
         let mut monthly_bonus = 0;
 
@@ -47,9 +48,10 @@ impl PullRequestFinalize {
             match e {
                 Event::StreakLifetimeRewarded {
                     total_lifetime_percent,
-                    ..
+                    lifetime_percent,
                 } => {
                     total_lifetime_bonus = total_lifetime_percent;
+                    lifetime_reward = lifetime_percent;
                     // This is a superior message, so we can break here
                     break;
                 }
@@ -91,6 +93,7 @@ impl PullRequestFinalize {
                             "total_lifetime_percent".to_string(),
                             total_lifetime_bonus.to_string(),
                         ),
+                        ("lifetime_percent".to_string(), lifetime_reward.to_string()),
                         ("pr_author_username".to_string(), pr.author.login.clone()),
                         ("rank_name".to_string(), rank.to_string()),
                     ],

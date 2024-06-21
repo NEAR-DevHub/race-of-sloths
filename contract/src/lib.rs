@@ -334,6 +334,14 @@ impl Contract {
             }
         }
 
+        let new_bonus = user.clear_new_flags();
+        if new_bonus > 0 {
+            events::log_event(Event::StreakLifetimeRewarded {
+                lifetime_percent: new_bonus,
+                total_lifetime_percent: user.lifetime_percentage_bonus(),
+            })
+        }
+
         let full_id: String = pr.pr_id();
         pr.streak_bonus_rating = bonus_points;
         pr.percentage_multiplier = user.lifetime_percentage_bonus();
@@ -424,15 +432,7 @@ impl Contract {
         let result = match reward {
             StreakReward::FlatReward(amount) => account.add_flat_bonus(streak.id, amount, achieved),
             StreakReward::PermanentPercentageBonus(amount) => {
-                let result = account.add_streak_percent(streak.id, amount);
-                if result {
-                    events::log_event(Event::StreakLifetimeRewarded {
-                        streak_id: streak.id,
-                        lifetime_percent: amount,
-                        total_lifetime_percent: account.lifetime_percentage_bonus(),
-                    })
-                }
-                result
+                account.add_streak_percent(streak.id, amount)
             }
         };
         self.accounts

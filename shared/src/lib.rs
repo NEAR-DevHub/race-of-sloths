@@ -48,6 +48,19 @@ pub struct FlatBonusStorage {
     pub streak_min: u32,
 }
 
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct LifetimeBonusStorage {
+    pub streak_id: StreakId,
+    pub percent: u32,
+    // It's actually a dirty hack to avoid creating more sophisticated data structures
+    // The lifetime bonus can be received on pr cration, but we congratulate user only in the end of the PR
+    // So we need to know if there is a new bonus to congratulate user
+    // TODO: refactor this
+    pub new: bool,
+}
+
 #[derive(
     Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, Default,
 )]
@@ -55,23 +68,27 @@ pub struct FlatBonusStorage {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct AccountWithPermanentPercentageBonus {
     pub account_id: Option<AccountId>,
-    pub permanent_percentage_bonus: Vec<(StreakId, u32)>,
+    pub permanent_percentage_bonus: Vec<LifetimeBonusStorage>,
     pub flat_bonus: Vec<FlatBonusStorage>,
 }
 
 impl AccountWithPermanentPercentageBonus {
     pub fn add_streak_percent(&mut self, streak_id: StreakId, streak_percent_bonus: u32) -> bool {
-        if let Some((_, percent)) = self
+        if let Some(bonus) = self
             .permanent_percentage_bonus
             .iter_mut()
-            .find(|(id, _)| *id == streak_id)
+            .find(|bonus| bonus.streak_id == streak_id)
         {
-            let old = *percent;
-            *percent = streak_percent_bonus.max(old);
-            *percent > old
+            let old = bonus.percent;
+            bonus.percent = streak_percent_bonus.max(old);
+            bonus.new = bonus.new || bonus.percent > old;
+            bonus.new
         } else {
-            self.permanent_percentage_bonus
-                .push((streak_id, streak_percent_bonus));
+            self.permanent_percentage_bonus.push(LifetimeBonusStorage {
+                streak_id,
+                percent: streak_percent_bonus,
+                new: true,
+            });
             true
         }
     }
@@ -96,7 +113,7 @@ impl AccountWithPermanentPercentageBonus {
     pub fn lifetime_percentage_bonus(&self) -> u32 {
         self.permanent_percentage_bonus
             .iter()
-            .map(|(_, bonus)| *bonus)
+            .map(|bonus| bonus.percent)
             .reduce(Add::add)
             .unwrap_or_default()
     }
@@ -113,6 +130,19 @@ impl AccountWithPermanentPercentageBonus {
         } else {
             0
         }
+    }
+
+    // Clear new flags and return the sum of all new bonuses
+    // TODO: refactor this. See the comment in the struct
+    pub fn clear_new_flags(&mut self) -> u32 {
+        let mut new_bonus = 0;
+        for bonus in self.permanent_percentage_bonus.iter_mut() {
+            if bonus.new {
+                new_bonus += bonus.percent;
+            }
+            bonus.new = false;
+        }
+        new_bonus
     }
 }
 

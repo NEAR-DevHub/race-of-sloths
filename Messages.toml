@@ -151,10 +151,15 @@ message = [
 ]
 
 [final_messages_lifetime_bonus]
-variables = ["total_lifetime_percent", "pr_author_username", "rank_name"]
+variables = [
+    "total_lifetime_percent",
+    "lifetime_percent",
+    "pr_author_username",
+    "rank_name",
+]
 message = [
     """### ✅ PR is finalized!
-Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +5% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%!
+Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +{lifetime_reward}% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%!
 """,
 ]
 
