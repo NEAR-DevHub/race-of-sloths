@@ -22,11 +22,7 @@ pub fn generate_svg_badge(
         .find(|s| s.streak_id == 0)
         .cloned()
         .unwrap_or_default();
-    let month_streak = user_record
-        .streaks
-        .into_iter()
-        .find(|s| s.streak_id == 1)
-        .unwrap_or_default();
+
     let all_time_place = user_record
         .leaderboard_places
         .iter()
@@ -45,11 +41,11 @@ pub fn generate_svg_badge(
         "{total-contributions}",
         &total_period.prs_opened.to_string(),
     );
-    let svg_icon = svg_icon.replace("{total-score}", &total_period.total_score.to_string());
-    let svg_icon = svg_icon.replace("{week-streak}", &week_streak.amount.to_string());
-    let svg_icon = svg_icon.replace("{month-streak}", &month_streak.amount.to_string());
-    let svg_icon = svg_icon.replace("{image}", &user_metadata.image_base64);
+    let svg_icon = svg_icon.replace("{rank}", rank_string(user_record.lifetime_percent).unwrap());
+    let svg_icon = svg_icon.replace("{total-rating}", &total_period.total_rating.to_string());
+    let svg_icon = svg_icon.replace("{streak}", &week_streak.amount.to_string());
     let svg_icon = svg_icon.replace("{place}", &all_time_place);
+    let svg_icon = svg_icon.replace("{image}", &user_metadata.image_base64);
 
     let tree = Tree::from_str(
         &svg_icon,
@@ -65,4 +61,15 @@ pub fn generate_svg_badge(
     };
 
     Ok(tree.to_string(&write_options))
+}
+
+fn rank_string(lifetime: i32) -> Option<&'static str> {
+    Some(match lifetime {
+        a if a >= 25 => "Rust",
+        a if a >= 20 => "Platinum",
+        a if a >= 15 => "Gold",
+        a if a >= 10 => "Silver",
+        a if a >= 5 => "Bronze",
+        _ => "Unranked",
+    })
 }
