@@ -377,7 +377,10 @@ impl DB {
         let mut leaderboard_places = Vec::with_capacity(place_strings.len());
         for place in place_strings {
             let record = self.get_leaderboard_place(place, user_rec).await?;
-            leaderboard_places.push((place.clone(), record.unwrap_or_default() as u32));
+            if record.is_none() {
+                continue;
+            }
+            leaderboard_places.push((place.clone(), record.unwrap() as u32));
         }
 
         let user = UserRecord {
@@ -430,10 +433,10 @@ impl DB {
         user_id: i32,
     ) -> anyhow::Result<Option<i64>> {
         let rec = sqlx::query_file!("./sql/get_leaderboard_place.sql", period, user_id)
-            .fetch_one(&self.0)
+            .fetch_optional(&self.0)
             .await?;
 
-        Ok(rec.place)
+        Ok(rec.and_then(|rec| rec.place))
     }
 
     pub async fn get_repo_leaderboard(

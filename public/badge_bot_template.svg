@@ -18,18 +18,10 @@
     </g>
     <rect x="1" y="95" width="210.5" height="52" rx="8" fill="#161B22" />
     <rect x="1" y="95" width="210.5" height="52" rx="8" stroke="#30363D" />
-    <g clip-path="url(#clip1_2164_6506)">
-        <path d="M19.5 122.5L28.5933 127.75L22.2183 138.792L19.1428 133.619L13.125 133.542L19.5 122.5Z"
-            fill="url(#paint0_linear_2164_6506)" />
-        <path d="M35.25 122.5L26.1567 127.75L32.5317 138.792L35.6072 133.619L41.625 133.542L35.25 122.5Z"
-            fill="url(#paint1_linear_2164_6506)" />
-        <path
-            d="M24.6938 104.814C25.8642 103.311 28.1358 103.311 29.3062 104.814C30.1495 105.896 31.5666 106.356 32.885 105.976C34.715 105.449 36.5528 106.784 36.6166 108.688C36.6626 110.059 37.5384 111.264 38.8284 111.732C40.619 112.381 41.3209 114.541 40.2537 116.119C39.4849 117.255 39.4849 118.745 40.2537 119.881C41.3209 121.459 40.619 123.619 38.8284 124.268C37.5384 124.736 36.6626 125.941 36.6166 127.312C36.5528 129.216 34.715 130.551 32.885 130.024C31.5666 129.644 30.1495 130.104 29.3062 131.186C28.1358 132.689 25.8642 132.689 24.6938 131.186C23.8505 130.104 22.4334 129.644 21.115 130.024C19.285 130.551 17.4472 129.216 17.3834 127.312C17.3374 125.941 16.4616 124.736 15.1716 124.268C13.381 123.619 12.6791 121.459 13.7463 119.881C14.5151 118.745 14.5151 117.255 13.7463 116.119C12.6791 114.541 13.381 112.381 15.1716 111.732C16.4616 111.264 17.3374 110.059 17.3834 108.688C17.4472 106.784 19.285 105.449 21.115 105.976C22.4334 106.356 23.8505 105.896 24.6938 104.814Z"
-            fill="url(#paint2_linear_2164_6506)" stroke="url(#paint3_linear_2164_6506)" stroke-width="0.434211" />
-        <path fill-rule="evenodd" clip-rule="evenodd"
-            d="M26.9998 128.421C32.7552 128.421 37.4208 123.755 37.4208 118C37.4208 112.244 32.7552 107.579 26.9998 107.579C21.2444 107.579 16.5787 112.244 16.5787 118C16.5787 119.933 17.105 121.743 18.0221 123.294C22.2301 116.215 27.1294 111.908 27.587 112.1C27.7863 112.184 27.1292 113.157 25.9982 114.833C24.4323 117.153 21.9582 120.818 19.5919 125.329C19.7897 125.529 19.9955 125.721 20.2088 125.904C24.5844 117.897 30.1775 112.932 30.6695 113.139C30.8689 113.223 30.211 114.198 29.0793 115.874C27.4111 118.346 24.7134 122.342 22.2143 127.259C22.4373 127.375 22.6651 127.483 22.8971 127.582C27.2372 119.81 32.6546 115.014 33.1355 115.218C33.3341 115.302 32.6778 116.274 31.5485 117.946C30.0024 120.235 27.5698 123.836 25.2307 128.271C25.8057 128.369 26.3967 128.421 26.9998 128.421Z"
-            fill="url(#paint4_linear_2164_6506)" />
-    </g>
+    <svg width="36" height="36" viewBox="0 0 48 48" x="9" y="103" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {rank-svg}
+    </svg>
+
     <text fill="white" font-family="Inter" font-size="16" font-weight="500" letter-spacing="0em">
         <tspan x="53" y="118.318">{rank}</tspan>
     </text>
@@ -59,7 +51,7 @@
         <tspan x="53" y="178.318">{streak}</tspan>
     </text>
     <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
-        <tspan x="53" y="195.864">Weekly Streak Record</tspan>
+        <tspan x="53" y="195.864">{streak-type} Streak Record</tspan>
     </text>
     <rect x="219.5" y="155" width="210.5" height="52" rx="8" fill="#161B22" />
     <rect x="219.5" y="155" width="210.5" height="52" rx="8" stroke="#30363D" />
@@ -84,7 +76,7 @@
         <tspan x="271.5" y="178.318">{place}</tspan>
     </text>
     <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
-        <tspan x="271.5" y="195.864">Place </tspan>
+        <tspan x="271.5" y="195.864">{place-type} Place </tspan>
     </text>
     <defs>
         <pattern id="pattern0_2164_6506" patternContentUnits="objectBoundingBox" width="1" height="1">
@@ -173,5 +165,22 @@
             <rect width="36" height="36" fill="white" transform="translate(9 103)" />
         </clipPath>
         <image id="image0_2164_6506" width="460" height="460" xlink:href="data:image/png;base64,{image}" />
+        <linearGradient id="paint0_linear_2107_3048" x1="24" y1="31" x2="24" y2="48" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#1E0A01" />
+            <stop offset="1" stop-color="#842A04" />
+        </linearGradient>
+        <linearGradient id="paint1_linear_2107_3048" x1="24" y1="-2" x2="24" y2="42" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#D59040" />
+            <stop offset="1" stop-color="#7A3F00" />
+        </linearGradient>
+        <linearGradient id="paint2_linear_2107_3048" x1="24" y1="-2" x2="24" y2="42" gradientUnits="userSpaceOnUse">
+            <stop stop-color="white" stop-opacity="0.52" />
+            <stop offset="1" stop-color="white" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="paint3_linear_2107_3048" x1="23.9997" y1="6.10498" x2="23.9997" y2="33.8945"
+            gradientUnits="userSpaceOnUse">
+            <stop stop-color="#F6BB78" />
+            <stop offset="1" stop-color="#CE771B" />
+        </linearGradient>
     </defs>
 </svg>

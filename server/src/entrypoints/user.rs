@@ -5,7 +5,7 @@ use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{types::UserCachedMetadata, DB},
     github_pull::GithubClient,
-    svg::generate_svg_badge,
+    svg::{generate_svg_bot_badge, generate_svg_share_badge},
 };
 use rocket::{
     http::{ContentType, Header, Status},
@@ -87,15 +87,25 @@ async fn fetch_user_metadata_lazily(
 #[utoipa::path(context_path = "/api/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>/badge")]
+#[get("/<username>/badge?<type>")]
 async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,
     github_client: &State<Arc<GithubClient>>,
+    r#type: Option<String>,
 ) -> Badge {
-    let user = match db
-        .get_user(username, &[TimePeriod::AllTime.time_string(0)])
+    let badge_type = r#type.unwrap_or_else(|| "share".to_string());
+
+    let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
+    let user: race_of_sloths_server::db::types::UserRecord = match db
+        .get_user(
+            username,
+            &[
+                TimePeriod::AllTime.time_string(timestamp),
+                TimePeriod::Month.time_string(timestamp),
+            ],
+        )
         .await
     {
         Ok(Some(value)) => value,
@@ -109,15 +119,25 @@ async fn get_badge<'a>(
         }
     };
 
-    let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
-        Ok(metadata) => metadata,
-        Err(e) => {
-            rocket::error!("Failed to fetch user metadata: {e}");
-            return Badge::with_status(Status::InternalServerError);
+    let result = match badge_type.as_str() {
+        "bot" => {
+            let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
+                Ok(metadata) => metadata,
+                Err(e) => {
+                    rocket::error!("Failed to fetch user metadata: {e}");
+                    return Badge::with_status(Status::InternalServerError);
+                }
+            };
+            generate_svg_bot_badge(user, metadata, font.inner().clone())
+        }
+        "share" => generate_svg_share_badge(user, font.inner().clone()),
+        _ => {
+            rocket::info!("Unknown badge type {badge_type}, returning 404");
+            return Badge::with_status(Status::NotFound);
         }
     };
 
-    match generate_svg_badge(user, metadata, font.inner().clone()) {
+    match result {
         Ok(value) => Badge::new(value),
         _ => {
             rocket::error!("Failed to generate badge for {username}");
