@@ -6,7 +6,7 @@
         <text fill="white" font-family="Inter" font-size="12" font-weight="bold" letter-spacing="0em">
             <tspan x="51" y="28.3636">{name}</tspan>
         </text>
-        <rect width="429" height="47" transform="translate(1 40)" fill="#0D1116" />
+        <rect width="429" height="47" transform="translate(1 39)" fill="#0D1116" />
         <rect x="9" y="56" width="51" height="23" rx="4" fill="#161B22" />
         <text fill="white" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600"
             letter-spacing="0em">
