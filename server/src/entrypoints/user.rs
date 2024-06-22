@@ -5,7 +5,7 @@ use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{types::UserCachedMetadata, DB},
     github_pull::GithubClient,
-    svg::{generate_svg_bot_badge, generate_svg_share_badge},
+    svg::{generate_svg_bot_badge, generate_svg_meta_badge, generate_svg_share_badge},
 };
 use rocket::{
     http::{ContentType, Header, Status},
@@ -130,6 +130,16 @@ async fn get_badge<'a>(
             };
             generate_svg_bot_badge(user, metadata, font.inner().clone())
         }
+        "meta" => {
+            let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
+                Ok(metadata) => metadata,
+                Err(e) => {
+                    rocket::error!("Failed to fetch user metadata: {e}");
+                    return Badge::with_status(Status::InternalServerError);
+                }
+            };
+            generate_svg_meta_badge(user, metadata, font.inner().clone())
+        }
         "share" => generate_svg_share_badge(user, font.inner().clone()),
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
@@ -204,7 +214,7 @@ pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         let mut font = usvg::fontdb::Database::new();
         font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
-            .expect("Failed to load font");
+            .expect("Failed to load Inter font");
 
         rocket.manage(Arc::new(font)).mount(
             "/api/users/",
