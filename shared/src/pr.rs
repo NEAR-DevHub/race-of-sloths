@@ -134,7 +134,7 @@ impl PRWithRating {
         let percentage = (self.percentage_multiplier + 100) as f64;
         ((score as f64 * percentage / 100.0).ceil()) as u32
     }
-    
+
     pub fn score(&self) -> Option<u32> {
         self.score
             .iter()
