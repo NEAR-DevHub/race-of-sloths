@@ -22,5 +22,6 @@ utoipa-swagger-ui = { workspace = true, features = ["rocket"] }
 octocrab.workspace = true
 http-body-util.workspace = true
 rocket_cors.workspace = true
+num-format.workspace = true
 
 shared = { workspace = true, features = ["client"] }

@@ -66,6 +66,12 @@ impl UserRecord {
             lifetime_percent: 0,
         }
     }
+
+    pub fn get_total_period(&self) -> Option<&UserPeriodRecord> {
+        self.period_data
+            .iter()
+            .find(|p| p.period_type == "all-time")
+    }
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
