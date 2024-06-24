@@ -6,6 +6,7 @@ use crate::StreakId;
 #[serde(crate = "near_sdk::serde")]
 pub enum Event {
     NewSloth {
+        user_id: u32,
         github_handle: String,
     },
     StreakFlatRewarded {

@@ -20,16 +20,16 @@ use self::types::{
 };
 
 impl DB {
-    pub async fn upsert_user(&self, user: &str, percent: u32) -> anyhow::Result<i32> {
+    pub async fn upsert_user(&self, user_id: u32, user: &str, percent: u32) -> anyhow::Result<i32> {
         // First try to update the user
         let rec = sqlx::query!(
             r#"
             UPDATE users
             SET permanent_bonus = $2
-            WHERE login = $1
+            WHERE id = $1
             RETURNING id
             "#,
-            user,
+            user_id as i32,
             percent as i32
         )
         .fetch_optional(&self.0)
@@ -41,11 +41,12 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO users (login, permanent_bonus)
-                VALUES ($1, $2)
-                ON CONFLICT (login) DO NOTHING
+                INSERT INTO users (id, login, permanent_bonus)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (id) DO NOTHING
                 RETURNING id
                 "#,
+                user_id as i32,
                 user,
                 percent as i32
             )

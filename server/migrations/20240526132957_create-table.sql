@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
+    id PRIMARY KEY,
     login TEXT UNIQUE NOT NULL,
     full_name TEXT
 );

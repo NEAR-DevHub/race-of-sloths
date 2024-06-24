@@ -4,14 +4,14 @@ use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     require,
     serde::{Deserialize, Serialize},
-    store::{LookupSet, Vector},
+    store::{LookupMap, LookupSet, Vector},
     NearSchema, Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
     AccountWithPermanentPercentageBonus, Event, GithubHandle, IntoEnumIterator, PRId, PRWithRating,
     Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod, TimePeriodString,
-    VersionedAccount, VersionedPR, VersionedStreak, VersionedStreakUserData,
+    UserId, VersionedAccount, VersionedPR, VersionedStreak, VersionedStreakUserData,
     VersionedUserPeriodData,
 };
 use types::{Organization, VersionedOrganization};
@@ -29,10 +29,9 @@ pub mod views;
 #[borsh(crate = "near_sdk::borsh")]
 pub struct Contract {
     sloth: AccountId,
-    #[allow(deprecated)]
-    accounts: UnorderedMap<GithubHandle, VersionedAccount>,
-    #[allow(deprecated)]
-    sloths_per_period: UnorderedMap<(GithubHandle, TimePeriodString), VersionedUserPeriodData>,
+    account_ids: LookupMap<GithubHandle, UserId>,
+    users: Vector<VersionedAccount>,
+    sloths_per_period: LookupMap<(UserId, TimePeriodString), VersionedUserPeriodData>,
     #[allow(deprecated)]
     organizations: UnorderedMap<GithubHandle, VersionedOrganization>,
     // We need to think about removing PRs that are stale for a long time
@@ -44,8 +43,7 @@ pub struct Contract {
 
     // Configured streaks
     streaks: Vector<VersionedStreak>,
-    #[allow(deprecated)]
-    user_streaks: UnorderedMap<(GithubHandle, StreakId), VersionedStreakUserData>,
+    user_streaks: LookupMap<(UserId, StreakId), VersionedStreakUserData>,
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]
@@ -62,10 +60,9 @@ impl Contract {
     pub fn new(sloth: AccountId, allowed_repos: Vec<AllowedRepos>) -> Self {
         let mut contract = Self {
             sloth,
-            #[allow(deprecated)]
-            accounts: UnorderedMap::new(storage::StorageKey::Accounts),
-            #[allow(deprecated)]
-            sloths_per_period: UnorderedMap::new(storage::StorageKey::SlothsPerPeriod),
+            account_ids: LookupMap::new(storage::StorageKey::AccountIds),
+            users: Vector::new(storage::StorageKey::Users),
+            sloths_per_period: LookupMap::new(storage::StorageKey::SlothsPerPeriod),
             #[allow(deprecated)]
             organizations: UnorderedMap::new(storage::StorageKey::Organizations),
             #[allow(deprecated)]
@@ -74,8 +71,7 @@ impl Contract {
             executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
             excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
             streaks: Vector::new(storage::StorageKey::Streaks),
-            #[allow(deprecated)]
-            user_streaks: UnorderedMap::new(storage::StorageKey::UserStreaks),
+            user_streaks: LookupMap::new(storage::StorageKey::UserStreaks),
         };
 
         for org in allowed_repos {
@@ -176,7 +172,7 @@ impl Contract {
     ) {
         self.assert_sloth();
         self.assert_organization_allowed(&organization, &repo);
-        self.get_or_create_account(&user);
+        let (user_id, _) = self.get_or_create_account(&user);
 
         let pr_id = format!("{organization}/{repo}/{pr_number}");
 
@@ -195,7 +191,7 @@ impl Contract {
 
         let pr = PRWithRating::new(organization, repo, pr_number, user, started_at);
 
-        self.apply_to_periods(started_at, &pr.author, |data| data.pr_opened());
+        self.apply_to_periods(started_at, user_id, |data| data.pr_opened());
         self.prs.insert(pr_id, VersionedPR::V1(pr));
     }
 
@@ -219,8 +215,9 @@ impl Contract {
             None => env::panic_str("PR is not started or already executed"),
         };
         pr.add_merge_info(merged_at);
+        let (user_id, _) = self.get_or_create_account(&pr.author);
 
-        self.apply_to_periods(merged_at, &pr.author, |data| data.pr_merged());
+        self.apply_to_periods(merged_at, user_id, |data| data.pr_merged());
         self.prs.insert(pr_id, VersionedPR::V1(pr));
     }
 
@@ -233,8 +230,9 @@ impl Contract {
         if pr.merged_at.is_some() {
             env::panic_str("Merged PR cannot be excluded")
         }
+        let (user_id, _) = self.get_or_create_account(&pr.author);
 
-        self.apply_to_periods(pr.created_at, &pr.author, |data| {
+        self.apply_to_periods(pr.created_at, user_id, |data| {
             data.pr_closed();
         });
 
@@ -288,8 +286,8 @@ impl Contract {
             None => env::panic_str("PR is not started or already executed"),
         };
         require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
-
-        self.apply_to_periods(pr.created_at, &pr.author, |data| data.pr_closed());
+        let (user_id, _) = self.get_or_create_account(&pr.author);
+        self.apply_to_periods(pr.created_at, user_id, |data| data.pr_closed());
         self.prs.remove(&pr_id);
     }
 
@@ -305,19 +303,21 @@ impl Contract {
             env::panic_str("PR is not ready to be finalized")
         }
 
+        let (user_id, _) = self.get_or_create_account(&pr.author);
+
         let score = pr.score().unwrap_or_default();
-        self.apply_to_periods(pr.merged_at.unwrap(), &pr.author, |data| {
+        self.apply_to_periods(pr.merged_at.unwrap(), user_id, |data| {
             data.pr_executed_with_score(score)
         });
 
-        let mut user = self.get_or_create_account(&pr.author);
+        let (user_id, mut user) = self.get_or_create_account(&pr.author);
 
         let mut bonus_points = 0;
         for streak in self.streaks.iter().filter(|s| s.is_active()).cloned() {
             let streak: Streak = streak.into();
             let streak_data: StreakUserData = self
                 .user_streaks
-                .get(&(pr.author.to_owned(), streak.id))
+                .get(&(user_id, streak.id))
                 .cloned()
                 .unwrap_or_else(|| VersionedStreakUserData::V1(Default::default()))
                 .into();
@@ -347,9 +347,8 @@ impl Contract {
         pr.percentage_multiplier = user.lifetime_percentage_bonus();
         let rating = pr.rating();
 
-        self.accounts
-            .insert(pr.author.clone(), VersionedAccount::V1(user));
-        self.apply_to_periods(pr.merged_at.unwrap(), &pr.author, |data| {
+        self.users[user_id] = VersionedAccount::V1(user);
+        self.apply_to_periods(pr.merged_at.unwrap(), user_id, |data| {
             data.pr_final_rating(rating)
         });
 
@@ -359,7 +358,7 @@ impl Contract {
 }
 
 impl Contract {
-    pub fn calculate_streak(&mut self, user: &str) {
+    pub fn calculate_streak(&mut self, user_id: UserId) {
         let current_time = env::block_timestamp();
         for streak in self.streaks.into_iter().cloned().collect::<Vec<_>>() {
             let streak: Streak = streak.into();
@@ -372,11 +371,11 @@ impl Contract {
             // Check if user accomplished the streak for current period
             let achieved = self
                 .sloths_per_period
-                .get(&(user.to_owned(), current_time_string.clone()))
+                .get(&(user_id, current_time_string.clone()))
                 .map(|s| streak.is_streak_achieved(s))
                 .unwrap_or_default();
 
-            let key = (user.to_owned(), streak.id);
+            let key = (user_id, streak.id);
             let mut streak_data: StreakUserData = self
                 .user_streaks
                 .get(&key)
@@ -414,7 +413,7 @@ impl Contract {
             };
 
             if streak_data.amount > current_streak {
-                self.reward_streak(user, &streak, streak_data.amount);
+                self.reward_streak(user_id, &streak, streak_data.amount);
             }
 
             self.user_streaks
@@ -422,28 +421,27 @@ impl Contract {
         }
     }
 
-    pub fn reward_streak(&mut self, user: &str, streak: &Streak, achieved: u32) -> bool {
+    pub fn reward_streak(&mut self, user_id: UserId, streak: &Streak, achieved: u32) -> bool {
         let reward = match streak.get_streak_reward(achieved) {
             Some(reward) => reward,
             None => return false,
         };
 
-        let mut account = self.get_or_create_account(user);
+        let mut account: AccountWithPermanentPercentageBonus = self.users[user_id].clone().into();
         let result = match reward {
             StreakReward::FlatReward(amount) => account.add_flat_bonus(streak.id, amount, achieved),
             StreakReward::PermanentPercentageBonus(amount) => {
                 account.add_streak_percent(streak.id, amount)
             }
         };
-        self.accounts
-            .insert(user.to_owned(), VersionedAccount::V1(account));
+        self.users[user_id] = VersionedAccount::V1(account);
         result
     }
 
     pub fn apply_to_periods(
         &mut self,
         timestamp: Timestamp,
-        author: &str,
+        user_id: UserId,
         func: impl Fn(&mut VersionedUserPeriodData),
     ) {
         for period in TimePeriod::iter() {
@@ -454,28 +452,32 @@ impl Contract {
             let key = period.time_string(timestamp);
             let entry = self
                 .sloths_per_period
-                .entry((author.to_owned(), key.clone()))
+                .entry((user_id, key.clone()))
                 .or_insert(VersionedUserPeriodData::V1(Default::default()));
             func(entry);
         }
 
-        self.calculate_streak(author);
+        self.calculate_streak(user_id);
     }
 
     pub fn get_or_create_account(
         &mut self,
         account_id: &str,
-    ) -> AccountWithPermanentPercentageBonus {
-        self.accounts
+    ) -> (UserId, AccountWithPermanentPercentageBonus) {
+        let user_id = *self
+            .account_ids
             .entry(account_id.to_owned())
             .or_insert_with(|| {
+                let user_id = self.users.len();
                 events::log_event(Event::NewSloth {
+                    user_id,
                     github_handle: account_id.to_owned(),
                 });
-                VersionedAccount::V1(Default::default())
-            })
-            .clone()
-            .into()
+                self.users.push(VersionedAccount::V1(Default::default()));
+                user_id
+            });
+        dbg!(user_id, self.users.len());
+        (user_id, self.users[user_id].clone().into())
     }
 
     pub fn assert_sloth(&self) {
