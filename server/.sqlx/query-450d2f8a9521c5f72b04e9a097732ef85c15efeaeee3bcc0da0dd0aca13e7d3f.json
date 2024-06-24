@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE users\n            SET permanent_bonus = $2\n            WHERE login = $1\n            RETURNING id\n            ",
+  "query": "\n            UPDATE users\n            SET permanent_bonus = $2\n            WHERE id = $1\n            RETURNING id\n            ",
   "describe": {
     "columns": [
       {
@@ -11,7 +11,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text",
+        "Int4",
         "Int4"
       ]
     },
@@ -19,5 +19,5 @@
       false
     ]
   },
-  "hash": "1e3e583599dd9070c0105d1eee21146e588bbd383e6b8fedcf8c34eb9ff01ba1"
+  "hash": "450d2f8a9521c5f72b04e9a097732ef85c15efeaeee3bcc0da0dd0aca13e7d3f"
 }

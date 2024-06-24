@@ -76,6 +76,15 @@ pub struct AccountWithPermanentPercentageBonus {
 }
 
 impl AccountWithPermanentPercentageBonus {
+    pub fn new(github_handle: GithubHandle) -> Self {
+        Self {
+            github_handle,
+            permanent_percentage_bonus: Vec::new(),
+            flat_bonus: Vec::new(),
+            account_id: None,
+        }
+    }
+
     pub fn add_streak_percent(&mut self, streak_id: StreakId, streak_percent_bonus: u32) -> bool {
         if let Some(bonus) = self
             .permanent_percentage_bonus

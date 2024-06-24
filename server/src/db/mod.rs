@@ -384,7 +384,24 @@ impl DB {
             leaderboard_places.push((place.clone(), record.unwrap() as u32));
         }
 
+        let first_contribution = sqlx::query!(
+            r#"
+            SELECT created_at
+            FROM pull_requests
+            WHERE author_id = $1
+            ORDER BY created_at ASC
+            LIMIT 1
+            "#,
+            user_rec
+        )
+        .fetch_optional(&self.0)
+        .await?;
+
         let user = UserRecord {
+            id: user_rec,
+            first_contribution: first_contribution
+                .map(|x| x.created_at)
+                .unwrap_or_else(|| chrono::Utc::now().naive_utc()),
             login: login.to_string(),
             name: full_name,
             lifetime_percent: percent,

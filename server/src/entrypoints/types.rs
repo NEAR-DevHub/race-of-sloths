@@ -163,12 +163,14 @@ impl Streak {
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct UserProfile {
+    pub user_id: u32,
     pub user: GithubMeta,
     pub rating: u32,
     pub contributions: u32,
     pub lifetime_bonus: u32,
     pub leaderboard_places: HashMap<String, u32>,
     pub streaks: Vec<Streak>,
+    pub first_contribution: NaiveDateTime,
 }
 
 impl From<UserRecord> for UserProfile {
@@ -180,6 +182,7 @@ impl From<UserRecord> for UserProfile {
             .map(|x| (x.prs_opened, x.total_rating))
             .unwrap_or_default();
         Self {
+            user_id: record.id as u32,
             user: GithubMeta::new(record.login, record.name),
             rating: rating as u32,
             contributions: contributions as u32,
@@ -198,6 +201,7 @@ impl From<UserRecord> for UserProfile {
                 })
                 .collect(),
             leaderboard_places: record.leaderboard_places.into_iter().collect(),
+            first_contribution: record.first_contribution,
         }
     }
 }

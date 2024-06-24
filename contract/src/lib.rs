@@ -473,7 +473,9 @@ impl Contract {
                     user_id,
                     github_handle: account_id.to_owned(),
                 });
-                self.users.push(VersionedAccount::V1(Default::default()));
+                self.users.push(VersionedAccount::V1(
+                    AccountWithPermanentPercentageBonus::new(account_id.to_owned()),
+                ));
                 user_id
             });
         dbg!(user_id, self.users.len());
