@@ -22,8 +22,9 @@ SELECT
     r.name AS name,
     COALESCE(COUNT(pr.id), 0) AS total_prs,
     COALESCE(SUM(pr.score), 0) AS total_score,
-    tc.contributor_full_name AS contributor_full_name,
-    tc.contributor_login AS contributor_login,
+    COALESCE(SUM(pr.rating), 0) AS total_rating,
+    MAX(tc.contributor_full_name) AS contributor_full_name,
+    MAX(tc.contributor_login) AS contributor_login,
     r.primary_language,
     r.open_issues,
     r.stars,
@@ -38,14 +39,15 @@ GROUP BY
     o.login,
     o.full_name,
     r.name,
-    tc.contributor_login,
-    tc.contributor_full_name,
     r.primary_language,
     r.open_issues,
     r.stars,
     r.forks
 ORDER BY
     total_prs DESC,
-    total_score DESC
+    total_rating DESC,
+    total_score DESC,
+    organization ASC,
+    name ASC
 LIMIT
     $1 OFFSET $2;

@@ -247,3 +247,11 @@ pub struct User {
     pub period_data: Vec<(TimePeriodString, UserPeriodData)>,
     pub streaks: Vec<(StreakId, StreakUserData)>,
 }
+
+#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]
+#[borsh(crate = "near_sdk::borsh")]
+#[serde(crate = "near_sdk::serde")]
+pub struct AllowedRepos {
+    pub organization: String,
+    pub repos: Vec<String>,
+}

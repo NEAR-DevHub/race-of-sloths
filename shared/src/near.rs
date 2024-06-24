@@ -379,4 +379,15 @@ impl NearClient {
         }
         Ok(res)
     }
+
+    #[instrument(skip(self))]
+    pub async fn repos(&self) -> anyhow::Result<Vec<AllowedRepos>> {
+        let res = self
+            .contract
+            .view("repos")
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call allowed_repos: {:?}", e))?;
+        let res = res.json()?;
+        Ok(res)
+    }
 }

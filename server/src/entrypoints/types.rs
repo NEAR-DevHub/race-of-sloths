@@ -57,6 +57,7 @@ pub struct RepoResponse {
     pub contributor_of_the_month: Option<GithubMeta>,
     pub contributions_with_sloth: u32,
     pub total_score: u32,
+    pub total_rating: u32,
 }
 
 impl From<RepoLeaderboardRecord> for RepoResponse {
@@ -65,14 +66,15 @@ impl From<RepoLeaderboardRecord> for RepoResponse {
             name: record.name,
             organization: GithubMeta::new(record.organization, record.organization_full_name),
             repo_language: record.primary_language,
-            stars: record.stars as u32,
-            forks: record.forks as u32,
-            open_issues: record.open_issues as u32,
+            stars: record.stars.unwrap_or_default() as u32,
+            forks: record.forks.unwrap_or_default() as u32,
+            open_issues: record.open_issues.unwrap_or_default() as u32,
             contributor_of_the_month: record
                 .contributor_login
                 .map(|login| GithubMeta::new(login, record.contributor_full_name)),
-            contributions_with_sloth: record.total_prs as u32,
-            total_score: record.total_score as u32,
+            contributions_with_sloth: record.total_prs.unwrap_or_default() as u32,
+            total_score: record.total_score.unwrap_or_default() as u32,
+            total_rating: record.total_rating.unwrap_or_default() as u32,
         }
     }
 }

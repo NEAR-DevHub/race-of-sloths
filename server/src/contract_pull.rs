@@ -62,9 +62,22 @@ async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Resul
     Ok(())
 }
 
+async fn fetch_and_store_repos(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+    let organizations = near_client.repos().await?;
+    for org in organizations {
+        let organization_id = db.upsert_organization(&org.organization).await?;
+        for repo in org.repos {
+            db.upsert_repo(organization_id, &repo).await?;
+        }
+    }
+    Ok(())
+}
+
 // TODO: more efficient way to fetch only updated data
 async fn fetch_and_store_all_data(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
     fetch_and_store_users(near_client, db).await?;
+
+    fetch_and_store_repos(near_client, db).await?;
     // It matters that we fetch users first, because we need to know their IDs
     fetch_and_store_prs(near_client, db).await?;
     Ok(())

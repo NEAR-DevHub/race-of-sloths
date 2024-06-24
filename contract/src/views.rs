@@ -111,4 +111,18 @@ impl Contract {
             .filter_map(|user_id| self.user_by_id(user_id as UserId, periods.clone()))
             .collect()
     }
+
+    // TODO: remove this method after we would have enough data in the PRs
+    pub fn repos(&self) -> Vec<AllowedRepos> {
+        self.organizations
+            .into_iter()
+            .map(|(name, org)| {
+                let organization: Organization = org.clone().into();
+                AllowedRepos {
+                    organization: name.to_string(),
+                    repos: organization.repos(),
+                }
+            })
+            .collect()
+    }
 }

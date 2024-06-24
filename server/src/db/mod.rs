@@ -465,7 +465,8 @@ impl DB {
         let offset = page * limit;
         // COALESCE is used to return 0 if there are no PRs for a repo
         // But sqlx still thinks that it's NONE
-        let records = sqlx::query_file_as_unchecked!(
+        println!("Getting repo leaderboard");
+        let records = sqlx::query_file_as!(
             RepoLeaderboardRecord,
             "./sql/get_repo_leaderboard.sql",
             limit,
@@ -474,7 +475,7 @@ impl DB {
         .fetch_all(&self.0)
         .await?;
 
-        // TODO: Replace this with a single query
+        println!("Getting total count");
         let total_count = sqlx::query!(
             r#"SELECT COUNT(DISTINCT(r.organization_id, r.id)) as id
             FROM repos r

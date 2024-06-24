@@ -82,4 +82,11 @@ impl Organization {
             PermissionModel::Blocklist(blocklist) => !blocklist.contains(repo),
         }
     }
+
+    pub fn repos(&self) -> Vec<String> {
+        match &self.all {
+            PermissionModel::Allowlist(allowlist) => allowlist.iter().cloned().collect(),
+            PermissionModel::Blocklist(_blocklist) => vec![],
+        }
+    }
 }

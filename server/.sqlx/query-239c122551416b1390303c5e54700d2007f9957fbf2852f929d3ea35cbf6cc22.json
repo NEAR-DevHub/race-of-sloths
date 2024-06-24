@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH top_contributors AS (\n    SELECT\n        pr.repo_id,\n        u.login AS contributor_login,\n        u.full_name AS contributor_full_name,\n        SUM(pr.score) AS total_score,\n        ROW_NUMBER() OVER (\n            PARTITION BY pr.repo_id\n            ORDER BY\n                SUM(pr.score) DESC\n        ) AS rank\n    FROM\n        pull_requests pr\n        JOIN users u ON pr.author_id = u.id\n    GROUP BY\n        pr.repo_id,\n        u.id\n)\nSELECT\n    o.login AS organization,\n    o.full_name AS organization_full_name,\n    r.name AS name,\n    COALESCE(COUNT(pr.id), 0) AS total_prs,\n    COALESCE(SUM(pr.score), 0) AS total_score,\n    COALESCE(SUM(pr.rating), 0) AS total_rating,\n    MAX(tc.contributor_full_name) AS contributor_full_name,\n    MAX(tc.contributor_login) AS contributor_login,\n    r.primary_language,\n    r.open_issues,\n    r.stars,\n    r.forks\nFROM\n    repos r\n    JOIN organizations o ON r.organization_id = o.id\n    LEFT JOIN pull_requests pr ON pr.repo_id = r.id\n    LEFT JOIN top_contributors tc ON tc.repo_id = r.id\n    AND tc.rank = 1\nGROUP BY\n    o.login,\n    o.full_name,\n    r.name,\n    r.primary_language,\n    r.open_issues,\n    r.stars,\n    r.forks\nORDER BY\n    total_prs DESC,\n    total_rating DESC,\n    total_score DESC,\n    organization ASC,\n    name ASC\nLIMIT\n    $1 OFFSET $2;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_prs",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_score",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_rating",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "contributor_full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "contributor_login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "primary_language",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "open_issues",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "stars",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "forks",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "239c122551416b1390303c5e54700d2007f9957fbf2852f929d3ea35cbf6cc22"
+}

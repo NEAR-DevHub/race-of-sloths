@@ -70,14 +70,15 @@ pub struct RepoLeaderboardRecord {
     pub organization: String,
     pub organization_full_name: Option<String>,
     pub name: String,
-    pub total_prs: i64,
-    pub total_score: i64,
+    pub total_prs: Option<i64>,
+    pub total_score: Option<i64>,
+    pub total_rating: Option<i64>,
     pub contributor_login: Option<GithubHandle>,
     pub contributor_full_name: Option<String>,
-    pub stars: i32,
-    pub open_issues: i32,
+    pub stars: Option<i32>,
+    pub open_issues: Option<i32>,
     pub primary_language: Option<String>,
-    pub forks: i32,
+    pub forks: Option<i32>,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]

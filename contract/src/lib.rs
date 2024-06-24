@@ -3,16 +3,15 @@ use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     require,
-    serde::{Deserialize, Serialize},
     store::{LookupMap, LookupSet, Vector},
-    NearSchema, Timestamp,
+    Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
-    AccountWithPermanentPercentageBonus, Event, GithubHandle, IntoEnumIterator, PRId, PRWithRating,
-    Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod, TimePeriodString,
-    UserId, VersionedAccount, VersionedPR, VersionedStreak, VersionedStreakUserData,
-    VersionedUserPeriodData,
+    AccountWithPermanentPercentageBonus, AllowedRepos, Event, GithubHandle, IntoEnumIterator, PRId,
+    PRWithRating, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod,
+    TimePeriodString, UserId, VersionedAccount, VersionedPR, VersionedStreak,
+    VersionedStreakUserData, VersionedUserPeriodData,
 };
 use types::{Organization, VersionedOrganization};
 
@@ -44,14 +43,6 @@ pub struct Contract {
     // Configured streaks
     streaks: Vector<VersionedStreak>,
     user_streaks: LookupMap<(UserId, StreakId), VersionedStreakUserData>,
-}
-
-#[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
-pub struct AllowedRepos {
-    organization: String,
-    repos: Vec<String>,
 }
 
 #[near_bindgen]
