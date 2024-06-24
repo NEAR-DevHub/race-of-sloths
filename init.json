@@ -73,6 +73,12 @@
                 "clickhouse-provider",
                 "neardata-server"
             ]
+        },
+        {
+            "organization": "akorchyn",
+            "repos": [
+                "test-bot"
+            ]
         }
     ]
 }

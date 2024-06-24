@@ -20,16 +20,16 @@ use self::types::{
 };
 
 impl DB {
-    pub async fn upsert_user(&self, user: &str, percent: u32) -> anyhow::Result<i32> {
+    pub async fn upsert_user(&self, user_id: u32, user: &str, percent: u32) -> anyhow::Result<i32> {
         // First try to update the user
         let rec = sqlx::query!(
             r#"
             UPDATE users
             SET permanent_bonus = $2
-            WHERE login = $1
+            WHERE id = $1
             RETURNING id
             "#,
-            user,
+            user_id as i32,
             percent as i32
         )
         .fetch_optional(&self.0)
@@ -41,11 +41,12 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO users (login, permanent_bonus)
-                VALUES ($1, $2)
-                ON CONFLICT (login) DO NOTHING
+                INSERT INTO users (id, login, permanent_bonus)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (id) DO NOTHING
                 RETURNING id
                 "#,
+                user_id as i32,
                 user,
                 percent as i32
             )
@@ -383,7 +384,24 @@ impl DB {
             leaderboard_places.push((place.clone(), record.unwrap() as u32));
         }
 
+        let first_contribution = sqlx::query!(
+            r#"
+            SELECT created_at
+            FROM pull_requests
+            WHERE author_id = $1
+            ORDER BY created_at ASC
+            LIMIT 1
+            "#,
+            user_rec
+        )
+        .fetch_optional(&self.0)
+        .await?;
+
         let user = UserRecord {
+            id: user_rec,
+            first_contribution: first_contribution
+                .map(|x| x.created_at)
+                .unwrap_or_else(|| chrono::Utc::now().naive_utc()),
             login: login.to_string(),
             name: full_name,
             lifetime_percent: percent,

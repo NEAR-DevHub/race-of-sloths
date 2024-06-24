@@ -57,7 +57,7 @@
         <tspan x="53" y="110.318">{rank}</tspan>
     </text>
     <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
-        <tspan x="53" y="127.864">Rank</tspan>
+        <tspan x="53" y="127.864">{rank-title}</tspan>
     </text>
     <rect x="146.667" y="87" width="137.667" height="52" rx="8" fill="#161B22" />
     <rect x="146.667" y="87" width="137.667" height="52" rx="8" stroke="#30363D" />

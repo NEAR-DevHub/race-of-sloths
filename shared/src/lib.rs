@@ -11,6 +11,8 @@ mod pr;
 mod streak;
 mod timeperiod;
 
+pub type UserId = u32;
+
 #[cfg(feature = "github")]
 pub mod github;
 
@@ -68,11 +70,21 @@ pub struct LifetimeBonusStorage {
 #[borsh(crate = "near_sdk::borsh")]
 pub struct AccountWithPermanentPercentageBonus {
     pub account_id: Option<AccountId>,
+    pub github_handle: GithubHandle,
     pub permanent_percentage_bonus: Vec<LifetimeBonusStorage>,
     pub flat_bonus: Vec<FlatBonusStorage>,
 }
 
 impl AccountWithPermanentPercentageBonus {
+    pub fn new(github_handle: GithubHandle) -> Self {
+        Self {
+            github_handle,
+            permanent_percentage_bonus: Vec::new(),
+            flat_bonus: Vec::new(),
+            account_id: None,
+        }
+    }
+
     pub fn add_streak_percent(&mut self, streak_id: StreakId, streak_percent_bonus: u32) -> bool {
         if let Some(bonus) = self
             .permanent_percentage_bonus
@@ -229,6 +241,7 @@ pub struct UserPeriodData {
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub struct User {
+    pub id: UserId,
     pub name: GithubHandle,
     pub percentage_bonus: u32,
     pub period_data: Vec<(TimePeriodString, UserPeriodData)>,

@@ -20,7 +20,9 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
         .collect();
     let users = near_client.users(periods).await?;
     for user in users {
-        let user_id = db.upsert_user(&user.name, user.percentage_bonus).await?;
+        let user_id = db
+            .upsert_user(user.id, &user.name, user.percentage_bonus)
+            .await?;
         for (period, data) in user.period_data {
             db.upsert_user_period_data(period, &data, user_id).await?;
         }

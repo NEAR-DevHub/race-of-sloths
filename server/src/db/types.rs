@@ -47,7 +47,9 @@ pub struct User {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRecord {
+    pub id: i32,
     pub login: String,
+    pub first_contribution: chrono::NaiveDateTime,
     pub name: Option<String>,
     pub lifetime_percent: i32,
     pub period_data: Vec<UserPeriodRecord>,
@@ -56,17 +58,6 @@ pub struct UserRecord {
 }
 
 impl UserRecord {
-    pub fn newcommer(login: String) -> Self {
-        Self {
-            login,
-            name: None,
-            period_data: vec![],
-            streaks: vec![],
-            leaderboard_places: vec![],
-            lifetime_percent: 0,
-        }
-    }
-
     pub fn get_total_period(&self) -> Option<&UserPeriodRecord> {
         self.period_data
             .iter()

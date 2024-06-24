@@ -362,13 +362,8 @@ fn cannot_double_streak_reward() {
     assert_eq!(pr.streak_bonus_rating, 10);
     assert_eq!(pr.rating(), 50 + 10);
 
-    let user: AccountWithPermanentPercentageBonus = contract
-        .contract
-        .accounts
-        .get(&github_handle(0))
-        .unwrap()
-        .clone()
-        .into();
+    let user: AccountWithPermanentPercentageBonus =
+        contract.contract.users.get(0).unwrap().clone().into();
     assert_eq!(user.flat_bonus.len(), 0);
 }
 
@@ -387,13 +382,8 @@ fn cannot_double_percent_reward() {
         contract.finalize(i);
     }
 
-    let user: AccountWithPermanentPercentageBonus = contract
-        .contract
-        .accounts
-        .get(&github_handle(0))
-        .unwrap()
-        .clone()
-        .into();
+    let user: AccountWithPermanentPercentageBonus =
+        contract.contract.users.get(0).unwrap().clone().into();
 
     assert_eq!(user.lifetime_percentage_bonus(), 0);
 
@@ -405,13 +395,8 @@ fn cannot_double_percent_reward() {
     testing_env!(contract.context.clone());
     contract.finalize(5);
 
-    let user: AccountWithPermanentPercentageBonus = contract
-        .contract
-        .accounts
-        .get(&github_handle(0))
-        .unwrap()
-        .clone()
-        .into();
+    let user: AccountWithPermanentPercentageBonus =
+        contract.contract.users.get(0).unwrap().clone().into();
 
     assert_eq!(user.permanent_percentage_bonus.len(), 1);
     assert_eq!(user.lifetime_percentage_bonus(), 5);
