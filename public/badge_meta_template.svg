@@ -117,7 +117,7 @@
             d="M51 267.734C51 271.795 47.6421 275.087 43.5 275.087C39.3579 275.087 36 271.795 36 267.734C36 264.821 39.8584 259.581 42.0403 256.85C42.7965 255.903 44.2035 255.903 44.9597 256.85C47.1416 259.581 51 264.821 51 267.734Z"
             fill="url(#paint13_linear_2171_6879)" />
         <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
-            <tspan x="74.6573" y="259.347">{max-month-streak}</tspan>
+            <tspan x="72" y="259.347">{max-month-streak}</tspan>
         </text>
         <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
             <tspan x="72" y="275.967">Max. month streak</tspan>
@@ -132,7 +132,7 @@
             d="M339 267.734C339 271.795 335.642 275.087 331.5 275.087C327.358 275.087 324 271.795 324 267.734C324 264.821 327.858 259.581 330.04 256.85C330.797 255.903 332.203 255.903 332.96 256.85C335.142 259.581 339 264.821 339 267.734Z"
             fill="url(#paint15_linear_2171_6879)" />
         <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
-            <tspan x="362.657" y="259.347">{max-week-streak}</tspan>
+            <tspan x="360" y="259.347">{max-week-streak}</tspan>
         </text>
         <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
             <tspan x="360" y="275.967">Max. week streak</tspan>
