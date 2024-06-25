@@ -1,0 +1,1023 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 208129,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            },
+                            {
+                                "color": "orange",
+                                "value": 90
+                            },
+                            {
+                                "color": "light-yellow",
+                                "value": 95
+                            },
+                            {
+                                "color": "green",
+                                "value": 100
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 4,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "(sum(increase(bot_event_total{success=\"1\"}[24h])) / sum(increase(bot_event_total[24h]))) * 100",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "Success rate",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Event success rate",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "dark-red",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 90
+                            },
+                            {
+                                "color": "orange",
+                                "value": 95
+                            },
+                            {
+                                "color": "green",
+                                "value": 99
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 6,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(increase(rocket_http_requests_total{status=\"200\"}[24h])) / sum(increase(rocket_http_requests_total[24h])) * 100",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "Success rate",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Server 200 rate",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            },
+            "id": 3,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "sum(increase(bot_event_total[1h]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "Activity",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Daily events activity (aggregated by hours)",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "id": 5,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum(increase(rocket_http_requests_total{endpoint!=\"/metrics\"}[5m]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "Total",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum by(endpoint, method) (increase(rocket_http_requests_total{endpoint!=\"/metrics\"}[5m]))",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "{{method}} - {{endpoint}}",
+                    "range": true,
+                    "refId": "B",
+                    "useBackend": false
+                }
+            ],
+            "title": "Server requests",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "s"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 16
+            },
+            "id": 11,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum by (event_type)(bot_event_processing_time_sum[5m])/sum by (endpoint)(bot_event_processing_time_count[5m])",
+                    "instant": false,
+                    "legendFormat": "{{event_type}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Bot execution time",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "series",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "fieldMinMax": false,
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "s"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 16
+            },
+            "id": 8,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum by (endpoint)(rocket_http_requests_duration_seconds_sum{endpoint!=\"/metrics\"}[5m])/sum by (endpoint)(rocket_http_requests_duration_seconds_count{endpoint!=\"/metrics\"}[5m])",
+                    "instant": false,
+                    "legendFormat": "{{endpoint}}",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Request processing time",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 24
+            },
+            "id": 7,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "topk(5, sum by(author) (increase(bot_event_total{success='1'}[24h])))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Most active users",
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "continuous-GrYlRd"
+                    },
+                    "fieldMinMax": false,
+                    "mappings": [],
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Write per minute"
+                        },
+                        "properties": [
+                            {
+                                "id": "max",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Total requests"
+                        },
+                        "properties": [
+                            {
+                                "id": "max",
+                                "value": 5000
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Write per hour"
+                        },
+                        "properties": [
+                            {
+                                "id": "max",
+                                "value": 500
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 24
+            },
+            "id": 12,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": true,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "exemplar": false,
+                    "expr": "github_api_read_requests",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "interval": "",
+                    "legendFormat": "Total requests",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "editorMode": "code",
+                    "expr": "increase(github_api_write_requests_total[1m])",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Write per minute",
+                    "range": true,
+                    "refId": "B"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "editorMode": "code",
+                    "expr": "increase(github_api_write_requests_total[1h])",
+                    "hide": false,
+                    "instant": false,
+                    "legendFormat": "Write per hour",
+                    "range": true,
+                    "refId": "C"
+                }
+            ],
+            "title": "Github rate limit usage",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "fixedColor": "light-red",
+                        "mode": "shades"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 32
+            },
+            "id": 9,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum by(event_type)(increase(bot_event_total{success!='1'}[24h])) ",
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Failed events",
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 32
+            },
+            "id": 1,
+            "options": {
+                "displayMode": "gradient",
+                "maxVizHeight": 300,
+                "minVizHeight": 16,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "sum by(event_type) (increase(bot_event_total[24h]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Processed events daily",
+            "type": "bargauge"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus_on_fly"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 40
+            },
+            "id": 2,
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "10.4.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus_on_fly"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "code",
+                    "expr": "topk(10, sum by(organization, repository) (increase(bot_event_total{success=\"1\"}[24h])))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": false,
+                    "legendFormat": "{{organization}}/{{repository}}",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Most active repos",
+            "type": "piechart"
+        }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 39,
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-12h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "race-of-sloths dashboard",
+    "uid": "bdn6yw2nxv08wb",
+    "version": 32,
+    "weekStart": ""
+}
