@@ -215,6 +215,8 @@ pub struct UserContributionResponse {
     pub pull_request_link: String,
     pub repository: String,
     pub organization: GithubMeta,
+    pub executed: bool,
+    pub pr_number: i32,
     pub status: String,
     pub score: Option<i32>,
     pub total_rating: i32,
@@ -252,6 +254,8 @@ impl From<UserContributionRecord> for UserContributionResponse {
             total_rating: record.rating,
             percentage_multiplier: record.percentage_multiplier,
             streak_bonus_rating: record.streak_bonus_rating,
+            pr_number: record.number,
+            executed: record.executed,
         }
     }
 }
