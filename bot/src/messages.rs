@@ -174,6 +174,10 @@ impl MessageLoader {
             &mut self.unpause_messages,
             &mut self.merge_without_score_messages,
             &mut self.final_messages,
+            &mut self.final_messages_first_lifetime_bonus,
+            &mut self.final_messages_lifetime_bonus,
+            &mut self.final_messages_monthly_streak,
+            &mut self.final_messages_weekly_streak,
             &mut self.stale_messages,
             &mut self.error_unknown_command_messages,
             &mut self.error_rights_violation_messages,
@@ -184,6 +188,15 @@ impl MessageLoader {
             &mut self.error_paused_messages,
             &mut self.error_selfscore_messages,
             &mut self.error_org_not_in_allowed_list_messages,
+            &mut self.first_time_contribution,
+            &mut self.first_week_contribution,
+            &mut self.first_month_contribution,
+            &mut self.contribution_3,
+            &mut self.contribution_4,
+            &mut self.contribution_5,
+            &mut self.contribution_6,
+            &mut self.contribution_7,
+            &mut self.contribution_8,
         ];
         for message in array_of_messages {
             message.partial_format(&values);
@@ -374,7 +387,7 @@ impl MessageLoader {
 mod tests {
     use shared::{
         github::{PrMetadata, User},
-        Score, TimePeriod,
+        Score,
     };
 
     use super::MessageLoader;

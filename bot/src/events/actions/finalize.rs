@@ -128,7 +128,7 @@ impl PullRequestFinalize {
                     MsgCategory::FinalMessagesWeeklyStreak,
                     vec![
                         ("pr_author_username".to_string(), pr.author.login.clone()),
-                        ("bonus_rating".to_string(), monthly_bonus.to_string()),
+                        ("bonus_rating".to_string(), weekly_bonus.to_string()),
                     ],
                 )
                 .await?;

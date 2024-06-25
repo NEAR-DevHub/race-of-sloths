@@ -1,6 +1,6 @@
 link = "https://github.com/race-of-sloths"
 leaderboard_link = "https://github.com/race-of-sloths"
-form = "https://github.com/race-of-sloths"
+form = "https://github.com/NEAR-DevHub/race-of-sloths/issues/new/choose"
 picture_api_link = "https://race-of-sloths.fly.dev/api/users/{pr_author_username}/badge?type=bot"
 
 [include_basic_messages]
@@ -38,7 +38,7 @@ For contributors:
 - Wait for the maintainer to review and score your pull request
 - Check out your position in the [Leaderboard]({leaderboard_link})
 - Keep weekly and monthly streaks to reach higher positions
-- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
+- Boast your contributions with a dynamic picture of your [Profile]({link}/profile/{pr_author_username})
 
 For maintainers:
 - Score pull requests that participate in the Race of Sloths
@@ -123,14 +123,14 @@ This pull request is a part of the Race of Sloths and has not been scored yet. S
 variables = ["link", "pr_author_username", "score"]
 message = [
     """### ✅ PR is finalized! 
-Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/u/{pr_author_username})! 🎊""",
+Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/profile/{pr_author_username})! 🎊""",
 ]
 
 [final_messages_weekly_streak]
 variables = ["link", "pr_author_username", "bonus_rating"]
 message = [
     """### ✅ PR is finalized!
-Another weekly streak completed, well done! We have awarded you with extra {bonus_rating}. Check you bonus in [your profile]({link}/u/{pr_author_username})! To keep your weekly streak and get another bonus make pull request next week! Looking forward to see you in race-of-sloths
+Another weekly streak completed, well done! We have awarded you with extra {bonus_rating}. Check you bonus in [your profile]({link}/profile/{pr_author_username})! To keep your weekly streak and get another bonus make pull request next week! Looking forward to see you in race-of-sloths
 """,
 ]
 
@@ -230,7 +230,7 @@ For contributors:
 - Wait for the maintainer to review and score your pull request
 - Check out your position in the [Leaderboard]({leaderboard_link})
 - Keep weekly and monthly streaks to reach higher positions
-- Boast your contributions with a dynamic picture of your [Profile]({link}/u/{pr_author_username})
+- Boast your contributions with a dynamic picture of your [Profile]({link}/profile/{pr_author_username})
 
 For maintainers:
 - Score pull requests that participate in the Race of Sloths
