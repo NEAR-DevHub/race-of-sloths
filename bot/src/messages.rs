@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use shared::github::PrMetadata;
-use shared::PRInfo;
+use shared::{PRInfo, TimePeriod, User};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::ops::Add;
@@ -34,6 +34,16 @@ pub enum MsgCategory {
     ErrorLateScoringMessage,
     ErrorSelfScore,
     ErrorOrgNotInAllowedListMessage,
+
+    FirstTimeContribution,
+    FirstWeekContribution,
+    FirstMonthContribution,
+    Contribution3,
+    Contribution4,
+    Contribution5,
+    Contribution6,
+    Contribution7,
+    Contribution8,
 }
 
 impl std::fmt::Display for MsgCategory {
@@ -209,24 +219,40 @@ impl MessageLoader {
             MsgCategory::ErrorPausePausedMessage => &self.error_pause_paused_messages,
             MsgCategory::ErrorUnpauseUnpausedMessage => &self.error_unpause_unpaused_messages,
             MsgCategory::ErrorPausedMessage => &self.error_paused_messages,
+
+            MsgCategory::FirstTimeContribution => &self.first_time_contribution,
+            MsgCategory::FirstWeekContribution => &self.first_week_contribution,
+            MsgCategory::FirstMonthContribution => &self.first_month_contribution,
+            MsgCategory::Contribution3 => &self.contribution_3,
+            MsgCategory::Contribution4 => &self.contribution_4,
+            MsgCategory::Contribution5 => &self.contribution_5,
+            MsgCategory::Contribution6 => &self.contribution_6,
+            MsgCategory::Contribution7 => &self.contribution_7,
+            MsgCategory::Contribution8 => &self.contribution_8,
         };
         elem.clone()
     }
 
-    pub fn pr_status_message(
-        &self,
-        bot_name: &str,
-        check_info: &PRInfo,
-        pr: &PrMetadata,
-    ) -> String {
+    pub fn include_message_text(&self, user: &User) -> String {
         let mut message = self
             .get_message(MsgCategory::IncludeBasicMessage)
             .format(
-                [("pr_author_username".to_string(), pr.author.login.clone())]
+                [("pr_author_username".to_string(), user.name.clone())]
                     .into_iter()
                     .collect(),
             )
             .unwrap_or_default();
+
+        let user_specific_message = self.user_specific_message(user);
+        if !user_specific_message.is_empty() {
+            message.push_str(&format!("\n{user_specific_message}\n"));
+        }
+
+        message
+    }
+
+    pub fn status_message(&self, bot_name: &str, check_info: &PRInfo, pr: &PrMetadata) -> String {
+        let mut message = String::new();
 
         let status = if check_info.excluded {
             "excluded"
@@ -275,5 +301,188 @@ impl MessageLoader {
         }
 
         message
+    }
+
+    fn user_specific_message(&self, user: &User) -> String {
+        let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
+        let current_period = TimePeriod::Month.time_string(timestamp);
+
+        let monthly_statistics = user
+            .get_period(&current_period)
+            .cloned()
+            .unwrap_or_default();
+
+        let all_time_period = TimePeriod::AllTime.time_string(timestamp);
+        let all_time_statistics = user
+            .get_period(&all_time_period)
+            .cloned()
+            .unwrap_or_default();
+
+        let weekly_period = TimePeriod::Week.time_string(timestamp);
+        let weekly_statistics = user.get_period(&weekly_period).cloned().unwrap_or_default();
+
+        let message_type = if all_time_statistics.prs_opened == 1 {
+            MsgCategory::FirstTimeContribution
+        } else if monthly_statistics.prs_opened == 1 {
+            MsgCategory::FirstMonthContribution
+        } else if weekly_statistics.prs_opened == 1 {
+            MsgCategory::FirstWeekContribution
+        } else if monthly_statistics.prs_opened == 3 {
+            MsgCategory::Contribution3
+        } else if monthly_statistics.prs_opened == 4 {
+            MsgCategory::Contribution4
+        } else if monthly_statistics.prs_opened == 5 {
+            MsgCategory::Contribution5
+        } else if monthly_statistics.prs_opened == 6 {
+            MsgCategory::Contribution6
+        } else if monthly_statistics.prs_opened == 7 {
+            MsgCategory::Contribution7
+        } else if monthly_statistics.prs_opened == 8 {
+            MsgCategory::Contribution8
+        } else {
+            return String::new();
+        };
+
+        match self.get_message(message_type).format(
+            [("pr_author_username".to_string(), user.name.clone())]
+                .into_iter()
+                .collect(),
+        ) {
+            Ok(message) => message,
+            Err(err) => {
+                error!(
+                    "Failed to format user-specific message for {}: {err}",
+                    user.name,
+                );
+                String::new()
+            }
+        }
+    }
+
+    pub fn update_message(&self, old_text: String, status: String) -> String {
+        let place = old_text.find("\n#### Current status:");
+
+        if let Some(i) = place {
+            old_text[..i].to_string() + &status
+        } else {
+            old_text + &status
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use shared::{
+        github::{PrMetadata, User},
+        Score, TimePeriod,
+    };
+
+    use super::MessageLoader;
+
+    fn load_message_loader() -> MessageLoader {
+        let file = include_str!("../../Messages.toml");
+        let mut result: MessageLoader = toml::from_str(file).unwrap();
+        result.postprocess_messages_with_link("bot");
+        result
+    }
+
+    #[test]
+    fn test_update_message_with_existing_status() {
+        let old_text =
+            "Welcome to the race!\n#### Current status: waiting for scoring\n>Old status info";
+        let new_status = "#### Current status: executed\n>New status info";
+        let expected = "Welcome to the race!\n#### Current status: executed\n>New status info";
+
+        let message_loader = load_message_loader();
+        let updated_text =
+            message_loader.update_message(old_text.to_string(), new_status.to_string());
+
+        assert_eq!(updated_text, expected);
+    }
+
+    fn period_data(amount_prs: u32) -> shared::UserPeriodData {
+        shared::UserPeriodData {
+            total_score: 0,
+            executed_prs: 0,
+            largest_score: 0,
+            prs_opened: amount_prs,
+            prs_merged: 0,
+            total_rating: 0,
+            largest_rating_per_pr: 0,
+        }
+    }
+
+    #[test]
+    fn include() {
+        let message_loader = load_message_loader();
+
+        let user = shared::User {
+            name: "user".to_string(),
+            id: 1,
+            percentage_bonus: 5,
+            period_data: vec![("all-time".to_string(), period_data(1))],
+            streaks: vec![],
+        };
+
+        let mut pr_info = shared::PRInfo {
+            votes: vec![],
+            allowed_org: true,
+            allowed_repo: true,
+            merged: false,
+            executed: false,
+            excluded: false,
+            exist: true,
+        };
+        let pr = PrMetadata {
+            owner: "a".to_string(),
+            repo: "a".to_string(),
+            author: User::new(
+                "a".to_string(),
+                octocrab::models::AuthorAssociation::Contributor,
+            ),
+            started: chrono::Utc::now(),
+            merged: None,
+            number: 0,
+            updated_at: chrono::Utc::now(),
+            full_id: "a/a/0".to_string(),
+            body: "".to_string(),
+            closed: false,
+        };
+
+        let include_message_init = message_loader.include_message_text(&user);
+        let status_message_init = message_loader.status_message("bot", &pr_info, &pr);
+        let text1 = message_loader
+            .update_message(include_message_init.clone(), status_message_init.clone());
+        assert!(text1.contains(&include_message_init));
+        assert!(text1.contains(&status_message_init));
+
+        pr_info.votes.push(Score {
+            user: "b".to_string(),
+            score: 5,
+        });
+
+        let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
+        assert_ne!(status_message_init, new_status_message);
+
+        let text2 = message_loader.update_message(text1.clone(), new_status_message.clone());
+        assert_ne!(text1, text2);
+        assert!(text2.contains(&include_message_init));
+        assert!(text2.contains(&new_status_message));
+        assert!(!text2.contains(&status_message_init));
+
+        pr_info.executed = true;
+        let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
+        assert_ne!(status_message_init, new_status_message);
+
+        let text3 = message_loader.update_message(text1.clone(), new_status_message.clone());
+        assert_ne!(text3, text2);
+        assert!(text3.contains(&include_message_init));
+        assert!(text3.contains(&new_status_message));
+
+        println!("{}\n\n\n\n", text1);
+
+        println!("{}\n\n\n\n", text2);
+
+        println!("{}", text3);
     }
 }

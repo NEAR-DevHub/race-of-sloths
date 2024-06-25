@@ -295,13 +295,17 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn user_info(&self, user: &str) -> anyhow::Result<User> {
+    pub async fn user_info(
+        &self,
+        user: &str,
+        periods: Vec<TimePeriodString>,
+    ) -> anyhow::Result<User> {
         let res = self
             .contract
             .view("user")
             .args_json(json!({
                 "user": user,
-                "periods": vec![TimePeriod::Month.time_string(chrono::Utc::now().timestamp() as u64)]
+                "periods": periods
             }))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;

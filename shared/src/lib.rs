@@ -248,6 +248,15 @@ pub struct User {
     pub streaks: Vec<(StreakId, StreakUserData)>,
 }
 
+impl User {
+    pub fn get_period(&self, period: &TimePeriodString) -> Option<&UserPeriodData> {
+        self.period_data
+            .iter()
+            .find(|(p, _)| p == period)
+            .map(|(_, data)| data)
+    }
+}
+
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]
 #[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]

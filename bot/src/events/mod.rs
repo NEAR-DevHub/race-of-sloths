@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use octocrab::models::{issues::Comment, CommentId, NotificationId};
+use octocrab::models::{issues::Comment, NotificationId};
 use tracing::{info, instrument};
 
 use crate::{api, messages::MessageLoader};
@@ -30,7 +30,7 @@ pub struct Context {
 pub struct Event {
     pub event: EventType,
     pub pr: PrMetadata,
-    pub comment_id: Option<CommentId>,
+    pub comment: Option<Comment>,
     pub event_time: chrono::DateTime<Utc>,
 }
 
@@ -50,7 +50,7 @@ impl Event {
                         context.clone(),
                         check_info,
                         sender,
-                        self.comment_id.is_none(),
+                        self.comment.is_none(),
                     )
                     .await;
                 if should_update.is_ok() {

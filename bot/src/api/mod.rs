@@ -110,10 +110,10 @@ impl GithubClient {
                     return None;
                 }
             };
-            let comment_id = comments
+            let first_bot_comment = comments
                 .iter()
                 .find(|c| c.user.login == self.user_handle)
-                .map(|c| c.id);
+                .map(|c| c.clone());
 
             let mut results = Vec::new();
             let mut found_us = false;
@@ -134,7 +134,7 @@ impl GithubClient {
                             sender: User::new(comment.user.login, comment.author_association),
                         },
                         pr: pr_metadata.clone(),
-                        comment_id,
+                        comment: first_bot_comment.clone(),
                         event_time: comment.updated_at.unwrap_or(comment.created_at),
                     });
                 }
@@ -150,7 +150,7 @@ impl GithubClient {
                             sender: pr_metadata.author.clone(),
                         },
                         pr: pr_metadata.clone(),
-                        comment_id,
+                        comment: first_bot_comment.clone(),
                         event_time: pr_metadata.updated_at,
                     });
                 }
@@ -170,7 +170,7 @@ impl GithubClient {
                 results.push(Event {
                     event: EventType::Action(Action::merge()),
                     pr: pr_metadata.clone(),
-                    comment_id,
+                    comment: first_bot_comment,
                     event_time: pr_metadata.merged.unwrap(),
                 });
             }
@@ -287,12 +287,12 @@ impl GithubClient {
     }
 
     #[instrument(skip(self,))]
-    pub async fn get_comment_id(
+    pub async fn get_bot_comment(
         &self,
         owner: &str,
         repo: &str,
         pr_number: u64,
-    ) -> anyhow::Result<Option<CommentId>> {
+    ) -> anyhow::Result<Option<Comment>> {
         let mut page = self
             .octocrab
             .issues(owner, repo)
@@ -305,7 +305,7 @@ impl GithubClient {
             let items = page.take_items();
             for comment in items {
                 if comment.user.login == self.user_handle {
-                    return Ok(Some(comment.id));
+                    return Ok(Some(comment));
                 }
             }
 
