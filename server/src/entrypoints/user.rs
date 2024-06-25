@@ -84,7 +84,7 @@ async fn fetch_user_metadata_lazily(
     })
 }
 
-#[utoipa::path(context_path = "/api/users", responses(
+#[utoipa::path(context_path = "/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
 #[get("/<username>/badge?<type>")]
@@ -156,7 +156,7 @@ pub async fn get_badge<'a>(
     }
 }
 
-#[utoipa::path(context_path = "/api/users",
+#[utoipa::path(context_path = "/users",
     responses(
         (status = 200, description = "Get user profile info", body = UserProfile)
     )
@@ -180,7 +180,7 @@ async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
     Some(Json(user.into()))
 }
 
-#[utoipa::path(context_path = "/api/users", responses(
+#[utoipa::path(context_path = "/users", responses(
     (status = 200, description = "Get user contributions", body = PaginatedUserContributionResponse)
 ))]
 #[get("/<username>/contributions?<page>&<limit>")]

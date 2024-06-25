@@ -1,7 +1,7 @@
 link = "https://github.com/race-of-sloths"
 leaderboard_link = "https://github.com/race-of-sloths"
 form = "https://github.com/NEAR-DevHub/race-of-sloths/issues/new/choose"
-picture_api_link = "https://race-of-sloths.fly.dev/users/{pr_author_username}/badge?type=bot"
+picture_api_link = "https://badge.staging.race-of-sloths.com/{pr_author_username}?type=bot"
 
 [include_basic_messages]
 variables = [

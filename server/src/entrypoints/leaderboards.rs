@@ -4,7 +4,7 @@ use shared::TimePeriod;
 
 use super::types::{LeaderboardResponse, PaginatedResponse, RepoResponse};
 
-#[utoipa::path(context_path = "/api/leaderboard", responses(
+#[utoipa::path(context_path = "/leaderboard", responses(
     (status = 200, description = "Get user leaderboard", body = PaginatedLeaderboardResponse)
 ))]
 #[get("/users/<period>?<page>&<limit>&<streak_id>")]
@@ -37,7 +37,7 @@ async fn get_leaderboard(
     )))
 }
 
-#[utoipa::path(context_path = "/api/leaderboard", responses(
+#[utoipa::path(context_path = "/leaderboard", responses(
     (status = 200, description = "Get repo leaderboard", body = PaginatedRepoResponse)
 ))]
 #[get("/repos?<page>&<limit>")]
