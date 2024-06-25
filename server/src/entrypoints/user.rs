@@ -217,7 +217,7 @@ pub fn stage() -> rocket::fairing::AdHoc {
             .expect("Failed to load Inter font");
 
         rocket.manage(Arc::new(font)).mount(
-            "/api/users/",
+            "/users/",
             rocket::routes![get_user, get_user_contributions, get_badge],
         )
     })

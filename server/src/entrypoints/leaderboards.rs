@@ -65,9 +65,6 @@ async fn get_repos(
 
 pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
-        rocket.mount(
-            "/api/leaderboard",
-            rocket::routes![get_repos, get_leaderboard,],
-        )
+        rocket.mount("/leaderboard", rocket::routes![get_repos, get_leaderboard,])
     })
 }
