@@ -420,7 +420,8 @@ impl DB {
         page: i64,
         limit: i64,
     ) -> anyhow::Result<(Vec<LeaderboardRecord>, i64)> {
-        let records = sqlx::query_file_as!(
+        // Unchecked as rank() doesn't return NULL, but sqlx thinks it does
+        let records = sqlx::query_file_as_unchecked!(
             LeaderboardRecord,
             "sql/get_leaderboard.sql",
             period,

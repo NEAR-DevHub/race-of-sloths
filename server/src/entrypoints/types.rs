@@ -87,6 +87,7 @@ pub struct LeaderboardResponse {
     pub streak: Streak,
     pub merged_prs: u32,
     pub score: u32,
+    pub place: u32,
 }
 
 impl From<LeaderboardRecord> for LeaderboardResponse {
@@ -104,6 +105,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
             ),
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
+            place: record.place as u32,
         }
     }
 }

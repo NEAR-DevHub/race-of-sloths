@@ -16,6 +16,7 @@ pub struct LeaderboardRecord {
     pub streak_name: String,
     pub streak_type: String,
     pub streak_latest_time_string: String,
+    pub place: i64,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
@@ -26,7 +27,7 @@ pub struct UserPeriodRecord {
     pub largest_score: i32,
     pub prs_opened: i32,
     pub prs_merged: i32,
-    pub total_rating: i32,
+    pub total_rating: i64,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
