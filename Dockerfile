@@ -17,5 +17,6 @@ WORKDIR /app
 COPY --from=builder /usr/src/app/race-of-sloths-bot /app/race-of-sloths-bot
 COPY --from=builder /usr/src/app/race-of-sloths-server /app/race-of-sloths-server
 COPY ./Messages.toml /app/Messages.toml
+COPY ./Messages.staging.toml /app/Messages.staging.toml
 COPY ./Rocket.toml /app/Rocket.toml
 COPY ./public /app/public
