@@ -1,5 +1,5 @@
 {
-    "sloth": "race-of-sloths.testnet",
+    "sloth": "race-of-sloths-stage.testnet",
     "allowed_repos": [
         {
             "organization": "near",
@@ -78,6 +78,54 @@
             "repos": [
                 "test-bot"
             ]
+        },
+        {
+            "organization": "race-of-sloths",
+            "repos": [
+                "mock"
+            ]
+        }
+    ],
+    "mocked_data": [
+        {
+            "username": "akorchyn",
+            "weekly_prs": 8
+        },
+        {
+            "username": "rubycop",
+            "weekly_prs": 6
+        },
+        {
+            "username": "yurturdev",
+            "weekly_prs": 2
+        },
+        {
+            "username": "ftdgoodluck",
+            "weekly_prs": 12
+        },
+        {
+            "username": "frol",
+            "weekly_prs": 20
+        },
+        {
+            "username": "botezatunear",
+            "weekly_prs": 12
+        },
+        {
+            "username": "race-of-sloths",
+            "weekly_prs": 4
+        },
+        {
+            "username": "FREZZZBE",
+            "weekly_prs": 3
+        },
+        {
+            "username": "sashapais",
+            "weekly_prs": 1
+        },
+        {
+            "username": "orange-joe",
+            "weekly_prs": 2
         }
     ]
 }

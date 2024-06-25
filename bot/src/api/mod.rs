@@ -113,7 +113,7 @@ impl GithubClient {
             let first_bot_comment = comments
                 .iter()
                 .find(|c| c.user.login == self.user_handle)
-                .map(|c| c.clone());
+                .cloned();
 
             let mut results = Vec::new();
             let mut found_us = false;

@@ -69,7 +69,7 @@ impl ContractExt {
     }
 
     pub fn finalize(&mut self, pr_id: u64) {
-        self.contract.sloth_finalize(pr_id_str(pr_id))
+        self.contract.sloth_finalize(pr_id_str(pr_id), None)
     }
 }
 

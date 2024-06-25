@@ -23,5 +23,6 @@ octocrab.workspace = true
 http-body-util.workspace = true
 rocket_cors.workspace = true
 num-format.workspace = true
+tracing.workspace = true
 
 shared = { workspace = true, features = ["client"] }

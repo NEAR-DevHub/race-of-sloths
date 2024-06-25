@@ -1,6 +1,7 @@
 use rocket::fairing::AdHoc;
 use utoipa::OpenApi;
 
+pub mod aliases;
 pub mod leaderboards;
 pub mod types;
 pub mod user;
@@ -40,6 +41,9 @@ pub struct ApiDoc;
 
 pub fn stage() -> AdHoc {
     AdHoc::on_ignite("Installing entrypoints", |rocket| async {
-        rocket.attach(user::stage()).attach(leaderboards::stage())
+        rocket
+            .attach(user::stage())
+            .attach(leaderboards::stage())
+            .attach(aliases::stage())
     })
 }

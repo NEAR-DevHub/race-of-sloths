@@ -88,7 +88,7 @@ async fn fetch_user_metadata_lazily(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
 #[get("/<username>/badge?<type>")]
-async fn get_badge<'a>(
+pub async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,

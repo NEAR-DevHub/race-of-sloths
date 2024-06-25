@@ -1,0 +1,38 @@
+# fly.toml app configuration file generated for race-of-sloths on 2024-05-22T18:50:10+03:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'ros-staging'
+primary_region = 'ams'
+
+[env]
+RUST_LOG = "race_of_sloths_bot=TRACE,race-of-sloths-server=TRACE"
+
+[processes]
+bot = "./race-of-sloths-bot"
+server = "./race-of-sloths-server"
+
+[[services]]
+internal_port = 8080
+processes = ["server"]
+protocol = "tcp"
+
+[[services.ports]]
+handlers = ["http"]
+port = "80"
+force_https = true
+
+[[services.ports]]
+handlers = ["tls", "http"]
+port = 443
+
+[[metrics]]
+port = 8080
+path = "/metrics"
+processes = ["bot", "server"]
+
+[[vm]]
+memory = '256mb'
+cpu_kind = 'shared'
+cpus = 1

@@ -6,6 +6,7 @@ use std::{
 use octocrab::Octocrab;
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
+use tracing::instrument;
 
 use crate::db::DB;
 
@@ -28,6 +29,7 @@ impl GithubClient {
         Ok(Self { octocrab })
     }
 
+    #[instrument(skip(self))]
     async fn repo_metadata(&self, org: &str, repo: &str) -> anyhow::Result<RepoMetadata> {
         let repo = self.octocrab.repos(org, repo).get().await?;
         Ok(RepoMetadata {
@@ -40,11 +42,13 @@ impl GithubClient {
         })
     }
 
+    #[instrument(skip(self))]
     pub async fn get_user(&self, username: &str) -> anyhow::Result<octocrab::models::UserProfile> {
         Ok(self.octocrab.users(username).profile().await?)
     }
 }
 
+#[instrument(skip(github, db))]
 async fn fetch_repos_metadata(github: &GithubClient, db: &DB) -> anyhow::Result<()> {
     let repos = db.get_repos().await?;
     for repo in repos {
@@ -61,6 +65,7 @@ async fn fetch_repos_metadata(github: &GithubClient, db: &DB) -> anyhow::Result<
     Ok(())
 }
 
+#[instrument(skip(github, db))]
 async fn fetch_missing_user_organization_metadata(
     github: &GithubClient,
     db: &DB,

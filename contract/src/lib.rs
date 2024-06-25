@@ -17,6 +17,7 @@ use types::{Organization, VersionedOrganization};
 
 pub mod events;
 pub mod migrate;
+pub mod mock;
 pub mod storage;
 #[cfg(test)]
 mod tests;
@@ -282,15 +283,17 @@ impl Contract {
         self.prs.remove(&pr_id);
     }
 
-    pub fn sloth_finalize(&mut self, pr_id: String) {
+    pub fn sloth_finalize(&mut self, pr_id: String, timestamp: Option<Timestamp>) {
         self.assert_sloth();
+
+        let timestamp = timestamp.unwrap_or_else(env::block_timestamp);
 
         let mut pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
             Some(pr) => pr.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
 
-        if !pr.is_ready_to_move(env::block_timestamp()) {
+        if !pr.is_ready_to_move(timestamp) {
             env::panic_str("PR is not ready to be finalized")
         }
 
@@ -349,8 +352,7 @@ impl Contract {
 }
 
 impl Contract {
-    pub fn calculate_streak(&mut self, user_id: UserId) {
-        let current_time = env::block_timestamp();
+    pub fn calculate_streak(&mut self, user_id: UserId, current_time: Timestamp) {
         for streak in self.streaks.into_iter().cloned().collect::<Vec<_>>() {
             let streak: Streak = streak.into();
 
@@ -448,7 +450,7 @@ impl Contract {
             func(entry);
         }
 
-        self.calculate_streak(user_id);
+        self.calculate_streak(user_id, timestamp);
     }
 
     pub fn get_or_create_account(
