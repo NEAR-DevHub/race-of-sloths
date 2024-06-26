@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use shared::{GithubHandle, TimePeriodString};
+use shared::{GithubHandle, TimePeriod, TimePeriodString};
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
 pub struct LeaderboardRecord {
     pub login: String,
@@ -63,6 +63,12 @@ impl UserRecord {
         self.period_data
             .iter()
             .find(|p| p.period_type == "all-time")
+    }
+
+    pub fn get_current_month(&self) -> Option<&UserPeriodRecord> {
+        let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+        let period = TimePeriod::Month.time_string(timestamp as u64);
+        self.period_data.iter().find(|p| p.period_type == period)
     }
 }
 

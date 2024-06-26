@@ -121,6 +121,21 @@ pub struct Streak {
     end_time: chrono::DateTime<chrono::Utc>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
+pub struct Period {
+    contributions: u32,
+    rating: u32,
+}
+
+impl Period {
+    pub fn new(contributions: u32, rating: u32) -> Self {
+        Self {
+            contributions,
+            rating,
+        }
+    }
+}
+
 impl Streak {
     pub fn new(
         name: String,
@@ -169,8 +184,8 @@ impl Streak {
 pub struct UserProfile {
     pub user_id: u32,
     pub user: GithubMeta,
-    pub rating: u32,
-    pub contributions: u32,
+    pub monthly: Period,
+    pub global: Period,
     pub lifetime_bonus: u32,
     pub leaderboard_places: HashMap<String, u32>,
     pub streaks: Vec<Streak>,
@@ -179,17 +194,20 @@ pub struct UserProfile {
 
 impl From<UserRecord> for UserProfile {
     fn from(record: UserRecord) -> Self {
-        let (contributions, rating) = record
-            .period_data
-            .iter()
-            .find(|x| x.period_type == TimePeriod::AllTime.time_string(0))
-            .map(|x| (x.prs_opened, x.total_rating))
-            .unwrap_or_default();
+        let total_period = record.get_total_period().cloned().unwrap_or_default();
+        let monthly_period = record.get_current_month().cloned().unwrap_or_default();
+
         Self {
             user_id: record.id as u32,
             user: GithubMeta::new(record.login, record.name),
-            rating: rating as u32,
-            contributions: contributions as u32,
+            monthly: Period::new(
+                monthly_period.prs_opened as u32,
+                monthly_period.total_rating as u32,
+            ),
+            global: Period::new(
+                total_period.prs_opened as u32,
+                total_period.total_rating as u32,
+            ),
             lifetime_bonus: record.lifetime_percent as u32,
             streaks: record
                 .streaks
