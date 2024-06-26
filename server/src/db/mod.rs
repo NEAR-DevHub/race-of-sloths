@@ -3,7 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{StreakUserData, TimePeriodString, UserPeriodData};
+use shared::{StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
 use sqlx::PgPool;
 
 #[derive(Database, Clone, Debug)]
@@ -466,17 +466,20 @@ impl DB {
         let offset = page * limit;
         // COALESCE is used to return 0 if there are no PRs for a repo
         // But sqlx still thinks that it's NONE
-        println!("Getting repo leaderboard");
+        let current_month = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+        let current_month = TimePeriod::Month
+            .start_period(current_month as u64)
+            .unwrap_or_default();
         let records = sqlx::query_file_as!(
             RepoLeaderboardRecord,
             "./sql/get_repo_leaderboard.sql",
             limit,
-            offset
+            offset,
+            current_month.naive_utc()
         )
         .fetch_all(&self.0)
         .await?;
 
-        println!("Getting total count");
         let total_count = sqlx::query!(
             r#"SELECT COUNT(DISTINCT(r.organization_id, r.id)) as id
             FROM repos r

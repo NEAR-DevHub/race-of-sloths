@@ -12,6 +12,8 @@ WITH top_contributors AS (
     FROM
         pull_requests pr
         JOIN users u ON pr.author_id = u.id
+    WHERE
+        pr.created_at >= $3
     GROUP BY
         pr.repo_id,
         u.id

@@ -491,11 +491,5 @@ mod tests {
         assert_ne!(text3, text2);
         assert!(text3.contains(&include_message_init));
         assert!(text3.contains(&new_status_message));
-
-        println!("{}\n\n\n\n", text1);
-
-        println!("{}\n\n\n\n", text2);
-
-        println!("{}", text3);
     }
 }
