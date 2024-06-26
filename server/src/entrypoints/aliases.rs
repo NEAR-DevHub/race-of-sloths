@@ -8,7 +8,7 @@ use crate::entrypoints::user::Badge;
 #[utoipa::path(context_path = "/", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>?<type>")]
+#[get("/<username>?<type>", rank = 2)]
 async fn get_badge<'a>(
     username: &str,
     db: &State<DB>,
