@@ -49,6 +49,10 @@ impl Action {
             error!("Shouldn't happening. PR({}) is excluded, so should be removed, but we tracked action for it...", pr.full_id);
             return Ok(false);
         }
+        if !check_info.exist {
+            // Parsed notification but we weren't called before to include us
+            return Ok(false);
+        }
 
         match self {
             Action::Finalize(action) => action.execute(pr, context, check_info).await,
