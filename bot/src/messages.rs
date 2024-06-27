@@ -19,11 +19,12 @@ pub enum MsgCategory {
     PauseMessage,
     UnpauseMessage,
     MergeWithoutScoreMessage,
-    FinalMessage,
+    FinalMessageCommon,
     FinalMessagesWeeklyStreak,
     FinalMessagesMonthlyStreak,
     FinalMessagesFirstLifetimeBonus,
     FinalMessagesLifetimeBonus,
+    FinalMessagesFeedbackForm,
     StaleMessage,
     ErrorUnknownCommandMessage,
     ErrorRightsViolationMessage,
@@ -108,11 +109,12 @@ pub struct MessageLoader {
     pub pause_messages: Messages,
     pub unpause_messages: Messages,
     pub merge_without_score_messages: Messages,
-    pub final_messages: Messages,
+    pub final_messages_common: Messages,
     pub final_messages_weekly_streak: Messages,
     pub final_messages_monthly_streak: Messages,
     pub final_messages_first_lifetime_bonus: Messages,
     pub final_messages_lifetime_bonus: Messages,
+    pub final_messages_feedback_form: Messages,
     pub stale_messages: Messages,
 
     // Errors
@@ -173,11 +175,12 @@ impl MessageLoader {
             &mut self.pause_messages,
             &mut self.unpause_messages,
             &mut self.merge_without_score_messages,
-            &mut self.final_messages,
+            &mut self.final_messages_common,
             &mut self.final_messages_first_lifetime_bonus,
             &mut self.final_messages_lifetime_bonus,
             &mut self.final_messages_monthly_streak,
             &mut self.final_messages_weekly_streak,
+            &mut self.final_messages_feedback_form,
             &mut self.stale_messages,
             &mut self.error_unknown_command_messages,
             &mut self.error_rights_violation_messages,
@@ -213,12 +216,13 @@ impl MessageLoader {
             MsgCategory::PauseMessage => &self.pause_messages,
             MsgCategory::UnpauseMessage => &self.unpause_messages,
             MsgCategory::MergeWithoutScoreMessage => &self.merge_without_score_messages,
-            MsgCategory::FinalMessage => &self.final_messages,
+            MsgCategory::FinalMessageCommon => &self.final_messages_common,
             MsgCategory::FinalMessagesWeeklyStreak => &self.final_messages_weekly_streak,
             MsgCategory::FinalMessagesMonthlyStreak => &self.final_messages_monthly_streak,
             MsgCategory::FinalMessagesFirstLifetimeBonus => {
                 &self.final_messages_first_lifetime_bonus
             }
+            MsgCategory::FinalMessagesFeedbackForm => &self.final_messages_feedback_form,
             MsgCategory::FinalMessagesLifetimeBonus => &self.final_messages_lifetime_bonus,
             MsgCategory::StaleMessage => &self.stale_messages,
             MsgCategory::ErrorUnknownCommandMessage => &self.error_unknown_command_messages,
@@ -381,6 +385,115 @@ impl MessageLoader {
             old_text + &status
         }
     }
+
+    pub fn final_message(
+        &self,
+        user_name: &str,
+        total_rating: u32,
+        score: u32,
+        weekly: u32,
+        monthly: u32,
+        percent_reward: u32,
+        total_percent: u32,
+        pr_number_this_week: u32,
+    ) -> anyhow::Result<String> {
+        let rating = rating_breakthrough(total_rating, score, weekly, monthly, total_percent);
+        let final_common = self.get_message(MsgCategory::FinalMessageCommon).format(
+            [
+                ("score".to_string(), score.to_string()),
+                ("rating".to_string(), rating),
+            ]
+            .into_iter()
+            .collect(),
+        )?;
+
+        let optional_message = if percent_reward > 0 && total_percent > 5 {
+            let rank: &str = match total_percent {
+                a if a >= 25 => "Rust",
+                a if a >= 20 => "Platinum",
+                a if a >= 15 => "Gold",
+                a if a >= 10 => "Silver",
+                a => {
+                    tracing::error!(
+                        "Expected total_lifetime_bonus as one of predefined values, but got: {a}. Recovering to Bronze",
+                    );
+                    "Bronze"
+                }
+            };
+            self.get_message(MsgCategory::FinalMessagesLifetimeBonus)
+                .format(
+                    [
+                        (
+                            "total_lifetime_percent".to_string(),
+                            total_percent.to_string(),
+                        ),
+                        ("lifetime_percent".to_string(), percent_reward.to_string()),
+                        ("pr_author_username".to_string(), user_name.to_string()),
+                        ("rank_name".to_string(), rank.to_string()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                )?
+        } else if percent_reward > 0 {
+            self.get_message(MsgCategory::FinalMessagesFirstLifetimeBonus)
+                .format(
+                    [("pr_author_username".to_string(), user_name.to_string())]
+                        .into_iter()
+                        .collect(),
+                )?
+        } else if monthly > 0 {
+            self.get_message(MsgCategory::FinalMessagesMonthlyStreak)
+                .format(
+                    [("pr_author_username".to_string(), user_name.to_string())]
+                        .into_iter()
+                        .collect(),
+                )?
+        } else if weekly > 0 {
+            self.get_message(MsgCategory::FinalMessagesWeeklyStreak)
+                .format(
+                    [("pr_author_username".to_string(), user_name.to_string())]
+                        .into_iter()
+                        .collect(),
+                )?
+        } else if pr_number_this_week % 3 == 0 {
+            self.get_message(MsgCategory::FinalMessagesFeedbackForm)
+                .format([].into_iter().collect())?
+        } else {
+            String::new()
+        };
+
+        Ok(format!("{}\n\n{}", final_common, optional_message))
+    }
+}
+
+fn rating_breakthrough(
+    total_rating: u32,
+    score: u32,
+    weekly: u32,
+    monthly: u32,
+    percent: u32,
+) -> String {
+    let mut result = total_rating.to_string();
+    if weekly == 0 && monthly == 0 && percent == 0 {
+        return result;
+    }
+
+    result.push_str(&format!(" ({} base", score * 10));
+    if weekly > 0 {
+        result.push_str(&format!(" + {} weekly bonus", weekly));
+    }
+
+    if monthly > 0 {
+        result.push_str(&format!(" + {} monthly bonus", monthly));
+    }
+
+    if percent > 0 {
+        result.push_str(&format!(" + {}% lifetime bonus", percent));
+    }
+
+    result.push(')');
+
+    result
 }
 
 #[cfg(test)]
@@ -491,5 +604,32 @@ mod tests {
         assert_ne!(text3, text2);
         assert!(text3.contains(&include_message_init));
         assert!(text3.contains(&new_status_message));
+    }
+
+    #[test]
+    fn rating_breakthrough_full() {
+        let total_rating = 100;
+        let score = 5;
+        let weekly = 10;
+        let monthly = 20;
+        let percent = 5;
+
+        let result = super::rating_breakthrough(total_rating, score, weekly, monthly, percent);
+        assert_eq!(
+            result,
+            "100 (50 base + 10 weekly bonus + 20 monthly bonus + 5% lifetime bonus)"
+        );
+    }
+
+    #[test]
+    fn rating_breakthrough_none() {
+        let result = super::rating_breakthrough(100, 10, 0, 0, 0);
+        assert_eq!(result, "100");
+    }
+
+    #[test]
+    fn rating_breakthrough_partial() {
+        let result = super::rating_breakthrough(100, 5, 0, 5, 0);
+        assert_eq!(result, "100 (50 base + 5 monthly bonus)");
     }
 }

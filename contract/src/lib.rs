@@ -10,7 +10,7 @@ use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
     AccountWithPermanentPercentageBonus, AllowedRepos, Event, GithubHandle, IntoEnumIterator, PRId,
     PRWithRating, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod,
-    TimePeriodString, UserId, VersionedAccount, VersionedPR, VersionedStreak,
+    TimePeriodString, UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
 use types::{Organization, VersionedOrganization};
@@ -330,16 +330,27 @@ impl Contract {
 
         let new_bonus = user.clear_new_flags();
         if new_bonus > 0 {
-            events::log_event(Event::StreakLifetimeRewarded {
-                lifetime_percent: new_bonus,
-                total_lifetime_percent: user.lifetime_percentage_bonus(),
-            })
+            events::log_event(Event::StreakLifetimeRewarded { reward: new_bonus })
         }
 
         let full_id: String = pr.pr_id();
         pr.streak_bonus_rating = bonus_points;
         pr.percentage_multiplier = user.lifetime_percentage_bonus();
+
         let rating = pr.rating();
+        let pr_number_this_week = self
+            .sloths_per_period
+            .get(&(user_id, TimePeriod::Week.time_string(timestamp)))
+            .map(|s| {
+                let s: UserPeriodData = s.clone().into();
+                s.executed_prs
+            })
+            .unwrap_or_default();
+        events::log_event(Event::ExecutedWithRating {
+            rating,
+            applied_multiplier: pr.percentage_multiplier,
+            pr_number_this_week,
+        });
 
         self.users[user_id] = VersionedAccount::V1(user);
         self.apply_to_periods(pr.merged_at.unwrap(), user_id, |data| {

@@ -15,7 +15,11 @@ pub enum Event {
         bonus_rating: u32,
     },
     StreakLifetimeRewarded {
-        lifetime_percent: u32,
-        total_lifetime_percent: u32,
+        reward: u32,
+    },
+    ExecutedWithRating {
+        rating: u32,
+        applied_multiplier: u32,
+        pr_number_this_week: u32,
     },
 }

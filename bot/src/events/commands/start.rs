@@ -49,12 +49,7 @@ impl BotIncluded {
         }
 
         debug!("Starting PR {}", pr.full_id);
-        let events = context.near.send_start(pr, sender.is_maintainer()).await?;
-
-        for event in events {
-            // TODO: Handle streak update
-            tracing::info!("Event: {:?}", event);
-        }
+        context.near.send_start(pr, sender.is_maintainer()).await?;
 
         if let Some(comment_id) = self.comment_id {
             context

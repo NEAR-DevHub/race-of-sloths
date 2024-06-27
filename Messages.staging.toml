@@ -119,35 +119,29 @@ message = [
 This pull request is a part of the Race of Sloths and has not been scored yet. Scoring will close in 24 hours! 🕰️""",
 ]
 
-[final_messages]
-variables = ["link", "pr_author_username", "score"]
-message = [
-    """### ✅ PR is finalized! 
-Your contribution is much appreciated with a final score of {score}. Check out the updates in [your profile]({link}/profile/{pr_author_username})! 🎊""",
-]
+[final_messages_common]
+variables = ["rating", "score"]
+message = ["""### ✅ PR is finalized! 
+Your contribution is much appreciated with a final score of {score}!
+You have received {rating} Sloth points for this contribution
+"""]
 
 [final_messages_weekly_streak]
-variables = ["link", "pr_author_username", "bonus_rating"]
+variables = ["pr_author_username"]
 message = [
-    """### ✅ PR is finalized!
-Another weekly streak completed, well done! We have awarded you with extra {bonus_rating}. Check you bonus in [your profile]({link}/profile/{pr_author_username})! To keep your weekly streak and get another bonus make pull request next week! Looking forward to see you in race-of-sloths
-""",
+    "Another weekly streak completed, well done @{pr_author_username}! To keep your weekly streak and get another bonus make pull request next week! Looking forward to see you in race-of-sloths",
 ]
 
 [final_messages_monthly_streak]
-variables = ["pr_author_username", "bonus_rating"]
+variables = ["pr_author_username"]
 message = [
-    """### ✅ PR is finalized!
-Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! We want to celebrate you with extra {bonus_rating} points! To keep your monthly streak make another pull request next month and get 8+ score for it
-""",
+    "Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! To keep your monthly streak make another pull request next month and get 8+ score for it",
 ]
 
 [final_messages_first_lifetime_bonus]
 variables = ["pr_author_username"]
 message = [
-    """### ✅ PR is finalized!
-@{pr_author_username}, welcome to the Hall of Sloth fame! You have been honored with a Bronze rank and a 5% lifetime bonus to all rating points you earn with your next contributions!
-""",
+    "@{pr_author_username}, welcome to the Hall of Sloth fame! You have been honored with a Bronze rank and a 5% lifetime bonus to all rating points you earn with your next contributions!",
 ]
 
 [final_messages_lifetime_bonus]
@@ -158,10 +152,15 @@ variables = [
     "rank_name",
 ]
 message = [
-    """### ✅ PR is finalized!
-Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +{lifetime_reward}% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%!
-""",
+    "Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +{lifetime_reward}% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%!",
 ]
+
+[final_messages_feedback_form]
+variables = ["form"]
+message = [
+    "We would appreciate your feedback or contribution idea that you can submit [here]({form}",
+]
+
 
 [stale_messages]
 variables = []
