@@ -3,11 +3,10 @@ WITH top_contributors AS (
         pr.repo_id,
         u.login AS contributor_login,
         u.full_name AS contributor_full_name,
-        SUM(pr.score) AS total_score,
         ROW_NUMBER() OVER (
             PARTITION BY pr.repo_id
             ORDER BY
-                SUM(pr.score) DESC
+                SUM(pr.rating) DESC
         ) AS rank
     FROM
         pull_requests pr
