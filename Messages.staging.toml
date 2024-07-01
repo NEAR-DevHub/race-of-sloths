@@ -1,35 +1,25 @@
-link = "https://github.com/race-of-sloths"
-leaderboard_link = "https://github.com/race-of-sloths"
+link = "https://race-of-sloths-website.vercel.app"
+leaderboard_link = "https://race-of-sloths-website.vercel.app/leaderboard"
 form = "https://github.com/NEAR-DevHub/race-of-sloths/issues/new/choose"
 picture_api_link = "https://badge.staging.race-of-sloths.com/{pr_author_username}?type=bot"
 
 [include_basic_messages]
-variables = [
-    "pr_author_username",
-    "bot_name",
-    "link",
-    "leaderboard_link",
-    "picture_api_link",
-]
-
+variables = ["picture_api_link", "pr_author_username", "user_specific_message"]
 message = [
-    """<details>
-<summary> 
-
-### 🎉 This pull request is now a part of the [Race of Sloths]({link})🎉
-Thank you @{pr_author_username} for your contribution!
-
-</summary>
-<details>
-<summary><strong>More info about the author - @{pr_author_username}</strong></summary>
+    """
+@{pr_author_username} Thank you for your contribution! Your pull request is now a part of the [Race of Sloths]({link})!
+{user_specific_message}
 
 ![sloth_stats]({picture_api_link})
+""",
+]
 
-</details> 
-
-<details><summary><strong>What is the Race of Sloths</strong></summary>
+[include_common_messages]
+variables = ["pr_author_username", "bot_name", "link", "leaderboard_link"]
+message = [
+    """
+<details><summary>What is the Race of Sloths</summary>
 <p>
-
 Race of Sloths is a friendly competition where you can participate in challenges and compete with other open-source contributors within your normal workflow
 
 For contributors:
@@ -47,20 +37,16 @@ For maintainers:
 - Grow the community of your contributors
 
 Feel free to check [our website]({link}) for additional details!
-
 </p>
 </details> 
 
-
-
 <details>
-<summary><strong>Bot commands</strong></summary>
+<summary>Bot commands</summary>
 
 - ➕ **Include a PR:** `@{bot_name} include` to enter the Race with your PR
 - 🛑 **Reject this PR:** `@{bot_name} exclude` to send this PR back to the drawing board.
 - ⭐ **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
 - 🔕 **Pause us:** `@{bot_name} pause` to stop me on your repo.
-</details>
 </details>
 """,
 ]
@@ -245,53 +231,47 @@ Feel free to check [our website]({link}) for additional details!
 ]
 
 [first_time_contribution]
-variables = ["pr_author_username"]
-message = ["New Sloth joined the Race! Welcome @{pr_author_username}"]
+variables = []
+message = ["New Sloth joined the Race! Welcome!"]
 
 [first_week_contribution]
-variables = ["pr_author_username"]
+variables = []
 message = [
-    "Weekly streak is on the road, smart strategy @{pr_author_username}! Secure your streak with another PR",
+    "Weekly streak is on the road, smart strategy! Secure your streak with another PR",
 ]
 
 [first_month_contribution]
-variables = ["pr_author_username"]
+variables = []
 message = [
-    "Do you @{pr_author_username} want to apply for monthly streak? Get 8+ score for a single PR this month and receive boost for race-of-sloth",
+    "Do you want to apply for monthly streak? Get 8+ score for a single PR this month and receive boost for race-of-sloth",
 ]
 
 [contribution_3]
-variables = ["pr_author_username"]
+variables = []
 message = [
-    "Are you @{pr_author_username} going to win race-of-sloth this month? If so, you should speed up! Run, Sloth, Run",
+    "Are you going to win race-of-sloth this month? If so, you should speed up! Run, Sloth, Run",
 ]
 
 [contribution_4]
-variables = ["pr_author_username"]
-message = [
-    "You are true leader @{pr_author_username}! Other sloths hot on your heels, keep moving!",
-]
+variables = []
+message = ["You are true leader! Other sloths hot on your heels, keep moving!"]
 
 [contribution_5]
-variables = ["pr_author_username"]
-message = [
-    "Great job @{pr_author_username}! Usain Bolt jealous of your results!",
-]
+variables = []
+message = ["Great job! Usain Bolt jealous of your results!"]
 
 [contribution_6]
-variables = ["pr_author_username"]
+variables = []
 message = [
-    "King of Sloth shakes your @{pr_author_username} hand! Yellow leader's jersey is yours deservedly",
+    "King of Sloth shakes your hand! Yellow leader's jersey is yours deservedly",
 ]
 
 [contribution_7]
-variables = ["pr_author_username"]
-message = [
-    "We are launching a survey \"Who is faster? @{pr_author_username} vs SpaceX\"",
-]
+variables = []
+message = ["We are launching a survey \"Who is faster? You vs SpaceX\""]
 
 [contribution_8]
-variables = ["pr_author_username"]
+variables = []
 message = [
-    "“Congratulatory messages are spent out! @{pr_author_username} your results have exceeded our imagination",
+    "“Congratulatory messages are spent out! Your results have exceeded our imagination",
 ]

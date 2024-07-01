@@ -12,6 +12,7 @@ use tracing::error;
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum MsgCategory {
     IncludeBasicMessage,
+    IncludeCommonMessage,
     CorrectNonzeroScoringMessage,
     CorrectZeroScoringMessage,
     CorrectableScoringMessage,
@@ -102,6 +103,7 @@ pub struct MessageLoader {
 
     // Messages
     pub include_basic_messages: Messages,
+    pub include_common_messages: Messages,
     pub correct_nonzero_scoring_messages: Messages,
     pub correct_zero_scoring_messages: Messages,
     pub correctable_scoring_messages: Messages,
@@ -168,6 +170,7 @@ impl MessageLoader {
 
         let array_of_messages = vec![
             &mut self.include_basic_messages,
+            &mut self.include_common_messages,
             &mut self.correct_nonzero_scoring_messages,
             &mut self.correct_zero_scoring_messages,
             &mut self.correctable_scoring_messages,
@@ -209,6 +212,7 @@ impl MessageLoader {
     pub fn get_message(&self, category: MsgCategory) -> Messages {
         let elem = match category {
             MsgCategory::IncludeBasicMessage => &self.include_basic_messages,
+            MsgCategory::IncludeCommonMessage => &self.include_common_messages,
             MsgCategory::CorrectNonzeroScoringMessage => &self.correct_nonzero_scoring_messages,
             MsgCategory::CorrectZeroScoringMessage => &self.correct_zero_scoring_messages,
             MsgCategory::CorrectableScoringMessage => &self.correctable_scoring_messages,
@@ -250,22 +254,36 @@ impl MessageLoader {
         elem.clone()
     }
 
-    pub fn include_message_text(&self, user: &User) -> String {
-        let mut message = self
+    pub fn include_message_text(
+        &self,
+        bot_name: &str,
+        check_info: &PRInfo,
+        pr: &PrMetadata,
+        user: &User,
+    ) -> String {
+        let user_specific_message = self.user_specific_message(user);
+        let message = self
             .get_message(MsgCategory::IncludeBasicMessage)
+            .format(
+                [
+                    ("pr_author_username".to_string(), user.name.clone()),
+                    ("user_specific_message".to_string(), user_specific_message),
+                ]
+                .into_iter()
+                .collect(),
+            )
+            .unwrap_or_default();
+        let status_message = self.status_message(bot_name, check_info, pr);
+        let message = self.update_pr_status_message(message, status_message);
+        let common = self
+            .get_message(MsgCategory::IncludeCommonMessage)
             .format(
                 [("pr_author_username".to_string(), user.name.clone())]
                     .into_iter()
                     .collect(),
             )
             .unwrap_or_default();
-
-        let user_specific_message = self.user_specific_message(user);
-        if !user_specific_message.is_empty() {
-            message.push_str(&format!("\n{user_specific_message}\n"));
-        }
-
-        message
+        message + &common
     }
 
     pub fn status_message(&self, bot_name: &str, check_info: &PRInfo, pr: &PrMetadata) -> String {
@@ -285,18 +303,20 @@ impl MessageLoader {
             "waiting for finalization"
         };
 
-        message.push_str(&format!("\n#### Current status: {status}\n",));
+        message.push_str(&format!(
+            "\n<details><summary>Current status: <i>{status}</i></summary>\n",
+        ));
 
         if status == "waiting for scoring" {
-            message.push_str(&format!(">[!IMPORTANT]\n>We're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command\n"));
+            message.push_str(&format!("\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command"));
         }
 
         if status == "stale" {
-            message.push_str(&format!(">[!IMPORTANT]\n>This pull request was removed from the race, but you can include it again with `@{bot_name} include` command\n"));
+            message.push_str(&format!("\nThis pull request was removed from the race, but you can include it again with `@{bot_name} include` command"));
         }
 
         if status == "waiting for finalization" {
-            message.push_str(&format!(">[!IMPORTANT]\n>The pull request is merged, you have 24 hours to finalize your scoring. The scoring ends {}\n", pr.merged.unwrap().add(chrono::Duration::days(1)).format("%c")));
+            message.push_str(&format!("\nThe pull request is merged, you have 24 hours to finalize your scoring. The scoring ends {}", pr.merged.unwrap().add(chrono::Duration::days(1)).format("%c")));
         }
 
         if !check_info.votes.is_empty() {
@@ -307,15 +327,17 @@ impl MessageLoader {
                 message.push_str(&format!("| @{}  | {} |\n", vote.user, vote.score));
             }
             let final_score = check_info.average_score();
-            message.push_str(&format!("\n**Final score: {}**\n", final_score));
+            message.push_str(&format!("\n**The average score is {}**\n", final_score));
         }
 
         if status == "executed" {
             message.push_str(&format!(
-                "\n@{} check out your results on the [Race of Sloths Leaderboard!]({})\n",
-                pr.author.login, self.leaderboard_link
+                "\n@{} check out your results on the [Race of Sloths Leaderboard!]({}) and in the [profile]({}/profile/{})\n",
+                pr.author.login, self.leaderboard_link, self.link, pr.author.login
             ));
         }
+
+        message.push_str("\n</details>");
 
         message
     }
@@ -376,11 +398,17 @@ impl MessageLoader {
         }
     }
 
-    pub fn update_message(&self, old_text: String, status: String) -> String {
-        let place = old_text.find("\n#### Current status:");
+    pub fn update_pr_status_message(&self, old_text: String, status: String) -> String {
+        let place = old_text.find("<details><summary>Current status:");
 
         if let Some(i) = place {
-            old_text[..i].to_string() + &status
+            let end_details = old_text[i..].find("</details>");
+            if let Some(j) = end_details {
+                old_text[..i].to_string() + &status + &old_text[i + j + 10..]
+            } else {
+                tracing::error!("Failed to find the end of the details tag");
+                old_text[..i].to_string() + &status
+            }
         } else {
             old_text + &status
         }
@@ -515,13 +543,13 @@ mod tests {
     #[test]
     fn test_update_message_with_existing_status() {
         let old_text =
-            "Welcome to the race!\n#### Current status: waiting for scoring\n>Old status info";
+            "Welcome to the race!\n<details><summary>Current status: <i>waiting for scoring</i></summary>";
         let new_status = "#### Current status: executed\n>New status info";
         let expected = "Welcome to the race!\n#### Current status: executed\n>New status info";
 
         let message_loader = load_message_loader();
         let updated_text =
-            message_loader.update_message(old_text.to_string(), new_status.to_string());
+            message_loader.update_pr_status_message(old_text.to_string(), new_status.to_string());
 
         assert_eq!(updated_text, expected);
     }
@@ -575,11 +603,9 @@ mod tests {
             closed: false,
         };
 
-        let include_message_init = message_loader.include_message_text(&user);
+        let text1 = message_loader.include_message_text("bot", &pr_info, &pr, &user);
         let status_message_init = message_loader.status_message("bot", &pr_info, &pr);
-        let text1 = message_loader
-            .update_message(include_message_init.clone(), status_message_init.clone());
-        assert!(text1.contains(&include_message_init));
+        println!("{}", text1);
         assert!(text1.contains(&status_message_init));
 
         pr_info.votes.push(Score {
@@ -590,9 +616,9 @@ mod tests {
         let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
         assert_ne!(status_message_init, new_status_message);
 
-        let text2 = message_loader.update_message(text1.clone(), new_status_message.clone());
+        let text2 =
+            message_loader.update_pr_status_message(text1.clone(), new_status_message.clone());
         assert_ne!(text1, text2);
-        assert!(text2.contains(&include_message_init));
         assert!(text2.contains(&new_status_message));
         assert!(!text2.contains(&status_message_init));
 
@@ -600,9 +626,10 @@ mod tests {
         let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
         assert_ne!(status_message_init, new_status_message);
 
-        let text3 = message_loader.update_message(text1.clone(), new_status_message.clone());
+        let text3 =
+            message_loader.update_pr_status_message(text1.clone(), new_status_message.clone());
         assert_ne!(text3, text2);
-        assert!(text3.contains(&include_message_init));
+        println!("{}", text3);
         assert!(text3.contains(&new_status_message));
     }
 

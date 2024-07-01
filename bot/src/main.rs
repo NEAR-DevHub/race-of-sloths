@@ -213,9 +213,6 @@ async fn execute(context: Context, events: Vec<Event>) {
         }
     };
 
-    let status = context
-        .messages
-        .status_message(&context.github.user_handle, &info, pr);
     let result = match &event.comment {
         Some(comment) => {
             let text = comment
@@ -225,8 +222,11 @@ async fn execute(context: Context, events: Vec<Event>) {
                 .or(comment.body_text.as_ref())
                 .cloned()
                 .unwrap_or_default();
+            let status = context
+                .messages
+                .status_message(&context.github.user_handle, &info, pr);
 
-            let message = context.messages.update_message(text, status);
+            let message = context.messages.update_pr_status_message(text, status);
 
             context
                 .github
@@ -254,8 +254,12 @@ async fn execute(context: Context, events: Vec<Event>) {
                 }
             };
 
-            let message = context.messages.include_message_text(&user);
-            let message = context.messages.update_message(message, status);
+            let message = context.messages.include_message_text(
+                &context.github.user_handle,
+                &info,
+                pr,
+                &user,
+            );
 
             context
                 .github
