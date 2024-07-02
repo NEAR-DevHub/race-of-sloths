@@ -27,6 +27,12 @@ pub struct Env {
     telegram_chat_id: String,
 }
 
+// Allow robots to crawl the site
+#[get("/robots.txt")]
+fn robots() -> &'static str {
+    "User-agent: *\nDisallow: /"
+}
+
 #[launch]
 async fn rocket() -> _ {
     dotenv::dotenv().ok();
@@ -87,6 +93,7 @@ async fn rocket() -> _ {
             "/",
             SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
+        .mount("/", routes![robots])
         .attach(prometheus.clone())
         .attach(entrypoints::stage())
         .mount("/metrics", prometheus)
