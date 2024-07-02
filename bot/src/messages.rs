@@ -515,7 +515,7 @@ fn rating_breakthrough(
         result.push_str(&format!(" + {} monthly bonus", monthly));
     }
 
-    if percent > 0 && total_rating {
+    if percent > 0 {
         result.push_str(&format!(" + {}% lifetime bonus", percent));
     }
 
