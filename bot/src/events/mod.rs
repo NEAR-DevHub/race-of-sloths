@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use octocrab::models::{issues::Comment, NotificationId};
-use tracing::{info, instrument};
+use tracing::{info, instrument, Level};
 
 use crate::{api, messages::MessageLoader};
 
@@ -115,5 +115,5 @@ fn send_event_to_telegram(
         event.pr.number,
         if success { "successful" } else { "failed" },
     );
-    self.send_to_telegram(&message, &Level::INFO);
+    telegram.send_to_telegram(&message, &Level::INFO);
 }
