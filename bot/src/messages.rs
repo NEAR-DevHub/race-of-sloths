@@ -502,7 +502,7 @@ fn rating_breakthrough(
     percent: u32,
 ) -> String {
     let mut result = total_rating.to_string();
-    if weekly == 0 && monthly == 0 && percent == 0 {
+    if (weekly == 0 && monthly == 0 && percent == 0) || total_rating == 0 {
         return result;
     }
 
@@ -515,7 +515,7 @@ fn rating_breakthrough(
         result.push_str(&format!(" + {} monthly bonus", monthly));
     }
 
-    if percent > 0 {
+    if percent > 0 && total_rating {
         result.push_str(&format!(" + {}% lifetime bonus", percent));
     }
 
