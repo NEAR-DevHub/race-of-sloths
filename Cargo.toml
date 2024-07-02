@@ -46,6 +46,8 @@ utoipa = "4.2"
 utoipa-swagger-ui = "7.1"
 http-body-util = "0.1"
 num-format = "0.4"
+resvg = "0.42.0"
+tiny-skia = "0.11"
 
 [profile.release]
 codegen-units = 1

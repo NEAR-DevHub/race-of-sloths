@@ -5,13 +5,13 @@ use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{types::UserCachedMetadata, DB},
     github_pull::GithubClient,
-    svg::{generate_svg_bot_badge, generate_svg_meta_badge, generate_svg_share_badge},
+    svg::{generate_png_meta_badge, generate_svg_bot_badge, generate_svg_share_badge},
 };
 use rocket::{
     http::{ContentType, Header, Status},
     response::{self, Responder},
     serde::json::Json,
-    Request, Response, State,
+    Request, State,
 };
 use shared::{telegram, TimePeriod};
 use std::ops::Add;
@@ -20,35 +20,54 @@ use super::types::{PaginatedResponse, UserContributionResponse, UserProfile};
 
 pub struct Badge {
     svg: Option<String>,
+    png: Option<Vec<u8>>,
     status: Status,
 }
 
 impl Badge {
-    pub fn new(svg: String) -> Self {
+    pub fn new_svg(svg: String) -> Self {
         Self {
             svg: Some(svg),
+            png: None,
+            status: Status::Ok,
+        }
+    }
+
+    pub fn new_ong(png: Vec<u8>) -> Self {
+        Self {
+            svg: None,
+            png: Some(png),
             status: Status::Ok,
         }
     }
 
     pub fn with_status(status: Status) -> Self {
-        Self { status, svg: None }
+        Self {
+            status,
+            svg: None,
+            png: None,
+        }
     }
 }
 
 impl<'r> Responder<'r, 'static> for Badge {
     fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
         let expiration = chrono::Utc::now().add(chrono::Duration::minutes(5));
-
-        match self.svg {
-            Some(png) => Response::build()
-                .header(Header::new("Cache-Control", "no-cache"))
-                .header(Header::new("Pragma", "no-cache"))
-                .header(Header::new("Expires", expiration.to_rfc2822()))
+        let mut response = response::Response::build();
+        response
+            .header(Header::new("Cache-Control", "no-cache"))
+            .header(Header::new("Pragma", "no-cache"))
+            .header(Header::new("Expires", expiration.to_rfc2822()));
+        match (self.svg, self.png) {
+            (Some(svg), _) => response
                 .header(ContentType::SVG)
+                .sized_body(svg.len(), std::io::Cursor::new(svg))
+                .ok(),
+            (_, Some(png)) => response
+                .header(ContentType::PNG)
                 .sized_body(png.len(), std::io::Cursor::new(png))
                 .ok(),
-            None => Err(self.status),
+            _ => Err(self.status),
         }
     }
 }
@@ -120,7 +139,16 @@ pub async fn get_badge<'a>(
         }
     };
 
-    let result = match badge_type.as_str() {
+    let construct_svg_badge_from_result = |badge| {
+        if let Ok(value) = badge {
+            Badge::new_svg(value)
+        } else {
+            Badge::with_status(Status::InternalServerError)
+        }
+    };
+
+    // TODO: spaghetti code, refactor
+    match badge_type.as_str() {
         "bot" => {
             let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
                 Ok(metadata) => metadata,
@@ -132,7 +160,11 @@ pub async fn get_badge<'a>(
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
-            generate_svg_bot_badge(user, metadata, font.inner().clone())
+            construct_svg_badge_from_result(generate_svg_bot_badge(
+                user,
+                metadata,
+                font.inner().clone(),
+            ))
         }
         "meta" => {
             let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
@@ -145,23 +177,17 @@ pub async fn get_badge<'a>(
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
-            generate_svg_meta_badge(user, metadata, font.inner().clone())
+            match generate_png_meta_badge(user, metadata, font.inner().clone()) {
+                Ok(png) => Badge::new_ong(png),
+                Err(_) => Badge::with_status(Status::InternalServerError),
+            }
         }
-        "share" => generate_svg_share_badge(user, font.inner().clone()),
+        "share" => {
+            construct_svg_badge_from_result(generate_svg_share_badge(user, font.inner().clone()))
+        }
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
             return Badge::with_status(Status::NotFound);
-        }
-    };
-
-    match result {
-        Ok(value) => Badge::new(value),
-        _ => {
-            race_of_sloths_server::error(
-                telegram,
-                &format!("Failed to generate badge for {username}"),
-            );
-            Badge::with_status(Status::InternalServerError)
         }
     }
 }

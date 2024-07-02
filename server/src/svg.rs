@@ -135,11 +135,11 @@ pub fn generate_svg_share_badge(
     postprocess_svg(svg_icon, fontdb)
 }
 
-pub fn generate_svg_meta_badge(
+pub fn generate_png_meta_badge(
     user_record: UserRecord,
     user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<Vec<u8>> {
     let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record
         .period_data
@@ -203,7 +203,7 @@ pub fn generate_svg_meta_badge(
                 .clone()
                 .unwrap_or_else(|| github_handle.clone()),
         );
-    postprocess_svg(svg_icon, fontdb)
+    postprocess_svg_to_png(svg_icon, fontdb)
 }
 
 fn postprocess_svg(svg: String, fontdb: Arc<fontdb::Database>) -> anyhow::Result<String> {
@@ -221,6 +221,22 @@ fn postprocess_svg(svg: String, fontdb: Arc<fontdb::Database>) -> anyhow::Result
     };
 
     Ok(tree.to_string(&write_options))
+}
+
+fn postprocess_svg_to_png(svg: String, fontdb: Arc<fontdb::Database>) -> anyhow::Result<Vec<u8>> {
+    let tree = Tree::from_str(
+        &svg,
+        &Options {
+            fontdb,
+            ..Default::default()
+        },
+    )?;
+
+    let pixmap_size = tree.size().to_int_size();
+    let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+        .ok_or_else(|| anyhow::anyhow!("Failed to create pixmap"))?;
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    Ok(pixmap.encode_png()?)
 }
 
 fn process_rank(svg_icon: String, user_record: &UserRecord) -> String {
