@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use race_of_sloths_server::db::DB;
 use rocket::{serde::json::Json, State};
-use shared::TimePeriod;
+use shared::{telegram, TimePeriod};
 
 use super::types::{LeaderboardResponse, PaginatedResponse, RepoResponse};
 
@@ -10,6 +12,7 @@ use super::types::{LeaderboardResponse, PaginatedResponse, RepoResponse};
 #[get("/users/<period>?<page>&<limit>&<streak_id>")]
 async fn get_leaderboard(
     db: &State<DB>,
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
     period: Option<String>,
     page: Option<u64>,
     limit: Option<u64>,
@@ -24,7 +27,10 @@ async fn get_leaderboard(
         .await
     {
         Err(e) => {
-            rocket::error!("Failed to get leaderboard: {period}: {e}");
+            race_of_sloths_server::error(
+                telegram,
+                &format!("Failed to get leaderboard: {period}: {e}"),
+            );
             return None;
         }
         Ok(value) => value,
@@ -42,6 +48,7 @@ async fn get_leaderboard(
 ))]
 #[get("/repos?<page>&<limit>")]
 async fn get_repos(
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
     page: Option<u64>,
     limit: Option<u64>,
     db: &State<DB>,
@@ -50,7 +57,10 @@ async fn get_repos(
     let limit = limit.unwrap_or(50);
     let (repos, total) = match db.get_repo_leaderboard(page as i64, limit as i64).await {
         Err(e) => {
-            rocket::error!("Failed to get repos leaderboard: {e}");
+            race_of_sloths_server::error(
+                telegram,
+                &format!("Failed to get repos leaderboard: {e}"),
+            );
             return None;
         }
         Ok(value) => value,

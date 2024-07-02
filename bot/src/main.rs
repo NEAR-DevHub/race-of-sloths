@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use futures::future::join_all;
 use race_of_sloths_bot::{
-    api::{prometheus::PrometheusClient, telegram, GithubClient},
+    api::{prometheus::PrometheusClient, GithubClient},
     events::{actions::Action, Context, Event, EventType},
     messages::MessageLoader,
 };
@@ -13,6 +13,7 @@ use tracing::{debug, error, info, instrument, trace};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
 use shared::near::NearClient;
+use shared::telegram;
 use shared::{github::PrMetadata, TimePeriod};
 
 #[derive(Deserialize)]

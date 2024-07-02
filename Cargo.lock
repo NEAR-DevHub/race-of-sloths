@@ -4743,9 +4743,12 @@ dependencies = [
  "near-sdk",
  "near-workspaces",
  "octocrab",
+ "reqwest 0.12.4",
  "serde_json",
  "strum 0.26.2",
+ "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

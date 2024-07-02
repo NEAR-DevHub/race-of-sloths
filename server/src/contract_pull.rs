@@ -6,11 +6,15 @@ use std::{
 use chrono::DateTime;
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
-use shared::{near::NearClient, TimePeriod};
+use shared::{near::NearClient, telegram::TelegramSubscriber, TimePeriod};
 
 use crate::db::DB;
 
-async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+async fn fetch_and_store_users(
+    telegram: &Arc<TelegramSubscriber>,
+    near_client: &NearClient,
+    db: &DB,
+) -> anyhow::Result<()> {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_nanos();
@@ -20,22 +24,54 @@ async fn fetch_and_store_users(near_client: &NearClient, db: &DB) -> anyhow::Res
         .collect();
     let users = near_client.users(periods).await?;
     for user in users {
-        let user_id = db
+        let user_id = match db
             .upsert_user(user.id, &user.name, user.percentage_bonus)
-            .await?;
+            .await
+        {
+            Ok(id) => id,
+            Err(e) => {
+                crate::error(
+                    telegram,
+                    &format!("Failed to upsert user ({}): {:#?}", user.name, e),
+                );
+                continue;
+            }
+        };
         for (period, data) in user.period_data {
-            db.upsert_user_period_data(period, &data, user_id).await?;
+            if let Err(e) = db.upsert_user_period_data(period, &data, user_id).await {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to upsert user ({}) period data: {:#?}",
+                        user.name, e
+                    ),
+                );
+            }
         }
         for (streak_id, streak_data) in user.streaks {
-            db.upsert_streak_user_data(&streak_data, streak_id as i32, user_id)
-                .await?;
+            if let Err(e) = db
+                .upsert_streak_user_data(&streak_data, streak_id as i32, user_id)
+                .await
+            {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to upsert user ({}) streak data: {:#?}",
+                        user.name, e
+                    ),
+                );
+            }
         }
     }
 
     Ok(())
 }
 
-async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+async fn fetch_and_store_prs(
+    telegram: &Arc<TelegramSubscriber>,
+    near_client: &NearClient,
+    db: &DB,
+) -> anyhow::Result<()> {
     let prs = near_client.prs().await?;
     // TODO: more efficient way to handle exclude and outdated PRs
     db.clear_prs().await?;
@@ -43,7 +79,7 @@ async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Resul
         let organization_id = db.upsert_organization(&pr.organization).await?;
         let repo_id = db.upsert_repo(organization_id, &pr.repo).await?;
         let author_id = db.get_user_id(&pr.author).await?;
-        let _ = db
+        if let Err(e) = db
             .upsert_pull_request(
                 repo_id,
                 pr.number as i32,
@@ -57,29 +93,66 @@ async fn fetch_and_store_prs(near_client: &NearClient, db: &DB) -> anyhow::Resul
                 pr.streak_bonus_rating,
                 executed,
             )
-            .await?;
+            .await
+        {
+            crate::error(
+                telegram,
+                &format!(
+                    "Failed to upsert PR ({}/{}/pull/{}): {:#?}",
+                    pr.organization, pr.repo, pr.number, e
+                ),
+            );
+        }
     }
     Ok(())
 }
 
-async fn fetch_and_store_repos(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
+async fn fetch_and_store_repos(
+    telegram: &Arc<TelegramSubscriber>,
+    near_client: &NearClient,
+    db: &DB,
+) -> anyhow::Result<()> {
     let organizations = near_client.repos().await?;
     for org in organizations {
-        let organization_id = db.upsert_organization(&org.organization).await?;
+        let organization_id = match db.upsert_organization(&org.organization).await {
+            Ok(id) => id,
+            Err(e) => {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to upsert organization ({}): {:#?}",
+                        org.organization, e
+                    ),
+                );
+                continue;
+            }
+        };
         for repo in org.repos {
-            db.upsert_repo(organization_id, &repo).await?;
+            if let Err(e) = db.upsert_repo(organization_id, &repo).await {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to upsert repo ({}/{}): {:#?}",
+                        org.organization, repo, e
+                    ),
+                );
+            }
         }
     }
     Ok(())
 }
 
 // TODO: more efficient way to fetch only updated data
-async fn fetch_and_store_all_data(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
-    fetch_and_store_users(near_client, db).await?;
+async fn fetch_and_store_all_data(
+    telegram: &Arc<TelegramSubscriber>,
+    near_client: &NearClient,
+    db: &DB,
+) -> anyhow::Result<()> {
+    fetch_and_store_users(telegram, near_client, db).await?;
 
-    fetch_and_store_repos(near_client, db).await?;
+    fetch_and_store_repos(telegram, near_client, db).await?;
     // It matters that we fetch users first, because we need to know their IDs
-    fetch_and_store_prs(near_client, db).await?;
+    fetch_and_store_prs(telegram, near_client, db).await?;
     Ok(())
 }
 
@@ -90,6 +163,10 @@ pub fn stage(client: NearClient, sleep_duration: Duration, atomic_bool: Arc<Atom
             let db = DB::fetch(rocket)
                 .expect("Failed to get DB connection")
                 .clone();
+            let telegram: Arc<TelegramSubscriber> = rocket
+                .state()
+                .cloned()
+                .expect("Failed to get telegram client");
 
             rocket::tokio::spawn(async move {
                 let mut interval = rocket::tokio::time::interval(sleep_duration);
@@ -98,8 +175,11 @@ pub fn stage(client: NearClient, sleep_duration: Duration, atomic_bool: Arc<Atom
                     interval.tick().await;
 
                     // Execute a query of some kind
-                    if let Err(e) = fetch_and_store_all_data(&near_client, &db).await {
-                        rocket::error!("Failed to fetch and store data: {:#?}", e);
+                    if let Err(e) = fetch_and_store_all_data(&telegram, &near_client, &db).await {
+                        crate::error(
+                            &telegram,
+                            &format!("Failed to fetch and store data: {:#?}", e),
+                        );
                     }
                 }
             });

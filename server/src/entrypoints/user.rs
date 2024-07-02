@@ -13,7 +13,8 @@ use rocket::{
     serde::json::Json,
     Request, Response, State,
 };
-use shared::TimePeriod;
+use shared::{telegram, TimePeriod};
+use std::ops::Add;
 
 use super::types::{PaginatedResponse, UserContributionResponse, UserProfile};
 
@@ -37,8 +38,7 @@ impl Badge {
 
 impl<'r> Responder<'r, 'static> for Badge {
     fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
-        let expiration = chrono::Utc::now();
-        //.add(chrono::Duration::minutes(1));
+        let expiration = chrono::Utc::now().add(chrono::Duration::minutes(5));
 
         match self.svg {
             Some(png) => Response::build()
@@ -89,6 +89,7 @@ async fn fetch_user_metadata_lazily(
 ))]
 #[get("/<username>/badge?<type>")]
 pub async fn get_badge<'a>(
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
     username: &str,
     db: &State<DB>,
     font: &State<Arc<usvg::fontdb::Database>>,
@@ -114,7 +115,7 @@ pub async fn get_badge<'a>(
             return Badge::with_status(Status::NotFound);
         }
         Err(e) => {
-            rocket::error!("Failed to get user {username}: {e}");
+            race_of_sloths_server::error(telegram, &format!("Failed to get user {username}: {e}"));
             return Badge::with_status(Status::InternalServerError);
         }
     };
@@ -124,7 +125,10 @@ pub async fn get_badge<'a>(
             let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
                 Ok(metadata) => metadata,
                 Err(e) => {
-                    rocket::error!("Failed to fetch user metadata: {e}");
+                    race_of_sloths_server::error(
+                        telegram,
+                        &format!("Failed to fetch user metadata: {e}"),
+                    );
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
@@ -134,7 +138,10 @@ pub async fn get_badge<'a>(
             let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
                 Ok(metadata) => metadata,
                 Err(e) => {
-                    rocket::error!("Failed to fetch user metadata: {e}");
+                    race_of_sloths_server::error(
+                        telegram,
+                        &format!("Failed to fetch user metadata: {e}"),
+                    );
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
@@ -150,7 +157,10 @@ pub async fn get_badge<'a>(
     match result {
         Ok(value) => Badge::new(value),
         _ => {
-            rocket::error!("Failed to generate badge for {username}");
+            race_of_sloths_server::error(
+                telegram,
+                &format!("Failed to generate badge for {username}"),
+            );
             Badge::with_status(Status::InternalServerError)
         }
     }
@@ -162,7 +172,11 @@ pub async fn get_badge<'a>(
     )
 )]
 #[get("/<username>")]
-async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
+async fn get_user(
+    username: &str,
+    db: &State<DB>,
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
+) -> Option<Json<UserProfile>> {
     let time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
     let leaderboards = [
         TimePeriod::AllTime.time_string(time as u64),
@@ -171,7 +185,7 @@ async fn get_user(username: &str, db: &State<DB>) -> Option<Json<UserProfile>> {
 
     let user = match db.get_user(username, &leaderboards).await {
         Err(e) => {
-            rocket::error!("Failed to get user: {username}: {e}");
+            race_of_sloths_server::error(telegram, &format!("Failed to get user: {username}: {e}"));
             return None;
         }
         Ok(value) => value?,
@@ -189,6 +203,7 @@ async fn get_user_contributions(
     page: Option<u64>,
     limit: Option<u64>,
     db: &State<DB>,
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
 ) -> Option<Json<PaginatedResponse<UserContributionResponse>>> {
     let page = page.unwrap_or(0);
     let limit = limit.unwrap_or(50);
@@ -197,7 +212,10 @@ async fn get_user_contributions(
         .await
     {
         Err(e) => {
-            rocket::error!("Failed to get user contributions: {username}: {e}");
+            race_of_sloths_server::error(
+                telegram,
+                &format!("Failed to get user contributions: {username}: {e}"),
+            );
             return None;
         }
         Ok(value) => value,
@@ -209,7 +227,6 @@ async fn get_user_contributions(
         total,
     )))
 }
-
 pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         let mut font = usvg::fontdb::Database::new();
@@ -218,7 +235,7 @@ pub fn stage() -> rocket::fairing::AdHoc {
 
         rocket.manage(Arc::new(font)).mount(
             "/users/",
-            rocket::routes![get_user, get_user_contributions, get_badge],
+            rocket::routes![get_user, get_user_contributions, get_badge,],
         )
     })
 }

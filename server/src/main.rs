@@ -7,8 +7,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use entrypoints::ApiDoc;
+use rocket::{fairing::AdHoc, State};
 use rocket_cors::AllowedOrigins;
-use shared::near::NearClient;
+use shared::{near::NearClient, telegram};
 
 use race_of_sloths_server::{contract_pull, db, github_pull};
 use utoipa::OpenApi;
@@ -22,6 +23,8 @@ pub struct Env {
     near_timeout_in_minutes: Option<u32>,
     github_timeout_in_minutes: Option<u32>,
     github_token: String,
+    telegram_token: String,
+    telegram_chat_id: String,
 }
 
 #[launch]
@@ -33,6 +36,9 @@ async fn rocket() -> _ {
     let github_sleep = Duration::from_secs(env.github_timeout_in_minutes.unwrap_or(60) as u64 * 60);
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let prometheus = rocket_prometheus::PrometheusMetrics::new();
+
+    let telegram: telegram::TelegramSubscriber =
+        telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await;
 
     let near_client = NearClient::new(env.contract.clone(), env.secret_key.clone(), env.is_mainnet)
         .await
@@ -84,4 +90,35 @@ async fn rocket() -> _ {
         .attach(prometheus.clone())
         .attach(entrypoints::stage())
         .mount("/metrics", prometheus)
+        .manage(Arc::new(telegram))
+        .attach(AdHoc::on_response(
+            "Telegram notification about failed resposnes",
+            |req, resp: &mut rocket::Response<'_>| {
+                Box::pin(async move {
+                    let telegram = req
+                        .guard::<&State<Arc<telegram::TelegramSubscriber>>>()
+                        .await;
+                    if telegram.is_error() {
+                        return;
+                    }
+                    let telegram = telegram.unwrap();
+                    match resp.status().class() {
+                        rocket::http::StatusClass::ServerError
+                        | rocket::http::StatusClass::ClientError
+                        | rocket::http::StatusClass::Unknown => {
+                            telegram.send_to_telegram(
+                                &format!(
+                                    "Request {}{} failed with code {}\n",
+                                    req.method(),
+                                    req.uri(),
+                                    resp.status(),
+                                ),
+                                &tracing::Level::ERROR,
+                            );
+                        }
+                        _ => {}
+                    }
+                })
+            },
+        ))
 }

@@ -17,6 +17,9 @@ pub type UserId = u32;
 pub mod github;
 
 #[cfg(feature = "client")]
+pub mod telegram;
+
+#[cfg(feature = "client")]
 pub mod near;
 
 pub use event::*;

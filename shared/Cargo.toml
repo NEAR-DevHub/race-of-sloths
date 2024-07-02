@@ -15,8 +15,12 @@ near-workspaces = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["sync"] }
+tracing-subscriber = { workspace = true, optional = true }
 
 octocrab = { workspace = true, optional = true }
+
 
 [features]
 github = ["dep:octocrab"]
@@ -25,5 +29,8 @@ client = [
     "dep:anyhow",
     "dep:serde_json",
     "dep:tracing",
+    "dep:reqwest",
+    "dep:tokio",
+    "dep:tracing-subscriber",
     "github",
 ]

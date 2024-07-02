@@ -6,6 +6,7 @@ use std::{
 use octocrab::Octocrab;
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
+use shared::telegram::TelegramSubscriber;
 use tracing::instrument;
 
 use crate::db::DB;
@@ -48,25 +49,52 @@ impl GithubClient {
     }
 }
 
-#[instrument(skip(github, db))]
-async fn fetch_repos_metadata(github: &GithubClient, db: &DB) -> anyhow::Result<()> {
+#[instrument(skip(telegram, github, db))]
+async fn fetch_repos_metadata(
+    telegram: &Arc<TelegramSubscriber>,
+    github: &GithubClient,
+    db: &DB,
+) -> anyhow::Result<()> {
     let repos = db.get_repos().await?;
     for repo in repos {
-        let metadata = github.repo_metadata(&repo.organization, &repo.repo).await?;
-        db.update_repo_metadata(
-            repo.repo_id,
-            metadata.stars,
-            metadata.forks,
-            metadata.open_issues,
-            metadata.primary_language,
-        )
-        .await?;
+        let metadata = match github.repo_metadata(&repo.organization, &repo.repo).await {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to fetch repo metadata for {}/{}: {:#?}",
+                        repo.organization, repo.repo, e
+                    ),
+                );
+                continue;
+            }
+        };
+        if let Err(e) = db
+            .update_repo_metadata(
+                repo.repo_id,
+                metadata.stars,
+                metadata.forks,
+                metadata.open_issues,
+                metadata.primary_language,
+            )
+            .await
+        {
+            crate::error(
+                telegram,
+                &format!(
+                    "Failed to update repo metadata for {}/{}: {:#?}",
+                    &repo.organization, &repo.repo, e
+                ),
+            );
+        }
     }
     Ok(())
 }
 
-#[instrument(skip(github, db))]
+#[instrument(skip(telegram, github, db))]
 async fn fetch_missing_user_organization_metadata(
+    telegram: &Arc<TelegramSubscriber>,
     github: &GithubClient,
     db: &DB,
 ) -> anyhow::Result<()> {
@@ -77,7 +105,16 @@ async fn fetch_missing_user_organization_metadata(
             continue;
         }
 
-        let profile = github.get_user(&user.login).await?;
+        let profile = match github.get_user(&user.login).await {
+            Ok(profile) => profile,
+            Err(e) => {
+                crate::error(
+                    telegram,
+                    &format!("Failed to fetch user profile for {}: {:#?}", user.login, e),
+                );
+                continue;
+            }
+        };
         if let Some(full_name) = &profile.name {
             db.update_user_full_name(&user.login, full_name).await?;
         }
@@ -89,7 +126,19 @@ async fn fetch_missing_user_organization_metadata(
             continue;
         }
 
-        let profile = github.get_user(&org.login).await?;
+        let profile = match github.get_user(&org.login).await {
+            Ok(profile) => profile,
+            Err(e) => {
+                crate::error(
+                    telegram,
+                    &format!(
+                        "Failed to fetch organization profile for {}: {:#?}",
+                        org.login, e
+                    ),
+                );
+                continue;
+            }
+        };
         if let Some(full_name) = &profile.name {
             db.update_organization_full_name(&org.login, full_name)
                 .await?;
@@ -118,6 +167,10 @@ pub fn stage(
                             .state()
                             .cloned()
                             .expect("Failed to get github client");
+                        let telegram: Arc<TelegramSubscriber> = rocket
+                            .state()
+                            .cloned()
+                            .expect("failed to get telegram client");
                         rocket::tokio::spawn(async move {
                             let mut interval: rocket::tokio::time::Interval =
                                 rocket::tokio::time::interval(sleep_duration);
@@ -125,16 +178,21 @@ pub fn stage(
                                 interval.tick().await;
 
                                 // Execute a query of some kind
-                                if let Err(e) = fetch_repos_metadata(&github_client, &db).await {
+                                if let Err(e) =
+                                    fetch_repos_metadata(&telegram, &github_client, &db).await
+                                {
                                     rocket::error!(
                                         "Failed to fetch and store github data: {:#?}",
                                         e
                                     );
                                 }
 
-                                if let Err(e) =
-                                    fetch_missing_user_organization_metadata(&github_client, &db)
-                                        .await
+                                if let Err(e) = fetch_missing_user_organization_metadata(
+                                    &telegram,
+                                    &github_client,
+                                    &db,
+                                )
+                                .await
                                 {
                                     rocket::error!(
                                         "Failed to fetch and store github data: {:#?}",

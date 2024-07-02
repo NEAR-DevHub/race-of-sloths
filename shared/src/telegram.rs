@@ -71,21 +71,8 @@ impl TelegramSubscriber {
         Self { sender }
     }
 
-    fn send_to_telegram(&self, message: &str, level: &Level) {
+    pub fn send_to_telegram(&self, message: &str, level: &Level) {
         let _ = self.sender.send((message.to_string(), *level));
-    }
-
-    pub fn process_event(&self, event: &crate::events::Event, success: bool) {
-        let message = format!(
-            "{} in the [{}](https://github.com/{}/{}/pull/{}) was {}",
-            event.event,
-            event.pr.full_id,
-            event.pr.owner,
-            event.pr.repo,
-            event.pr.number,
-            if success { "successful" } else { "failed" },
-        );
-        self.send_to_telegram(&message, &Level::INFO);
     }
 }
 

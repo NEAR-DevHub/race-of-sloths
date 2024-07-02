@@ -9,6 +9,7 @@ use crate::{api, messages::MessageLoader};
 use shared::{
     github::{PrMetadata, User},
     near::NearClient,
+    telegram::TelegramSubscriber,
     PRInfo,
 };
 
@@ -24,7 +25,7 @@ pub struct Context {
     pub near: Arc<NearClient>,
     pub messages: Arc<MessageLoader>,
     pub prometheus: Arc<api::prometheus::PrometheusClient>,
-    pub telegram: Arc<api::telegram::TelegramSubscriber>,
+    pub telegram: Arc<TelegramSubscriber>,
 }
 
 pub struct Event {
@@ -65,7 +66,7 @@ impl Event {
                 action.execute(&self.pr, context.clone(), check_info).await
             }
         };
-        context.telegram.process_event(self, result.is_ok());
+        send_event_to_telegram(&context.telegram, self, result.is_ok());
         context
             .prometheus
             .record(&self.event, &self.pr, result.is_ok(), self.event_time);
@@ -98,4 +99,21 @@ impl std::fmt::Display for EventType {
             EventType::Action(action) => write!(f, "Action `{action}`",),
         }
     }
+}
+
+fn send_event_to_telegram(
+    telegram: &Arc<TelegramSubscriber>,
+    event: &crate::events::Event,
+    success: bool,
+) {
+    let message = format!(
+        "{} in the [{}](https://github.com/{}/{}/pull/{}) was {}",
+        event.event,
+        event.pr.full_id,
+        event.pr.owner,
+        event.pr.repo,
+        event.pr.number,
+        if success { "successful" } else { "failed" },
+    );
+    self.send_to_telegram(&message, &Level::INFO);
 }
