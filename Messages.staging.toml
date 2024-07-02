@@ -24,7 +24,7 @@ Race of Sloths is a friendly competition where you can participate in challenges
 
 For contributors:
 
-- Tag us inside your pull requests
+- Tag @{bot_name} inside your pull requests
 - Wait for the maintainer to review and score your pull request
 - Check out your position in the [Leaderboard]({leaderboard_link})
 - Keep weekly and monthly streaks to reach higher positions
@@ -43,10 +43,13 @@ Feel free to check [our website]({link}) for additional details!
 <details>
 <summary>Bot commands</summary>
 
-- ➕ **Include a PR:** `@{bot_name} include` to enter the Race with your PR
-- 🛑 **Reject this PR:** `@{bot_name} exclude` to send this PR back to the drawing board.
-- ⭐ **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
-- 🔕 **Pause us:** `@{bot_name} pause` to stop me on your repo.
+- For contributors
+  - **Include a PR:** `@{bot_name} include` to enter the Race with your PR
+- For maintainers:
+  - **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
+  - **Reject this PR:** `@{bot_name} exclude` to send this PR back to the drawing board.
+  - **Pause Race:** `@{bot_name} pause` to stop me on your repo.
+
 </details>
 """,
 ]
