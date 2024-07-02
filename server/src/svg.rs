@@ -13,12 +13,20 @@ pub fn generate_svg_bot_badge(
 ) -> anyhow::Result<String> {
     let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record.get_total_period().cloned().unwrap_or_default();
-    let streak = user_record
+    let week_streak = user_record
         .streaks
         .iter()
-        .max_by(|a, b| a.amount.cmp(&b.amount))
+        .find(|e| e.streak_type == "Weekly")
         .cloned()
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .best;
+    let month_streak = user_record
+        .streaks
+        .iter()
+        .find(|e| e.streak_type == "Monthly")
+        .cloned()
+        .unwrap_or_default()
+        .best;
 
     let (place_type, place) = user_record
         .leaderboard_places
@@ -36,29 +44,31 @@ pub fn generate_svg_bot_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = std::fs::read_to_string("./public/badge_bot_template.svg")?;
-    let svg_icon = svg_icon.replace(
-        "{name}",
-        &user_record
-            .name
-            .clone()
-            .unwrap_or_else(|| format!("@{}", user_record.login)),
-    );
-    let svg_icon = svg_icon.replace(
-        "{total-contributions}",
-        &total_period.prs_opened.to_string(),
-    );
-    let svg_icon = process_rank(svg_icon, &user_record);
+    let svg_icon = std::fs::read_to_string("./public/badge_new_bot_template.svg")?;
+    let svg_icon = svg_icon
+        .replace("{login}", &user_record.login)
+        .replace(
+            "{name}",
+            &user_record
+                .name
+                .clone()
+                .unwrap_or_else(|| format!("Sloth#{:04}", user_record.id)),
+        )
+        .replace(
+            "{total-contributions}",
+            &total_period.prs_opened.to_string(),
+        )
+        .replace("{max-week-streak}", &week_streak.to_string())
+        .replace("{max-month-streak}", &month_streak.to_string())
+        .replace("{place}", &place)
+        .replace("{place-type}", &place_type)
+        .replace("{image}", &user_metadata.image_base64)
+        .replace(
+            "{total-rating}",
+            &total_period.total_rating.to_formatted_string(&Locale::en),
+        );
 
-    let svg_icon = svg_icon.replace(
-        "{total-rating}",
-        &total_period.total_rating.to_formatted_string(&Locale::en),
-    );
-    let svg_icon = svg_icon.replace("{streak}", &streak.amount.to_string());
-    let svg_icon = svg_icon.replace("{streak-type}", &streak.streak_type);
-    let svg_icon = svg_icon.replace("{place}", &place);
-    let svg_icon = svg_icon.replace("{place-type}", &place_type);
-    let svg_icon = svg_icon.replace("{image}", &user_metadata.image_base64);
+    let svg_icon = process_rank(svg_icon, &user_record);
 
     postprocess_svg(svg_icon, fontdb)
 }
