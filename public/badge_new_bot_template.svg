@@ -346,6 +346,6 @@
         <clipPath id="clip4_2329_3529">
             <rect width="357" height="167" fill="white" transform="matrix(-1 0 0 1 682 0)" />
         </clipPath>
-        <image id="image0_2329_3529" width="460" height="460" xlink:href="data:image/png;base64,{image}" />
+        <image id="image0_2329_3529" width="460" height="460" xlink:href="data:{image-type};base64,{image}" />
     </defs>
 </svg>

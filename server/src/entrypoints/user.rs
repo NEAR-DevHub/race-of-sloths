@@ -161,6 +161,7 @@ pub async fn get_badge<'a>(
                 }
             };
             construct_svg_badge_from_result(generate_svg_bot_badge(
+                telegram,
                 user,
                 metadata,
                 font.inner().clone(),
@@ -177,7 +178,7 @@ pub async fn get_badge<'a>(
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
-            match generate_png_meta_badge(user, metadata, font.inner().clone()) {
+            match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()) {
                 Ok(png) => Badge::new_ong(png),
                 Err(_) => Badge::with_status(Status::InternalServerError),
             }

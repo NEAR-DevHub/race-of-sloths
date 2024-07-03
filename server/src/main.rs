@@ -111,7 +111,6 @@ async fn rocket() -> _ {
                     let telegram = telegram.unwrap();
                     match resp.status().class() {
                         rocket::http::StatusClass::ServerError
-                        | rocket::http::StatusClass::ClientError
                         | rocket::http::StatusClass::Unknown => {
                             telegram.send_to_telegram(
                                 &format!(

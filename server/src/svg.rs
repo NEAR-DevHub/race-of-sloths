@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use num_format::{Locale, ToFormattedString};
-use shared::TimePeriod;
+use shared::{telegram::TelegramSubscriber, TimePeriod};
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
 use crate::db::types::{UserCachedMetadata, UserRecord};
 
 pub fn generate_svg_bot_badge(
+    telegram: &Arc<TelegramSubscriber>,
     user_record: UserRecord,
     user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
@@ -45,6 +46,12 @@ pub fn generate_svg_bot_badge(
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
     let svg_icon = std::fs::read_to_string("./public/badge_new_bot_template.svg")?;
+    let svg_icon = image_processing(
+        telegram,
+        svg_icon,
+        &user_metadata.image_base64,
+        &user_record.login,
+    );
     let svg_icon = svg_icon
         .replace("{login}", &user_record.login)
         .replace(
@@ -62,7 +69,6 @@ pub fn generate_svg_bot_badge(
         .replace("{max-month-streak}", &month_streak.to_string())
         .replace("{place}", &place)
         .replace("{place-type}", &place_type)
-        .replace("{image}", &user_metadata.image_base64)
         .replace(
             "{total-rating}",
             &total_period.total_rating.to_formatted_string(&Locale::en),
@@ -136,6 +142,7 @@ pub fn generate_svg_share_badge(
 }
 
 pub fn generate_png_meta_badge(
+    telegram: &Arc<TelegramSubscriber>,
     user_record: UserRecord,
     user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
@@ -181,6 +188,13 @@ pub fn generate_png_meta_badge(
     let svg_icon = std::fs::read_to_string("./public/badge_meta_template.svg")?;
     let github_handle = format!("@{}", user_record.login);
 
+    let svg_icon = image_processing(
+        telegram,
+        svg_icon,
+        &user_metadata.image_base64,
+        &user_record.login,
+    );
+
     let svg_icon = process_rank(svg_icon, &user_record)
         .replace(
             "{total-rating}",
@@ -189,7 +203,6 @@ pub fn generate_png_meta_badge(
         .replace("{max-week-streak}", &week_streak.to_string())
         .replace("{max-month-streak}", &month_streak.to_string())
         .replace("{place}", &place)
-        .replace("{image}", &user_metadata.image_base64)
         .replace("{place-type}", &place_type)
         .replace(
             "{total-contributions}",
@@ -245,6 +258,45 @@ fn process_rank(svg_icon: String, user_record: &UserRecord) -> String {
         .replace("{rank}", &rank)
         .replace("{rank-svg}", &rank_svg)
         .replace("{rank-title}", &title)
+}
+
+// TODO: Might be better to use a library for this or extract that when we load the image
+fn determine_image_type(image_base64: &str) -> Option<&'static str> {
+    // Base64 encoded magic numbers
+    const PNG_MAGIC: &str = "iVBORw0KGgo";
+    const JPEG_MAGIC: &str = "/9j/";
+
+    if image_base64.starts_with(PNG_MAGIC) {
+        Some("image/png")
+    } else if image_base64.starts_with(JPEG_MAGIC) {
+        Some("image/jpeg")
+    } else {
+        None
+    }
+}
+
+fn image_processing(
+    telegram: &Arc<TelegramSubscriber>,
+    svg_icon: String,
+    icon_base64: &str,
+    user: &str,
+) -> String {
+    let image_type = if let Some(image) = determine_image_type(icon_base64) {
+        image
+    } else {
+        crate::error(
+            telegram,
+            &format!(
+                "Failed to determine image type for {} avatar. Defaulting to PNG",
+                user
+            ),
+        );
+        "image/png"
+    };
+
+    svg_icon
+        .replace("{image}", icon_base64)
+        .replace("{image-type}", image_type)
 }
 
 fn rank_data(user_record: &UserRecord) -> (String, String, String) {
