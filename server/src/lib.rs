@@ -7,6 +7,7 @@ pub mod db;
 pub mod github_pull;
 pub mod svg;
 
+// TODO: after 0.6.0 release, we should use tracing for redirecting warns and errors to the telegram
 pub fn error(telegram: &Arc<TelegramSubscriber>, message: &str) {
     telegram.send_to_telegram(message, &tracing::Level::ERROR);
     rocket::error!("{}", message);

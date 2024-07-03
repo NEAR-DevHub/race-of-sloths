@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use entrypoints::ApiDoc;
-use rocket::{fairing::AdHoc, State};
+use rocket::{fairing::AdHoc, fs::NamedFile, State};
 use rocket_cors::AllowedOrigins;
 use shared::{near::NearClient, telegram};
 
@@ -31,6 +31,17 @@ pub struct Env {
 #[get("/robots.txt")]
 fn robots() -> &'static str {
     "User-agent: *\nDisallow: /"
+}
+
+#[get("/favicon.ico")]
+async fn favicon(telegram: &State<Arc<telegram::TelegramSubscriber>>) -> Option<NamedFile> {
+    match NamedFile::open("./public/favicon.ico").await {
+        Ok(file) => Some(file),
+        Err(e) => {
+            race_of_sloths_server::error(telegram, &format!("Failed to load favicon.ico: {}", e));
+            None
+        }
+    }
 }
 
 #[launch]
@@ -93,7 +104,7 @@ async fn rocket() -> _ {
             "/",
             SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
-        .mount("/", routes![robots])
+        .mount("/", routes![robots, favicon])
         .attach(prometheus.clone())
         .attach(entrypoints::stage())
         .mount("/metrics", prometheus)
