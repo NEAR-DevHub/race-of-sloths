@@ -255,12 +255,10 @@ async fn execute(context: Context, events: Vec<Event>) {
                 }
             };
 
-            let message = context.messages.include_message_text(
-                &context.github.user_handle,
-                &info,
-                pr,
-                &user,
-            );
+            let message =
+                context
+                    .messages
+                    .include_message_text(&context.github.user_handle, &info, pr, user);
 
             context
                 .github

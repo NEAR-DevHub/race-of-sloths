@@ -1,5 +1,5 @@
 {
-    "sloth": "race-of-sloths.testnet",
+    "sloth": "race-of-sloths.near",
     "allowed_repos": [
         {
             "organization": "near",
@@ -71,12 +71,6 @@
                 "explorer-api",
                 "clickhouse-provider",
                 "neardata-server"
-            ]
-        },
-        {
-            "organization": "akorchyn",
-            "repos": [
-                "test-bot"
             ]
         }
     ]

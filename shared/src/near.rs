@@ -299,7 +299,7 @@ impl NearClient {
         &self,
         user: &str,
         periods: Vec<TimePeriodString>,
-    ) -> anyhow::Result<User> {
+    ) -> anyhow::Result<Option<User>> {
         let res = self
             .contract
             .view("user")
@@ -309,7 +309,7 @@ impl NearClient {
             }))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;
-        let res = res.json()?;
+        let res: Option<User> = res.json()?;
         Ok(res)
     }
 

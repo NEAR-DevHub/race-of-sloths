@@ -187,7 +187,7 @@ pub async fn get_badge<'a>(
         }
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
-            return Badge::with_status(Status::NotFound);
+            Badge::with_status(Status::NotFound)
         }
     }
 }

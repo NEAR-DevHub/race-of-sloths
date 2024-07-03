@@ -259,9 +259,22 @@ impl MessageLoader {
         bot_name: &str,
         check_info: &PRInfo,
         pr: &PrMetadata,
-        user: &User,
+        user: Option<User>,
     ) -> String {
-        let user_specific_message = self.user_specific_message(user);
+        let user = if let Some(user) = user {
+            user
+        } else {
+            User {
+                // Id is unused
+                id: 0,
+                name: pr.author.login.clone(),
+                percentage_bonus: 0,
+                period_data: vec![],
+                streaks: vec![],
+            }
+        };
+
+        let user_specific_message = self.user_specific_message(&user);
         let message = self
             .get_message(MsgCategory::IncludeBasicMessage)
             .format(
@@ -360,7 +373,7 @@ impl MessageLoader {
         let weekly_period = TimePeriod::Week.time_string(timestamp);
         let weekly_statistics = user.get_period(&weekly_period).cloned().unwrap_or_default();
 
-        let message_type = if all_time_statistics.prs_opened == 1 {
+        let message_type = if all_time_statistics.prs_opened <= 1 {
             MsgCategory::FirstTimeContribution
         } else if monthly_statistics.prs_opened == 1 {
             MsgCategory::FirstMonthContribution
@@ -603,7 +616,7 @@ mod tests {
             closed: false,
         };
 
-        let text1 = message_loader.include_message_text("bot", &pr_info, &pr, &user);
+        let text1 = message_loader.include_message_text("bot", &pr_info, &pr, Some(user));
         let status_message_init = message_loader.status_message("bot", &pr_info, &pr);
         println!("{}", text1);
         assert!(text1.contains(&status_message_init));
