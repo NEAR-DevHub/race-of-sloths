@@ -257,8 +257,7 @@ async fn get_user_contributions(
 pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         let mut font = usvg::fontdb::Database::new();
-        font.load_font_file("./public/Inter-VariableFont_slnt,wght.ttf")
-            .expect("Failed to load Inter font");
+        font.load_fonts_dir("public");
 
         rocket.manage(Arc::new(font)).mount(
             "/users/",
