@@ -161,12 +161,19 @@ impl EventType {
         match (self, other) {
             (
                 EventType::Command {
-                    command: command1, ..
+                    command: command1,
+                    sender: sender1,
+                    ..
                 },
                 EventType::Command {
-                    command: command2, ..
+                    command: command2,
+                    sender: sender2,
+                    ..
                 },
-            ) => std::mem::discriminant(command1) == std::mem::discriminant(command2),
+            ) => {
+                std::mem::discriminant(command1) == std::mem::discriminant(command2)
+                    && sender1.login == sender2.login
+            }
             (EventType::Action(a), EventType::Action(b)) => {
                 std::mem::discriminant(a) == std::mem::discriminant(b)
             }
