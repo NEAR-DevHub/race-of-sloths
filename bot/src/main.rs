@@ -174,13 +174,19 @@ async fn merge_and_execute_task(
 
 // Runs events from the same PR
 #[instrument(skip(context, events))]
-async fn execute(context: Context, events: Vec<Event>) {
+async fn execute(context: Context, mut events: Vec<Event>) {
     if events.is_empty() {
         return;
     }
 
     debug!("Executing {} events", events.len());
     let mut should_update = false;
+
+    // TODO: pretty sure that we can achive deduplication with keeping the last element more easily
+    events.reverse();
+    events.dedup_by(|a, b| a.pr.full_id == b.pr.full_id && a.event.same_event(&b.event));
+    events.reverse();
+
     for event in &events {
         match event.execute(context.clone()).await {
             Ok(res) => {

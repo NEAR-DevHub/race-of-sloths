@@ -156,6 +156,25 @@ pub enum EventType {
     Action(Action),
 }
 
+impl EventType {
+    pub fn same_event(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                EventType::Command {
+                    command: command1, ..
+                },
+                EventType::Command {
+                    command: command2, ..
+                },
+            ) => std::mem::discriminant(command1) == std::mem::discriminant(command2),
+            (EventType::Action(a), EventType::Action(b)) => {
+                std::mem::discriminant(a) == std::mem::discriminant(b)
+            }
+            _ => false,
+        }
+    }
+}
+
 impl std::fmt::Display for EventType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
