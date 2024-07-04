@@ -35,7 +35,7 @@ impl BotIncluded {
             return Ok(false);
         }
 
-        if pr.merged.is_some() {
+        if pr.merged.is_some() || pr.closed {
             debug!("PR {} is already merged. Skipping", pr.full_id,);
             context
                 .reply_with_error(
