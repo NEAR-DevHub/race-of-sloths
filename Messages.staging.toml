@@ -12,7 +12,7 @@ message = [
 
 <picture>
     <source media="(prefers-color-scheme: dark)" srcset="{picture_api_link}&theme=dark">
-    <source media="(prefers-color-scheme: light)" srcset="{picture_api_link}&theme=white">
+    <source media="(prefers-color-scheme: light)" srcset="{picture_api_link}&theme=light">
     <img alt="Shows an illustrated sun in light mode and a moon with stars in dark mode." src="{picture_api_link}&theme=white">
 </picture>
 """,
