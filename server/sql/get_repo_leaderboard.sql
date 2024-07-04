@@ -46,8 +46,7 @@ GROUP BY
     r.forks
 ORDER BY
     total_prs DESC,
-    total_rating DESC,
-    total_score DESC,
+    open_issues DESC,
     organization ASC,
     name ASC
 LIMIT
