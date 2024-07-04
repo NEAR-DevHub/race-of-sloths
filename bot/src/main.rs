@@ -12,9 +12,9 @@ use tokio::signal;
 use tracing::{debug, error, info, instrument, trace};
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
+use shared::github::PrMetadata;
 use shared::near::NearClient;
 use shared::telegram;
-use shared::{github::PrMetadata, TimePeriod};
 
 #[derive(Deserialize)]
 struct Env {
@@ -214,63 +214,9 @@ async fn execute(context: Context, events: Vec<Event>) {
         }
     };
 
-    let result = match &event.comment {
-        Some(comment) => {
-            let text = comment
-                .body
-                .as_ref()
-                .or(comment.body_html.as_ref())
-                .or(comment.body_text.as_ref())
-                .cloned()
-                .unwrap_or_default();
-            let status = context
-                .messages
-                .status_message(&context.github.user_handle, &info, pr);
-
-            let message = context.messages.update_pr_status_message(text, status);
-
-            context
-                .github
-                .edit_comment(&pr.owner, &pr.repo, comment.id.0, &message)
-                .await
-        }
-        None => {
-            let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
-            let user = match context
-                .near
-                .user_info(
-                    &pr.author.login,
-                    vec![
-                        TimePeriod::AllTime.time_string(timestamp),
-                        TimePeriod::Month.time_string(timestamp),
-                        TimePeriod::Week.time_string(timestamp),
-                    ],
-                )
-                .await
-            {
-                Ok(info) => info,
-                Err(e) => {
-                    error!("Failed to get user info for {}: {e}", pr.author.login);
-                    return;
-                }
-            };
-
-            let message =
-                context
-                    .messages
-                    .include_message_text(&context.github.user_handle, &info, pr, user);
-
-            context
-                .github
-                .reply(&pr.owner, &pr.repo, pr.number, &message)
-                .await
-                .map(|_| ())
-        }
-    };
-
-    if let Err(e) = result {
-        error!("Failed to update status comment for {}: {e}", pr.full_id);
-    }
+    context
+        .status_message(pr, event.comment.clone(), info)
+        .await;
 }
 
 #[instrument(skip(context))]
@@ -299,12 +245,6 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
                 continue;
             }
         };
-        let comment = context
-            .github
-            .get_bot_comment(&pr_metadata.owner, &pr_metadata.repo, pr_metadata.number)
-            .await
-            .ok()
-            .flatten();
 
         if pr_metadata.merged.is_none() {
             trace!(
@@ -316,7 +256,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
                 results.push(Event {
                     event: EventType::Action(Action::stale()),
                     pr: pr_metadata,
-                    comment: comment.clone(),
+                    comment: None,
                     event_time: chrono::Utc::now(),
                 });
             }
@@ -327,7 +267,7 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             event: EventType::Action(Action::merge()),
             event_time: pr_metadata.merged.unwrap(),
             pr: pr_metadata,
-            comment,
+            comment: None,
         });
     }
     info!("Finished merge task with {} events", results.len());
@@ -339,27 +279,16 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
     let prs = context.near.unfinalized_prs_all().await?;
     info!("Received {} PRs for merge request check", prs.len());
 
-    let comment_id_futures = prs.into_iter().map(|pr| async {
-        let comment = context
-            .github
-            .get_bot_comment(&pr.organization, &pr.repo, pr.number)
-            .await
-            .ok()
-            .flatten();
-        (pr, comment)
-    });
-
-    Ok(join_all(comment_id_futures)
-        .await
+    Ok(prs
         .into_iter()
-        .map(|(pr, comment)| Event {
+        .map(|pr| Event {
             event: EventType::Action(Action::finalize()),
             event_time: pr
                 .ready_to_move_timestamp()
                 .map(|t| chrono::DateTime::from_timestamp_nanos(t as i64))
                 .unwrap_or_else(chrono::Utc::now),
             pr: pr.into(),
-            comment,
+            comment: None,
         })
         .collect())
 }

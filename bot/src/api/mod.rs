@@ -86,6 +86,17 @@ impl GithubClient {
                 }
             };
 
+            if pr_metadata.merged.is_none() && pr_metadata.closed {
+                info!("PR is closed: {}", pr_metadata.number);
+
+                return Some(vec![Event {
+                    event: EventType::Action(Action::stale()),
+                    pr: pr_metadata.clone(),
+                    comment: None,
+                    event_time: pr_metadata.updated_at,
+                }]);
+            }
+
             let comments = self
                 .octocrab
                 .issues(&pr_metadata.owner, &pr_metadata.repo)
@@ -115,11 +126,10 @@ impl GithubClient {
                 .cloned();
 
             let mut results = Vec::new();
-            let mut found_us = false;
 
             for comment in comments.into_iter().rev() {
+                // We have processed older messages
                 if comment.user.login == self.user_handle {
-                    found_us = true;
                     break;
                 }
 
@@ -139,8 +149,7 @@ impl GithubClient {
                 }
             }
 
-            // We haven
-            if results.is_empty() && !found_us {
+            if first_bot_comment.is_none() {
                 if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
                     results.push(Event {
                         event: EventType::Command {
@@ -150,7 +159,7 @@ impl GithubClient {
                         },
                         pr: pr_metadata.clone(),
                         comment: first_bot_comment.clone(),
-                        event_time: pr_metadata.updated_at,
+                        event_time: pr_metadata.started,
                     });
                 }
             }

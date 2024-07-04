@@ -57,7 +57,15 @@ impl BotIncluded {
                 .like_comment(&pr.owner, &pr.repo, comment_id)
                 .await?;
         }
-        Ok(true)
+
+        let check_info = PRInfo {
+            exist: true,
+            ..info
+        };
+
+        context.status_message(pr, None, check_info).await;
+
+        Ok(false)
     }
 
     pub fn construct(comment: &Comment) -> Command {

@@ -10,7 +10,7 @@ use shared::{
     github::{PrMetadata, User},
     near::NearClient,
     telegram::TelegramSubscriber,
-    PRInfo,
+    PRInfo, TimePeriod,
 };
 
 use self::{actions::Action, commands::Command};
@@ -26,6 +26,77 @@ pub struct Context {
     pub messages: Arc<MessageLoader>,
     pub prometheus: Arc<api::prometheus::PrometheusClient>,
     pub telegram: Arc<TelegramSubscriber>,
+}
+
+impl Context {
+    pub async fn status_message(
+        &self,
+        pr: &PrMetadata,
+        mut comment: Option<Comment>,
+        info: PRInfo,
+    ) {
+        if comment.is_none() {
+            comment = self
+                .github
+                .get_bot_comment(&pr.owner, &pr.repo, pr.number)
+                .await
+                .ok()
+                .flatten();
+        }
+
+        let result = match comment {
+            Some(comment) => {
+                let text = comment
+                    .body
+                    .or(comment.body_html)
+                    .or(comment.body_text)
+                    .unwrap_or_default();
+                let status = self
+                    .messages
+                    .status_message(&self.github.user_handle, &info, pr);
+
+                let message = self.messages.update_pr_status_message(text, status);
+
+                self.github
+                    .edit_comment(&pr.owner, &pr.repo, comment.id.0, &message)
+                    .await
+            }
+            None => {
+                let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
+                let user = match self
+                    .near
+                    .user_info(
+                        &pr.author.login,
+                        vec![
+                            TimePeriod::AllTime.time_string(timestamp),
+                            TimePeriod::Month.time_string(timestamp),
+                            TimePeriod::Week.time_string(timestamp),
+                        ],
+                    )
+                    .await
+                {
+                    Ok(info) => info,
+                    Err(e) => {
+                        tracing::error!("Failed to get user info for {}: {e}", pr.author.login);
+                        return;
+                    }
+                };
+
+                let message =
+                    self.messages
+                        .include_message_text(&self.github.user_handle, &info, pr, user);
+
+                self.github
+                    .reply(&pr.owner, &pr.repo, pr.number, &message)
+                    .await
+                    .map(|_| ())
+            }
+        };
+
+        if let Err(e) = result {
+            tracing::error!("Failed to update status comment for {}: {e}", pr.full_id);
+        }
+    }
 }
 
 pub struct Event {
