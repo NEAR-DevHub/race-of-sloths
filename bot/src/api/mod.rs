@@ -88,6 +88,12 @@ impl GithubClient {
 
             if pr_metadata.merged.is_none() && pr_metadata.closed {
                 info!("PR is closed: {}", pr_metadata.number);
+                if let Err(e) = self.mark_notification_as_read(event.id).await {
+                    error!(
+                        "Failed to mark notification as read for event: {:?}: {e:?}",
+                        event.id
+                    );
+                }
 
                 return Some(vec![Event {
                     event: EventType::Action(Action::stale()),
