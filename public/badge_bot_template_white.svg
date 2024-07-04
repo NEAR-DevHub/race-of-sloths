@@ -43,7 +43,7 @@
             <tspan x="99" y="109.26">{name}</tspan>
         </text>
         <text fill="#555555" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
-            <tspan x="99" y="125.88">{login}</tspan>
+            <tspan x="99" y="125.88">@{login}</tspan>
         </text>
     </g>
     <rect x="1" y="188" width="221.667" height="52" rx="8" fill="#F3F3F3" />
