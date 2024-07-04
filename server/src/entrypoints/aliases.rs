@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use race_of_sloths_server::{db::DB, github_pull::GithubClient};
+use race_of_sloths_server::{db::DB, github_pull::GithubClient, svg::Mode};
 use rocket::State;
 use shared::telegram::TelegramSubscriber;
 
@@ -9,7 +9,7 @@ use crate::entrypoints::user::Badge;
 #[utoipa::path(context_path = "/", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>?<type>", rank = 2)]
+#[get("/<username>?<type>&<theme>", rank = 2)]
 async fn get_badge<'a>(
     telegram: &State<Arc<TelegramSubscriber>>,
     username: &str,
@@ -17,8 +17,9 @@ async fn get_badge<'a>(
     font: &State<Arc<usvg::fontdb::Database>>,
     github_client: &State<Arc<GithubClient>>,
     r#type: Option<String>,
+    theme: Option<Mode>,
 ) -> Badge {
-    super::user::get_badge(telegram, username, db, font, github_client, r#type).await
+    super::user::get_badge(telegram, username, db, font, github_client, r#type, theme).await
 }
 
 pub fn stage() -> rocket::fairing::AdHoc {

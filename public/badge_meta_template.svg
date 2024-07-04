@@ -4,10 +4,10 @@
         <rect width="600" height="314" fill="#E3F3EA" />
         <rect width="600" height="314" fill="#101010" />
         <rect x="16" y="16" width="56" height="56" rx="28" fill="url(#pattern1_2171_6879)" />
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="88" y="40.76">{name}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="16" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="16" letter-spacing="0em">
             <tspan x="88" y="63.34">{github-handle}</tspan>
         </text>
         <g clip-path="url(#clip1_2171_6879)">
@@ -48,10 +48,10 @@
                 fill="white" />
         </g>
         <rect x="16" y="96" width="56.1735" height="31.0868" rx="3.54338" fill="#222222" />
-        <text fill="white" text-anchor="middle" font-family="Inter" font-size="16" letter-spacing="0em">
+        <text fill="white" text-anchor="middle" font-family="Aeonik Fono" font-size="16" letter-spacing="0em">
             <tspan x="44.08675" y="117.383">{total-contributions}</tspan>
         </text>
-        <text fill="white" font-family="Inter" font-size="16" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="16" letter-spacing="0em">
             <tspan x="81.032" y="117.383">Total contributions</tspan>
         </text>
         <rect x="16" y="151.087" width="184" height="66" rx="16" fill="#222222" />
@@ -61,10 +61,10 @@
             xmlns="http://www.w3.org/2000/svg">
             {rank-svg}
         </svg>
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="72" y="185.347">{rank}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
             <tspan x="72" y="201.967">{rank-title}</tspan>
         </text>
         <rect x="208" y="151.087" width="184" height="66" rx="16" fill="#222222" />
@@ -73,10 +73,10 @@
         <path
             d="M232.588 167.897C232.729 167.462 233.134 167.168 233.591 167.168H244.345C245.116 167.168 245.626 167.969 245.3 168.668L239.322 181.479C238.995 182.178 239.506 182.979 240.277 182.979H243.78C244.668 182.979 245.158 184.011 244.597 184.699L233.201 198.668C232.464 199.572 231.023 198.788 231.381 197.679L234.488 188.046C234.708 187.365 234.2 186.668 233.485 186.668H227.95C227.234 186.668 226.726 185.97 226.947 185.289L232.588 167.897Z"
             fill="url(#paint4_linear_2171_6879)" />
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="264" y="185.347">{total-rating}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
             <tspan x="264" y="201.967">Sloth Points</tspan>
         </text>
         <rect x="400" y="151.087" width="184" height="66" rx="16" fill="#222222" />
@@ -101,10 +101,10 @@
             fill="url(#paint10_linear_2171_6879)" />
         <rect x="418.572" y="196.706" width="18.8569" height="2.09521" rx="1.0476"
             fill="url(#paint11_linear_2171_6879)" />
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="456" y="185.347">{place}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
             <tspan x="456" y="201.967">{place-type} Place</tspan>
         </text>
         <rect x="16" y="225.087" width="280" height="66" rx="16" fill="#222222" />
@@ -116,10 +116,10 @@
         <path
             d="M51 267.734C51 271.795 47.6421 275.087 43.5 275.087C39.3579 275.087 36 271.795 36 267.734C36 264.821 39.8584 259.581 42.0403 256.85C42.7965 255.903 44.2035 255.903 44.9597 256.85C47.1416 259.581 51 264.821 51 267.734Z"
             fill="url(#paint13_linear_2171_6879)" />
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="72" y="259.347">{max-month-streak}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
             <tspan x="72" y="275.967">Max. month streak</tspan>
         </text>
         <rect x="304" y="225.087" width="280" height="66" rx="16" fill="#222222" />
@@ -131,10 +131,10 @@
         <path
             d="M339 267.734C339 271.795 335.642 275.087 331.5 275.087C327.358 275.087 324 271.795 324 267.734C324 264.821 327.858 259.581 330.04 256.85C330.797 255.903 332.203 255.903 332.96 256.85C335.142 259.581 339 264.821 339 267.734Z"
             fill="url(#paint15_linear_2171_6879)" />
-        <text fill="white" font-family="Inter" font-size="24" letter-spacing="0em">
+        <text fill="white" font-family="Aeonik Fono" font-size="24" letter-spacing="0em">
             <tspan x="360" y="259.347">{max-week-streak}</tspan>
         </text>
-        <text fill="#919399" font-family="Inter" font-size="12" letter-spacing="0em">
+        <text fill="#919399" font-family="Aeonik Fono" font-size="12" letter-spacing="0em">
             <tspan x="360" y="275.967">Max. week streak</tspan>
         </text>
     </g>

@@ -39,10 +39,10 @@ pub mod user;
 )]
 pub struct ApiDoc;
 
-pub fn stage() -> AdHoc {
+pub fn stage(font: String) -> AdHoc {
     AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         rocket
-            .attach(user::stage())
+            .attach(user::stage(font))
             .attach(leaderboards::stage())
             .attach(aliases::stage())
     })

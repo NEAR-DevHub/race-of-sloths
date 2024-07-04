@@ -5,7 +5,7 @@ use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{types::UserCachedMetadata, DB},
     github_pull::GithubClient,
-    svg::{generate_png_meta_badge, generate_svg_bot_badge, generate_svg_share_badge},
+    svg::{generate_png_meta_badge, generate_svg_bot_badge, generate_svg_share_badge, Mode},
 };
 use rocket::{
     http::{ContentType, Header, Status},
@@ -106,7 +106,7 @@ async fn fetch_user_metadata_lazily(
 #[utoipa::path(context_path = "/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>/badge?<type>")]
+#[get("/<username>/badge?<type>&<theme>")]
 pub async fn get_badge<'a>(
     telegram: &State<Arc<telegram::TelegramSubscriber>>,
     username: &str,
@@ -114,6 +114,7 @@ pub async fn get_badge<'a>(
     font: &State<Arc<usvg::fontdb::Database>>,
     github_client: &State<Arc<GithubClient>>,
     r#type: Option<String>,
+    theme: Option<Mode>,
 ) -> Badge {
     let badge_type = r#type.unwrap_or_else(|| "share".to_string());
 
@@ -165,6 +166,7 @@ pub async fn get_badge<'a>(
                 user,
                 metadata,
                 font.inner().clone(),
+                theme.unwrap_or(Mode::Dark),
             ))
         }
         "meta" => {
@@ -254,10 +256,14 @@ async fn get_user_contributions(
         total,
     )))
 }
-pub fn stage() -> rocket::fairing::AdHoc {
+pub fn stage(font: String) -> rocket::fairing::AdHoc {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(font)
+        .unwrap_or_default();
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
         let mut font = usvg::fontdb::Database::new();
         font.load_fonts_dir("public");
+        font.load_font_data(bytes);
 
         rocket.manage(Arc::new(font)).mount(
             "/users/",

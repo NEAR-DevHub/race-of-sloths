@@ -25,6 +25,7 @@ pub struct Env {
     github_token: String,
     telegram_token: String,
     telegram_chat_id: String,
+    font: String,
 }
 
 // Allow robots to crawl the site
@@ -106,7 +107,7 @@ async fn rocket() -> _ {
         )
         .mount("/", routes![robots, favicon])
         .attach(prometheus.clone())
-        .attach(entrypoints::stage())
+        .attach(entrypoints::stage(env.font))
         .mount("/metrics", prometheus)
         .manage(Arc::new(telegram))
         .attach(AdHoc::on_response(

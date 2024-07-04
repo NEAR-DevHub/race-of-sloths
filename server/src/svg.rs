@@ -1,16 +1,24 @@
 use std::sync::Arc;
 
 use num_format::{Locale, ToFormattedString};
+use rocket::FromFormField;
 use shared::{telegram::TelegramSubscriber, TimePeriod};
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
 use crate::db::types::{UserCachedMetadata, UserRecord};
+
+#[derive(Debug, Clone, Copy, FromFormField)]
+pub enum Mode {
+    Dark,
+    Light,
+}
 
 pub fn generate_svg_bot_badge(
     telegram: &Arc<TelegramSubscriber>,
     user_record: UserRecord,
     user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
+    mode: Mode,
 ) -> anyhow::Result<String> {
     let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record.get_total_period().cloned().unwrap_or_default();
@@ -45,7 +53,10 @@ pub fn generate_svg_bot_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = std::fs::read_to_string("./public/badge_new_bot_template.svg")?;
+    let svg_icon = match mode {
+        Mode::Light => std::fs::read_to_string("./public/badge_bot_template_white.svg")?,
+        Mode::Dark => std::fs::read_to_string("./public/badge_bot_template_dark.svg")?,
+    };
     let svg_icon = image_processing(
         telegram,
         svg_icon,
@@ -206,7 +217,7 @@ pub fn generate_png_meta_badge(
         .replace("{place-type}", &place_type)
         .replace(
             "{total-contributions}",
-            &total_period.prs_opened.to_string(),
+            &total_period.prs_opened.to_formatted_string(&Locale::en),
         )
         .replace("{github-handle}", &github_handle)
         .replace(
