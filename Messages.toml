@@ -151,7 +151,7 @@ message = [
 [final_messages_feedback_form]
 variables = ["form"]
 message = [
-    "We would appreciate your feedback or contribution idea that you can submit [here]({form}",
+    "We would appreciate your feedback or contribution idea that you can submit [here]({form})",
 ]
 
 
