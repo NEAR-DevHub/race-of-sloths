@@ -65,13 +65,7 @@ pub fn generate_svg_bot_badge(
     );
     let svg_icon = svg_icon
         .replace("{login}", &user_record.login)
-        .replace(
-            "{name}",
-            &user_record
-                .name
-                .clone()
-                .unwrap_or_else(|| format!("Sloth#{:04}", user_record.id)),
-        )
+        .replace("{sloth-id}", &format!("Sloth#{:04}", user_record.id))
         .replace(
             "{total-contributions}",
             &total_period.prs_opened.to_string(),
