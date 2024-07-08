@@ -4,7 +4,6 @@
         {
             "organization": "near",
             "repos": [
-                "nearcore",
                 "fast-auth-signer",
                 "near-sdk-rs",
                 "cargo-near",
@@ -61,16 +60,6 @@
                 "viewer",
                 "VM",
                 "social-db"
-            ]
-        },
-        {
-            "organization": "fastnear",
-            "repos": [
-                "redis-node",
-                "fast-near",
-                "explorer-api",
-                "clickhouse-provider",
-                "neardata-server"
             ]
         }
     ]
