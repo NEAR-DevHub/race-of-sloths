@@ -3,7 +3,10 @@ use std::sync::Arc;
 use base64::Engine;
 use http_body_util::BodyExt;
 use race_of_sloths_server::{
-    db::{types::UserCachedMetadata, DB},
+    db::{
+        types::{UserCachedMetadata, UserRecord},
+        DB,
+    },
     github_pull::GithubClient,
     svg::{generate_png_meta_badge, generate_svg_bot_badge, generate_svg_share_badge, Mode},
 };
@@ -74,6 +77,7 @@ impl<'r> Responder<'r, 'static> for Badge {
 
 /// Fetches the user metadata lazily, either from the cache or from the web.
 async fn fetch_user_metadata_lazily(
+    user_id: i32,
     db: &DB,
     client: &State<Arc<GithubClient>>,
     username: &str,
@@ -94,8 +98,10 @@ async fn fetch_user_metadata_lazily(
 
     let image_base64 = base64::engine::general_purpose::STANDARD.encode(image);
 
-    db.upsert_user_cached_metadata(username, &image_base64)
-        .await?;
+    if user_id != i32::MAX {
+        db.upsert_user_cached_metadata(user_id, &image_base64)
+            .await?;
+    }
 
     Ok(UserCachedMetadata {
         image_base64,
@@ -119,7 +125,7 @@ pub async fn get_badge<'a>(
     let badge_type = r#type.unwrap_or_else(|| "share".to_string());
 
     let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
-    let user: race_of_sloths_server::db::types::UserRecord = match db
+    let user: UserRecord = match db
         .get_user(
             username,
             &[
@@ -132,7 +138,7 @@ pub async fn get_badge<'a>(
         Ok(Some(value)) => value,
         Ok(None) => {
             rocket::info!("User {username} not found, returning 404");
-            return Badge::with_status(Status::NotFound);
+            UserRecord::newcommer(username.to_owned())
         }
         Err(e) => {
             race_of_sloths_server::error(telegram, &format!("Failed to get user {username}: {e}"));
@@ -151,16 +157,17 @@ pub async fn get_badge<'a>(
     // TODO: spaghetti code, refactor
     match badge_type.as_str() {
         "bot" => {
-            let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
-                Ok(metadata) => metadata,
-                Err(e) => {
-                    race_of_sloths_server::error(
-                        telegram,
-                        &format!("Failed to fetch user metadata: {e}"),
-                    );
-                    return Badge::with_status(Status::InternalServerError);
-                }
-            };
+            let metadata =
+                match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
+                    Ok(metadata) => metadata,
+                    Err(e) => {
+                        race_of_sloths_server::error(
+                            telegram,
+                            &format!("Failed to fetch user metadata: {e}"),
+                        );
+                        return Badge::with_status(Status::InternalServerError);
+                    }
+                };
             construct_svg_badge_from_result(generate_svg_bot_badge(
                 telegram,
                 user,
@@ -170,16 +177,17 @@ pub async fn get_badge<'a>(
             ))
         }
         "meta" => {
-            let metadata = match fetch_user_metadata_lazily(db, github_client, username).await {
-                Ok(metadata) => metadata,
-                Err(e) => {
-                    race_of_sloths_server::error(
-                        telegram,
-                        &format!("Failed to fetch user metadata: {e}"),
-                    );
-                    return Badge::with_status(Status::InternalServerError);
-                }
-            };
+            let metadata =
+                match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
+                    Ok(metadata) => metadata,
+                    Err(e) => {
+                        race_of_sloths_server::error(
+                            telegram,
+                            &format!("Failed to fetch user metadata: {e}"),
+                        );
+                        return Badge::with_status(Status::InternalServerError);
+                    }
+                };
             match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()) {
                 Ok(png) => Badge::new_ong(png),
                 Err(_) => Badge::with_status(Status::InternalServerError),

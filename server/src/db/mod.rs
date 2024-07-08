@@ -628,7 +628,7 @@ impl DB {
 
     pub async fn upsert_user_cached_metadata(
         &self,
-        username: &str,
+        user_id: i32,
         image_base64: &str,
     ) -> anyhow::Result<()> {
         // First try to update the user
@@ -636,10 +636,9 @@ impl DB {
             r#"
                 UPDATE user_cached_metadata
                 SET image_base64 = $2, load_time = now()
-                WHERE user_id = (SELECT id FROM users WHERE login = $1)
-                RETURNING user_id
+                WHERE user_id = $1
                 "#,
-            username,
+            user_id,
             image_base64
         )
         .fetch_optional(&self.0)
@@ -650,10 +649,10 @@ impl DB {
             sqlx::query!(
                 r#"
                 INSERT INTO user_cached_metadata (user_id, image_base64, load_time)
-                VALUES ((SELECT id FROM users WHERE login = $1), $2, now())
+                VALUES ($1, $2, now())
                 ON CONFLICT (user_id) DO NOTHING
                 "#,
-                username,
+                user_id,
                 image_base64
             )
             .execute(&self.0)

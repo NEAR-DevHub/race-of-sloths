@@ -59,6 +59,19 @@ pub struct UserRecord {
 }
 
 impl UserRecord {
+    pub fn newcommer(login: String) -> Self {
+        Self {
+            id: i32::MAX,
+            login,
+            first_contribution: chrono::Utc::now().naive_utc(),
+            name: None,
+            lifetime_percent: 0,
+            period_data: vec![],
+            streaks: vec![],
+            leaderboard_places: vec![],
+        }
+    }
+
     pub fn get_total_period(&self) -> Option<&UserPeriodRecord> {
         self.period_data
             .iter()

@@ -63,9 +63,15 @@ pub fn generate_svg_bot_badge(
         &user_metadata.image_base64,
         &user_record.login,
     );
+    let sloth_id = if user_record.id == i32::MAX {
+        "Newcomer".to_string()
+    } else {
+        format!("Sloth#{:04}", user_record.id)
+    };
+
     let svg_icon = svg_icon
         .replace("{login}", &user_record.login)
-        .replace("{sloth-id}", &format!("Sloth#{:04}", user_record.id))
+        .replace("{sloth-id}", &sloth_id)
         .replace(
             "{total-contributions}",
             &total_period.prs_opened.to_string(),
