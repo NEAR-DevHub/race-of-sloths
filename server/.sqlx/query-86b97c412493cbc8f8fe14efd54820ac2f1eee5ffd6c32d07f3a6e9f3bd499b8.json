@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO user_cached_metadata (user_id, image_base64, load_time)\n                VALUES ($1, $2, now())\n                ON CONFLICT (user_id) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "86b97c412493cbc8f8fe14efd54820ac2f1eee5ffd6c32d07f3a6e9f3bd499b8"
+}
