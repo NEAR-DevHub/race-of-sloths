@@ -61,6 +61,16 @@
                 "VM",
                 "social-db"
             ]
+        },
+        {
+            "organization": "near-examples",
+            "repos": [
+                "hello-near-examples",
+                "counters",
+                "donation-examples",
+                "guest-book-examples",
+                "cross-contract-calls"
+            ]
         }
     ]
 }

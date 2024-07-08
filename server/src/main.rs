@@ -20,7 +20,7 @@ pub struct Env {
     contract: String,
     secret_key: String,
     is_mainnet: bool,
-    near_timeout_in_minutes: Option<u32>,
+    near_timeout_in_seconds: Option<u64>,
     github_timeout_in_minutes: Option<u32>,
     github_token: String,
     telegram_token: String,
@@ -50,7 +50,7 @@ async fn rocket() -> _ {
     dotenv::dotenv().ok();
 
     let env = envy::from_env::<Env>().expect("Failed to load environment variables");
-    let near_sleep = Duration::from_secs(env.near_timeout_in_minutes.unwrap_or(10) as u64 * 60);
+    let near_sleep = Duration::from_secs(env.near_timeout_in_seconds.unwrap_or(20));
     let github_sleep = Duration::from_secs(env.github_timeout_in_minutes.unwrap_or(60) as u64 * 60);
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let prometheus = rocket_prometheus::PrometheusMetrics::new();
