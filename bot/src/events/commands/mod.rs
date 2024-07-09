@@ -74,7 +74,7 @@ impl Command {
         sender: &User,
         first_reply: bool,
     ) -> anyhow::Result<bool> {
-        if !check_info.allowed_org {
+        if !check_info.allowed_org && first_reply {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
                 pr.full_id
