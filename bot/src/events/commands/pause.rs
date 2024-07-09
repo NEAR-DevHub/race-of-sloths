@@ -9,7 +9,7 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct BotPaused {
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
 }
 
 impl BotPaused {
@@ -29,7 +29,7 @@ impl BotPaused {
             context
                 .reply_with_error(
                     pr,
-                    Some(self.comment_id),
+                    self.comment_id,
                     MsgCategory::ErrorPausePausedMessage,
                     vec![],
                 )
@@ -45,7 +45,7 @@ impl BotPaused {
             context
                 .reply_with_error(
                     pr,
-                    Some(self.comment_id),
+                    self.comment_id,
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
                 )
@@ -56,15 +56,15 @@ impl BotPaused {
         debug!("Pausing the repository in the PR: {}", pr.full_id);
         context.near.send_pause(&pr.owner, &pr.repo).await?;
         context
-            .reply(pr, Some(self.comment_id), MsgCategory::PauseMessage, vec![])
+            .reply(pr, self.comment_id, MsgCategory::PauseMessage, vec![])
             .await?;
         Ok(true)
     }
 
-    pub fn construct(comment: &Comment) -> Command {
+    pub fn construct(comment: &CommentRepr) -> Command {
         Command::Pause(BotPaused {
-            timestamp: comment.updated_at.unwrap_or(comment.created_at),
-            comment_id: comment.id.0,
+            timestamp: comment.timestamp,
+            comment_id: comment.comment_id,
         })
     }
 }
@@ -72,7 +72,7 @@ impl BotPaused {
 #[derive(Clone, Debug)]
 pub struct BotUnpaused {
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
 }
 
 impl BotUnpaused {
@@ -96,19 +96,14 @@ impl BotUnpaused {
             context.near.send_unpause(&pr.owner, &pr.repo).await?;
             debug!("Unpaused PR {}", pr.full_id);
             context
-                .reply(
-                    pr,
-                    Some(self.comment_id),
-                    MsgCategory::UnpauseMessage,
-                    vec![],
-                )
+                .reply(pr, self.comment_id, MsgCategory::UnpauseMessage, vec![])
                 .await?;
             Ok(false)
         } else {
             context
                 .reply(
                     pr,
-                    Some(self.comment_id),
+                    self.comment_id,
                     MsgCategory::ErrorUnpauseUnpausedMessage,
                     vec![],
                 )
@@ -117,10 +112,10 @@ impl BotUnpaused {
         }
     }
 
-    pub fn construct(comment: &Comment) -> Command {
+    pub fn construct(comment: &CommentRepr) -> Command {
         Command::Unpause(BotUnpaused {
-            timestamp: comment.updated_at.unwrap_or(comment.created_at),
-            comment_id: comment.id.0,
+            timestamp: comment.timestamp,
+            comment_id: comment.comment_id,
         })
     }
 }

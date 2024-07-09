@@ -71,11 +71,8 @@ impl BotIncluded {
         Ok(false)
     }
 
-    pub fn construct(comment: &Comment) -> Command {
-        Command::Include(BotIncluded::new(
-            comment.updated_at.unwrap_or(comment.created_at),
-            Some(comment.id.0),
-        ))
+    pub fn construct(comment: &CommentRepr) -> Command {
+        Command::Include(BotIncluded::new(comment.timestamp, comment.comment_id))
     }
 
     pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {

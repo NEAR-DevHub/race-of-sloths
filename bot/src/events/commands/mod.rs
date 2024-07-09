@@ -10,6 +10,7 @@ pub mod score;
 pub mod start;
 pub mod unknown;
 
+use self::api::CommentRepr;
 pub use self::{exclude::*, pause::*, score::*, start::*, unknown::*};
 
 #[derive(Debug, Clone)]
@@ -26,7 +27,7 @@ impl Command {
     pub fn parse_command(
         bot_name: &str,
         pr_metadata: &PrMetadata,
-        comment: &Comment,
+        comment: &CommentRepr,
     ) -> Option<Command> {
         let (command, args) = common::extract_command_with_args(bot_name, comment)?;
 
@@ -99,7 +100,7 @@ impl Command {
                 context
                     .reply_with_error(
                         pr,
-                        Some(event.comment_id),
+                        event.comment_id,
                         MsgCategory::ErrorLateScoringMessage,
                         vec![],
                     )
@@ -164,52 +165,25 @@ impl std::fmt::Display for Command {
 
 #[cfg(test)]
 pub mod tests {
-    use octocrab::models::issues::Comment;
     use shared::github::{PrMetadata, User};
+
+    use crate::api::CommentRepr;
 
     use super::Command;
 
-    fn generate_comment(text: &str) -> Comment {
-        let string = format!(
-            r#"
-            {{
-            "id": 222,
-            "node_id": "111",
-            "url": "https://example.com/comment",
-            "html_url": "https://example.com/comment/html",
-            "issue_url": "https://example.com/issue",
-            "body": "{text}",
-            "author_association": "CONTRIBUTOR",
-            "user": {{
-              "login": "username",
-              "id": 333,
-              "node_id": "111",
-              "avatar_url": "https://example.com/avatar",
-              "gravatar_id": "",
-              "url": "https://example.com/user",
-              "html_url": "https://example.com/user/html",
-              "followers_url": "https://example.com/user/followers",
-              "following_url": "https://example.com/user/following",
-              "gists_url": "https://example.com/user/gists",
-              "starred_url": "https://example.com/user/starred",
-              "subscriptions_url": "https://example.com/user/subscriptions",
-              "organizations_url": "https://example.com/user/orgs",
-              "repos_url": "https://example.com/user/repos",
-              "events_url": "https://example.com/user/events",
-              "received_events_url": "https://example.com/user/received_events",
-              "type": "User",
-              "site_admin": false
-            }},
-            "created_at": "2023-01-01T00:00:00Z",
-            "updated_at": "2023-01-02T00:00:00Z"
-          }}
-          "#
-        );
-
-        serde_json::from_str(&string).unwrap()
+    fn generate_comment(text: &str) -> CommentRepr {
+        CommentRepr {
+            user: User::new(
+                "username".to_string(),
+                octocrab::models::AuthorAssociation::Contributor,
+            ),
+            timestamp: chrono::Utc::now(),
+            comment_id: Some(111),
+            text: text.to_string(),
+        }
     }
 
-    fn generate_command_comment(command: &str) -> Comment {
+    fn generate_command_comment(command: &str) -> CommentRepr {
         generate_comment(&format!("@{NAME} {command}"))
     }
 

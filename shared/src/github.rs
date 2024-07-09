@@ -19,8 +19,7 @@ impl User {
         // https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
         // We probably shouldn't allow collaborators / members / owners to get points
         // as they are already part of the project
-        self.contributor_type == AuthorAssociation::Contributor
-            || self.contributor_type == AuthorAssociation::FirstTimeContributor
+        self.contributor_type == AuthorAssociation::FirstTimeContributor
             || self.contributor_type == AuthorAssociation::FirstTimer
             || self.contributor_type == AuthorAssociation::None
     }

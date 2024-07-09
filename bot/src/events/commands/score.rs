@@ -10,11 +10,15 @@ use super::*;
 pub struct BotScored {
     score: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
 }
 
 impl BotScored {
-    pub fn new(score: String, timestamp: chrono::DateTime<chrono::Utc>, comment_id: u64) -> Self {
+    pub fn new(
+        score: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+        comment_id: Option<u64>,
+    ) -> Self {
         Self {
             score,
             timestamp,
@@ -69,25 +73,7 @@ impl BotScored {
                 pr.full_id,
             );
             context
-                .reply_with_error(
-                    pr,
-                    Some(self.comment_id),
-                    MsgCategory::ErrorSelfScore,
-                    vec![],
-                )
-                .await?;
-            return Ok(false);
-        }
-
-        if !sender.is_maintainer() {
-            debug!("Non-maintainer tried to score PR {}. Skipping.", pr.full_id,);
-            context
-                .reply_with_error(
-                    pr,
-                    Some(self.comment_id),
-                    MsgCategory::ErrorRightsViolationMessage,
-                    vec![],
-                )
+                .reply_with_error(pr, self.comment_id, MsgCategory::ErrorSelfScore, vec![])
                 .await?;
             return Ok(false);
         }
@@ -116,18 +102,12 @@ impl BotScored {
             ),
         };
 
-        context
-            .reply(pr, Some(self.comment_id), category, args)
-            .await?;
+        context.reply(pr, self.comment_id, category, args).await?;
         Ok(true)
     }
 
-    pub fn construct(comment: &Comment, input: String) -> Command {
-        Command::Score(BotScored::new(
-            input,
-            comment.updated_at.unwrap_or(comment.created_at),
-            comment.id.0,
-        ))
+    pub fn construct(comment: &CommentRepr, input: String) -> Command {
+        Command::Score(BotScored::new(input, comment.timestamp, comment.comment_id))
     }
 }
 
@@ -139,42 +119,42 @@ mod tests {
     pub fn score_parsing() {
         assert_eq!(
             (5, false),
-            BotScored::new("5".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("5".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (5, false),
-            BotScored::new("5 ".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("5 ".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (5, false),
-            BotScored::new("5 asdasdas".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("5 asdasdas".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (0, true),
-            BotScored::new("as".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("as".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (0, false),
-            BotScored::new("0".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("0".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (8, true),
-            BotScored::new("9".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("9".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (8, true),
-            BotScored::new("7".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("7".to_string(), chrono::Utc::now(), Some(1)).score()
         );
 
         assert_eq!(
             (0, true),
-            BotScored::new("".to_string(), chrono::Utc::now(), 1).score()
+            BotScored::new("".to_string(), chrono::Utc::now(), Some(1)).score()
         );
     }
 }

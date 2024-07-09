@@ -9,7 +9,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct BotExcluded {
     pub author: User,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
@@ -29,7 +29,7 @@ impl BotExcluded {
             context
                 .reply_with_error(
                     pr,
-                    Some(self.comment_id),
+                    self.comment_id,
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
                 )
@@ -41,27 +41,16 @@ impl BotExcluded {
 
         context.near.send_exclude(pr).await?;
         context
-            .reply(
-                pr,
-                Some(self.comment_id),
-                MsgCategory::ExcludeMessages,
-                vec![],
-            )
+            .reply(pr, self.comment_id, MsgCategory::ExcludeMessages, vec![])
             .await?;
         Ok(true)
     }
 
-    pub fn construct(comment: &Comment) -> Command {
-        let author = User::new(
-            comment.user.login.clone(),
-            comment.author_association.clone(),
-        );
-        let timestamp = comment.updated_at.unwrap_or(comment.created_at);
-
+    pub fn construct(comment: &CommentRepr) -> Command {
         Command::Excluded(BotExcluded {
-            author,
-            comment_id: comment.id.0,
-            timestamp,
+            author: comment.user.clone(),
+            comment_id: comment.comment_id,
+            timestamp: comment.timestamp,
         })
     }
 }

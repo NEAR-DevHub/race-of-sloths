@@ -4,6 +4,8 @@ use tracing::trace;
 
 use crate::messages::MsgCategory;
 
+use self::api::CommentRepr;
+
 use super::*;
 
 impl Context {
@@ -54,18 +56,14 @@ impl Context {
     }
 }
 
-pub fn extract_command_with_args(bot_name: &str, comment: &Comment) -> Option<(String, String)> {
-    let body = comment
-        .body
-        .as_ref()
-        .or(comment.body_html.as_ref())
-        .or(comment.body_text.as_ref())?
-        .to_lowercase();
-
+pub fn extract_command_with_args(
+    bot_name: &str,
+    comment: &CommentRepr,
+) -> Option<(String, String)> {
     let bot_name = format!("@{}", bot_name);
-    let position = body.find(&bot_name)?;
+    let position = comment.text.find(&bot_name)?;
 
-    let commands = body[position + bot_name.len()..]
+    let commands = comment.text[position + bot_name.len()..]
         .split_whitespace()
         .collect::<Vec<&str>>();
 

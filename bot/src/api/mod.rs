@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use futures::future::join_all;
 use octocrab::models::{
-    activity::Notification, issues::Comment, pulls::PullRequest, CommentId, NotificationId,
-    RateLimit,
+    activity::Notification,
+    issues::Comment,
+    pulls::{PullRequest, Review},
+    AuthorAssociation, CommentId, NotificationId, RateLimit,
 };
 use tracing::{error, info, instrument};
 
@@ -18,6 +20,45 @@ pub struct GithubClient {
     octocrab: octocrab::Octocrab,
     prometheus: Arc<prometheus::PrometheusClient>,
     pub user_handle: String,
+}
+
+pub struct CommentRepr {
+    pub user: User,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub text: String,
+    pub comment_id: Option<u64>,
+}
+
+impl From<Comment> for CommentRepr {
+    fn from(comment: Comment) -> Self {
+        Self {
+            user: User::new(comment.user.login, comment.author_association),
+            timestamp: comment.updated_at.unwrap_or(comment.created_at),
+            comment_id: Some(comment.id.0),
+            text: comment
+                .body
+                .or(comment.body_html)
+                .or(comment.body_text)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl TryFrom<Review> for CommentRepr {
+    type Error = ();
+    fn try_from(review: Review) -> Result<Self, ()> {
+        let user = review.user.ok_or(())?;
+        Ok(Self {
+            user: User::new(user.login, AuthorAssociation::Contributor),
+            timestamp: review.submitted_at.unwrap_or_else(chrono::Utc::now),
+            comment_id: None,
+            text: review
+                .body
+                .or(review.body_html)
+                .or(review.body_text)
+                .unwrap_or_default(),
+        })
+    }
 }
 
 impl GithubClient {
@@ -131,6 +172,28 @@ impl GithubClient {
                 .find(|c| c.user.login == self.user_handle)
                 .cloned();
 
+            let reviews = self
+                .octocrab
+                .pulls(&pr_metadata.owner, &pr_metadata.repo)
+                .list_reviews(pr_metadata.number)
+                .per_page(100)
+                .send()
+                .await;
+            let reviews = match reviews {
+                Ok(reviews) => reviews,
+                Err(e) => {
+                    error!("Failed to get reviews: {:?}", e);
+                    return None;
+                }
+            };
+
+            let mut comments = comments
+                .into_iter()
+                .map(CommentRepr::from)
+                .chain(reviews.into_iter().flat_map(CommentRepr::try_from))
+                .collect::<Vec<_>>();
+            comments.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
             let mut results = Vec::new();
 
             for comment in comments.into_iter().rev() {
@@ -146,11 +209,11 @@ impl GithubClient {
                         event: EventType::Command {
                             command,
                             notification_id: event.id,
-                            sender: User::new(comment.user.login, comment.author_association),
+                            sender: comment.user.clone(),
                         },
                         pr: pr_metadata.clone(),
                         comment: first_bot_comment.clone(),
-                        event_time: comment.updated_at.unwrap_or(comment.created_at),
+                        event_time: comment.timestamp,
                     });
                 }
             }

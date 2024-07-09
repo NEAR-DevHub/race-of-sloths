@@ -10,7 +10,7 @@ pub struct UnknownCommand {
     pub command: String,
     pub args: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: u64,
+    pub comment_id: Option<u64>,
 }
 
 impl UnknownCommand {
@@ -18,7 +18,7 @@ impl UnknownCommand {
         user: User,
         command: String,
         args: String,
-        comment_id: u64,
+        comment_id: Option<u64>,
         timestamp: chrono::DateTime<chrono::Utc>,
     ) -> Self {
         Self {
@@ -40,14 +40,14 @@ impl UnknownCommand {
     ) -> anyhow::Result<bool> {
         if !check_info.exist {
             // It's first call for this PR, so we will just include it
-            let event = BotIncluded::new(self.timestamp, Some(self.comment_id));
+            let event = BotIncluded::new(self.timestamp, self.comment_id);
             return event.execute(pr, context, check_info, sender).await;
         }
 
         context
             .reply_with_error(
                 pr,
-                Some(self.comment_id),
+                self.comment_id,
                 MsgCategory::ErrorUnknownCommandMessage,
                 vec![],
             )
@@ -55,16 +55,13 @@ impl UnknownCommand {
         Ok(false)
     }
 
-    pub fn construct(comment: &Comment, command: String, args: String) -> Command {
+    pub fn construct(comment: &CommentRepr, command: String, args: String) -> Command {
         Command::Unknown(Self::new(
-            User::new(
-                comment.user.login.clone(),
-                comment.author_association.clone(),
-            ),
+            comment.user.clone(),
             command,
             args,
-            comment.id.0,
-            comment.updated_at.unwrap_or(comment.created_at),
+            comment.comment_id,
+            comment.timestamp,
         ))
     }
 }
