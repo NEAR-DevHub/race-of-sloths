@@ -55,7 +55,9 @@ impl GithubClient {
 
         let fetch_pr_futures = events.into_iter().map(|event| async move {
             if event.subject.r#type != "PullRequest"
-                || (event.reason != "mention" && event.reason != "state_change")
+                || (event.reason != "mention"
+                    && event.reason != "state_change"
+                    && event.reason != "comment")
             {
                 info!(
                     "Skipping event: {} with reason {}",
