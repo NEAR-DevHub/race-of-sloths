@@ -10,13 +10,15 @@ message = [
 @{pr_author_username} Thank you for your contribution! Your pull request is now a part of the [Race of Sloths]({link})!
 {user_specific_message}
 
-<picture>
+[<picture>
     <source media="(prefers-color-scheme: dark)" srcset="{picture_api_link}&theme=dark">
     <source media="(prefers-color-scheme: light)" srcset="{picture_api_link}&theme=light">
     <img alt="Shows profile picture for the author of the PR." src="{picture_api_link}&theme=white">
-</picture>
+</picture>]({link}/profile/{pr_author_username})
+
 """,
 ]
+
 
 [include_common_messages]
 variables = ["pr_author_username", "bot_name", "link", "leaderboard_link"]
