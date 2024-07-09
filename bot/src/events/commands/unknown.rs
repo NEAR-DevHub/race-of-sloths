@@ -64,7 +64,7 @@ impl UnknownCommand {
             command,
             args,
             comment.id.0,
-            comment.created_at,
+            comment.updated_at.unwrap_or(comment.created_at),
         ))
     }
 }

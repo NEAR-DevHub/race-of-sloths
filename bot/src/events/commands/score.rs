@@ -123,7 +123,11 @@ impl BotScored {
     }
 
     pub fn construct(comment: &Comment, input: String) -> Command {
-        Command::Score(BotScored::new(input, comment.created_at, comment.id.0))
+        Command::Score(BotScored::new(
+            input,
+            comment.updated_at.unwrap_or(comment.created_at),
+            comment.id.0,
+        ))
     }
 }
 

@@ -36,7 +36,9 @@ impl Command {
             "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment),
             "exclude" | "leave" => BotExcluded::construct(comment),
             "include" | "in" | "start" | "join" => BotIncluded::construct(comment),
-
+            _ if command.chars().all(char::is_numeric) && !command.is_empty() => {
+                BotScored::construct(comment, command)
+            }
             _ => {
                 info!(
                     "Unknown command: {} for PR: {}",
@@ -245,7 +247,7 @@ pub mod tests {
 
     #[test]
     pub fn correct_score() {
-        let aliases = vec!["score", "rate", "value", "score 12"];
+        let aliases = vec!["score", "rate", "value", "score 12", "12"];
         for alias in aliases {
             let score_comment = generate_command_comment(alias);
             let command =

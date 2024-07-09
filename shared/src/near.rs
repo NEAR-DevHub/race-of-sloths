@@ -43,6 +43,7 @@ impl NearClient {
     pub async fn send_start(
         &self,
         pr: &PrMetadata,
+        timestamp: chrono::DateTime<chrono::Utc>,
         is_maintainer: bool,
     ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
@@ -50,7 +51,7 @@ impl NearClient {
             "repo": pr.repo,
             "pr_number": pr.number,
             "user": pr.author.login,
-            "started_at": pr.started.timestamp_nanos_opt().unwrap_or(0),
+            "started_at": timestamp.timestamp_nanos_opt().unwrap_or(0),
             "override_exclude": is_maintainer,
         });
 

@@ -63,7 +63,7 @@ impl BotPaused {
 
     pub fn construct(comment: &Comment) -> Command {
         Command::Pause(BotPaused {
-            timestamp: comment.created_at,
+            timestamp: comment.updated_at.unwrap_or(comment.created_at),
             comment_id: comment.id.0,
         })
     }
@@ -119,7 +119,7 @@ impl BotUnpaused {
 
     pub fn construct(comment: &Comment) -> Command {
         Command::Unpause(BotUnpaused {
-            timestamp: comment.created_at,
+            timestamp: comment.updated_at.unwrap_or(comment.created_at),
             comment_id: comment.id.0,
         })
     }

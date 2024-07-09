@@ -56,7 +56,7 @@ impl BotExcluded {
             comment.user.login.clone(),
             comment.author_association.clone(),
         );
-        let timestamp = comment.created_at;
+        let timestamp = comment.updated_at.unwrap_or(comment.created_at);
 
         Command::Excluded(BotExcluded {
             author,

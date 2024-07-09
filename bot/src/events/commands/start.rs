@@ -9,14 +9,14 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct BotIncluded {
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub comment_id: Option<u64>,
+    pub user_comment_id: Option<u64>,
 }
 
 impl BotIncluded {
     pub fn new(timestamp: chrono::DateTime<chrono::Utc>, comment_id: Option<u64>) -> Self {
         Self {
             timestamp,
-            comment_id,
+            user_comment_id: comment_id,
         }
     }
 }
@@ -40,7 +40,7 @@ impl BotIncluded {
             context
                 .reply_with_error(
                     pr,
-                    self.comment_id,
+                    self.user_comment_id,
                     MsgCategory::ErrorLateIncludeMessage,
                     vec![],
                 )
@@ -49,9 +49,12 @@ impl BotIncluded {
         }
 
         debug!("Starting PR {}", pr.full_id);
-        context.near.send_start(pr, sender.is_maintainer()).await?;
+        context
+            .near
+            .send_start(pr, self.timestamp, sender.is_maintainer())
+            .await?;
 
-        if let Some(comment_id) = self.comment_id {
+        if let Some(comment_id) = self.user_comment_id {
             context
                 .github
                 .like_comment(&pr.owner, &pr.repo, comment_id)
@@ -69,7 +72,10 @@ impl BotIncluded {
     }
 
     pub fn construct(comment: &Comment) -> Command {
-        Command::Include(BotIncluded::new(comment.created_at, Some(comment.id.0)))
+        Command::Include(BotIncluded::new(
+            comment.updated_at.unwrap_or(comment.created_at),
+            Some(comment.id.0),
+        ))
     }
 
     pub fn parse_body(bot_name: &str, pr_metadata: &PrMetadata) -> Option<Command> {
@@ -80,8 +86,8 @@ impl BotIncluded {
         }
 
         Some(Command::Include(Self {
-            timestamp: pr_metadata.started,
-            comment_id: None,
+            timestamp: pr_metadata.updated_at,
+            user_comment_id: None,
         }))
     }
 }
