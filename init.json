@@ -4,6 +4,7 @@
         {
             "organization": "near",
             "repos": [
+                "nearcore",
                 "fast-auth-signer",
                 "near-sdk-rs",
                 "cargo-near",
@@ -70,6 +71,27 @@
                 "donation-examples",
                 "guest-book-examples",
                 "cross-contract-calls"
+            ]
+        },
+        {
+            "organization": "aurora-is-near",
+            "repos": [
+                "doc.aurora.dev",
+                "aurora-cli-rs",
+                "borealis-engine-lib",
+                "aurora-engine",
+                "sputnikvm",
+                "btc-light-client-contract",
+                "rainbow-bridge-client"
+            ]
+        },
+        {
+            "organization": "fastnear",
+            "repos": [
+                "libs",
+                "neardata-server",
+                "fast-near",
+                "fastnear-api-server-rs"
             ]
         }
     ]
