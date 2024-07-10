@@ -74,7 +74,7 @@ impl Command {
         sender: &User,
         first_reply: bool,
     ) -> anyhow::Result<EventResult> {
-        if !check_info.allowed_org && first_reply {
+        if !check_info.allowed_repo && first_reply {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
                 pr.full_id
@@ -89,6 +89,27 @@ impl Command {
                 .await?;
 
             return Ok(EventResult::RepliedWithError);
+        }
+
+        if check_info.paused && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
+            info!(
+                "Sloth called for a PR from paused repo: {}. Skipping",
+                pr.full_id
+            );
+
+            if first_reply {
+                context
+                    .reply_with_error(
+                        pr,
+                        None,
+                        MsgCategory::ErrorPausedMessage,
+                        vec![("user".to_string(), sender.login.clone())],
+                    )
+                    .await?;
+                return Ok(EventResult::RepliedWithError);
+            }
+
+            return Ok(EventResult::Skipped);
         }
 
         if check_info.executed {
@@ -108,27 +129,6 @@ impl Command {
             }
 
             return Ok(EventResult::RepliedWithError);
-        }
-
-        if !check_info.allowed_repo && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
-            info!(
-                "Sloth called for a PR from paused repo: {}. Skipping",
-                pr.full_id
-            );
-
-            if first_reply {
-                context
-                    .reply_with_error(
-                        pr,
-                        None,
-                        MsgCategory::ErrorPausedMessage,
-                        vec![("user".to_string(), sender.login.clone())],
-                    )
-                    .await?;
-                return Ok(EventResult::RepliedWithError);
-            }
-
-            return Ok(EventResult::Skipped);
         }
 
         if check_info.excluded && !matches!(self, Command::Include(_)) {

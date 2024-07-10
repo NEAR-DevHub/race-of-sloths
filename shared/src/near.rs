@@ -120,7 +120,7 @@ impl NearClient {
     pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
-            .call("exclude_repo")
+            .call("pause_repo")
             .args_json(json!({
                 "organization": organization,
                 "repo": repo,}))
@@ -136,7 +136,7 @@ impl NearClient {
     pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
-            .call("include_repo")
+            .call("unpause_repo")
             .args_json(json!({
                 "organization": organization,
                 "repo": repo,}))

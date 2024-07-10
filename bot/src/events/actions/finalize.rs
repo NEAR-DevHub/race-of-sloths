@@ -24,7 +24,7 @@ impl PullRequestFinalize {
 
         let events = context.near.send_finalize(&pr.full_id).await?;
 
-        if !info.allowed_repo {
+        if !info.allowed_repo || info.paused {
             return Ok(EventResult::success(false));
         }
 

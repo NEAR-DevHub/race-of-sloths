@@ -23,7 +23,7 @@ impl PullRequestMerge {
 
         context.near.send_merge(pr).await?;
 
-        if !info.allowed_org {
+        if !info.allowed_repo || info.paused {
             return Ok(EventResult::success(false));
         }
 

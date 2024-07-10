@@ -23,7 +23,7 @@ impl PullRequestStale {
         }
 
         context.near.send_stale(pr).await?;
-        if !check_info.allowed_repo {
+        if !check_info.allowed_repo || check_info.paused {
             return Ok(EventResult::success(false));
         }
 

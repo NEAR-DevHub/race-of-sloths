@@ -316,7 +316,7 @@ fn exclude_pr() {
 }
 
 #[test]
-#[should_panic(expected = "Organization is not allowlisted")]
+#[should_panic(expected = "Repo is not allowlisted")]
 fn notallowlisted_org() {
     let mut contract = ContractExt::new();
 

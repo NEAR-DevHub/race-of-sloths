@@ -13,7 +13,7 @@ use shared::{
     TimePeriodString, UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
-use types::{Organization, VersionedOrganization};
+use types::{Repository, VersionedRepository};
 
 pub mod events;
 pub mod migrate;
@@ -32,8 +32,6 @@ pub struct Contract {
     account_ids: LookupMap<GithubHandle, UserId>,
     users: Vector<VersionedAccount>,
     sloths_per_period: LookupMap<(UserId, TimePeriodString), VersionedUserPeriodData>,
-    #[allow(deprecated)]
-    organizations: UnorderedMap<GithubHandle, VersionedOrganization>,
     // We need to think about removing PRs that are stale for a long time
     #[allow(deprecated)]
     prs: UnorderedMap<PRId, VersionedPR>,
@@ -44,6 +42,10 @@ pub struct Contract {
     // Configured streaks
     streaks: Vector<VersionedStreak>,
     user_streaks: LookupMap<(UserId, StreakId), VersionedStreakUserData>,
+
+    // Repo allowlist
+    #[allow(deprecated)]
+    repos: UnorderedMap<(GithubHandle, GithubHandle), VersionedRepository>,
 }
 
 #[near_bindgen]
@@ -56,14 +58,14 @@ impl Contract {
             users: Vector::new(storage::StorageKey::Users),
             sloths_per_period: LookupMap::new(storage::StorageKey::SlothsPerPeriod),
             #[allow(deprecated)]
-            organizations: UnorderedMap::new(storage::StorageKey::Organizations),
-            #[allow(deprecated)]
             prs: UnorderedMap::new(storage::StorageKey::PRs),
             #[allow(deprecated)]
             executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
             excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
             streaks: Vector::new(storage::StorageKey::Streaks),
             user_streaks: LookupMap::new(storage::StorageKey::UserStreaks),
+            #[allow(deprecated)]
+            repos: UnorderedMap::new(storage::StorageKey::Repos),
         };
 
         for org in allowed_repos {
@@ -163,7 +165,7 @@ impl Contract {
         override_exclude: bool,
     ) {
         self.assert_sloth();
-        self.assert_organization_allowed(&organization, &repo);
+        self.assert_repo_allowed(&organization, &repo);
         let (user_id, _) = self.get_or_create_account(&user);
 
         let pr_id = format!("{organization}/{repo}/{pr_number}");
@@ -232,40 +234,49 @@ impl Contract {
         self.excluded_prs.insert(pr_id);
     }
 
-    pub fn allow_organization(&mut self, organization: String) {
-        self.assert_sloth();
-
-        if self.organizations.get(&organization).is_some() {
-            env::panic_str("Organization already allowlisted")
-        }
-
-        let org = Organization::new_all(organization);
-        self.organizations
-            .insert(org.name.clone(), VersionedOrganization::V1(org));
-    }
-
     pub fn exclude_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        let org = match self.organizations.get_mut(&organization) {
-            Some(VersionedOrganization::V1(org)) => org,
-            _ => env::panic_str("Organization is not in the list"),
-        };
-
-        org.exclude(&repo);
+        self.repos.remove(&(organization, repo));
     }
 
     pub fn include_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        match self.organizations.get_mut(&organization) {
-            Some(VersionedOrganization::V1(org)) => {
-                org.include(&repo);
+        self.repos.insert(
+            (organization, repo),
+            VersionedRepository::V1(Repository { paused: false }),
+        );
+    }
+
+    pub fn pause_repo(&mut self, organization: String, repo: String) {
+        self.assert_sloth();
+
+        let repo = self.repos.get_mut(&(organization, repo));
+        if repo.is_none() {
+            env::panic_str("Repository is not allowlisted")
+        }
+
+        let repo = repo.unwrap();
+        match repo {
+            VersionedRepository::V1(repo) => {
+                repo.paused = true;
             }
-            None => {
-                let org = Organization::new_only(organization, vec![repo].into_iter().collect());
-                self.organizations
-                    .insert(org.name.clone(), VersionedOrganization::V1(org));
+        }
+    }
+
+    pub fn unpause_repo(&mut self, organization: String, repo: String) {
+        self.assert_sloth();
+
+        let repo = self.repos.get_mut(&(organization, repo));
+        if repo.is_none() {
+            env::panic_str("Repository is not allowlisted")
+        }
+
+        let repo = repo.unwrap();
+        match repo {
+            VersionedRepository::V1(repo) => {
+                repo.paused = false;
             }
         }
     }
@@ -492,14 +503,14 @@ impl Contract {
         }
     }
 
-    pub fn assert_organization_allowed(&self, organization: &str, repo: &str) {
-        let org = self.organizations.get(organization);
-        if let Some(org) = org {
-            if !org.is_allowed(repo) {
-                env::panic_str("The repository is not allowlisted for the organization")
+    pub fn assert_repo_allowed(&self, organization: &str, repo: &str) {
+        let repo: Option<_> = self.repos.get(&(organization.to_owned(), repo.to_owned()));
+        if let Some(repo) = repo {
+            if repo.is_paused() {
+                env::panic_str("Repo is paused")
             }
         } else {
-            env::panic_str("Organization is not allowlisted")
+            env::panic_str("Repo is not allowlisted")
         }
     }
 }

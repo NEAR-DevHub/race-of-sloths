@@ -593,8 +593,8 @@ mod tests {
 
         let mut pr_info = shared::PRInfo {
             votes: vec![],
-            allowed_org: true,
             allowed_repo: true,
+            paused: false,
             merged: false,
             executed: false,
             excluded: false,

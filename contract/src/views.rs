@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use near_sdk::near_bindgen;
 use shared::{PRInfo, PRWithRating, User, UserId, UserPeriodData};
 
@@ -10,11 +12,12 @@ impl Contract {
         let executed_pr = self.executed_prs.get(&pr_id);
         let pr = self.prs.get(&pr_id).or(executed_pr);
         let pr: Option<PRWithRating> = pr.cloned().map(|pr| pr.into());
-        let organization = self.organizations.get(&organization);
+        let repo_allowed = self.repos.get(&(organization, repo));
+
         PRInfo {
-            allowed_org: organization.is_some(),
-            allowed_repo: organization
-                .map(|org| org.is_allowed(&repo))
+            allowed_repo: repo_allowed.is_some(),
+            paused: repo_allowed
+                .map(|repo| repo.is_paused())
                 .unwrap_or_default(),
             exist: pr.is_some(),
             merged: pr
@@ -114,15 +117,23 @@ impl Contract {
 
     // TODO: remove this method after we would have enough data in the PRs
     pub fn repos(&self) -> Vec<AllowedRepos> {
-        self.organizations
-            .into_iter()
-            .map(|(name, org)| {
-                let organization: Organization = org.clone().into();
-                AllowedRepos {
-                    organization: name.to_string(),
-                    repos: organization.repos(),
-                }
-            })
-            .collect()
+        let mut repos = HashMap::new();
+
+        for ((org, repo), data) in self.repos.into_iter() {
+            if data.is_paused() {
+                continue;
+            }
+
+            repos
+                .entry(org)
+                .or_insert_with(|| AllowedRepos {
+                    organization: org.clone(),
+                    repos: vec![],
+                })
+                .repos
+                .push(repo.clone());
+        }
+
+        repos.into_values().collect()
     }
 }
