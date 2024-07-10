@@ -74,19 +74,21 @@ impl Command {
         sender: &User,
         first_reply: bool,
     ) -> anyhow::Result<EventResult> {
-        if !check_info.allowed_repo && first_reply {
+        if !check_info.allowed_repo {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
                 pr.full_id
             );
-            context
-                .reply_with_error(
-                    pr,
-                    None,
-                    MsgCategory::ErrorOrgNotInAllowedListMessage,
-                    vec![("pr_author_username".to_string(), pr.author.login.clone())],
-                )
-                .await?;
+            if first_reply {
+                context
+                    .reply_with_error(
+                        pr,
+                        None,
+                        MsgCategory::ErrorOrgNotInAllowedListMessage,
+                        vec![("pr_author_username".to_string(), pr.author.login.clone())],
+                    )
+                    .await?;
+            }
 
             return Ok(EventResult::RepliedWithError);
         }
