@@ -88,9 +88,10 @@ impl Command {
                         vec![("pr_author_username".to_string(), pr.author.login.clone())],
                     )
                     .await?;
+                return Ok(EventResult::RepliedWithError);
             }
 
-            return Ok(EventResult::RepliedWithError);
+            return Ok(EventResult::Skipped);
         }
 
         if check_info.paused && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
