@@ -4,6 +4,8 @@ use shared::{github::PrMetadata, PRInfo};
 
 use crate::{events::Context, messages::MsgCategory};
 
+use super::EventResult;
+
 #[derive(Debug, Clone)]
 pub struct PullRequestStale {}
 
@@ -14,24 +16,24 @@ impl PullRequestStale {
         pr: &PrMetadata,
         context: Context,
         check_info: PRInfo,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if check_info.merged {
             warn!("PR {} is already merged. Skipping", pr.full_id);
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         context.near.send_stale(pr).await?;
         if !check_info.allowed_repo {
-            return Ok(false);
+            return Ok(EventResult::success(false));
         }
 
         if pr.closed {
-            return Ok(true);
+            return Ok(EventResult::success(true));
         }
 
         context
             .reply(pr, None, MsgCategory::StaleMessage, vec![])
             .await?;
-        Ok(true)
+        Ok(EventResult::success(true))
     }
 }

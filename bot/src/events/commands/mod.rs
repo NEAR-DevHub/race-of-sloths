@@ -73,7 +73,7 @@ impl Command {
         check_info: PRInfo,
         sender: &User,
         first_reply: bool,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !check_info.allowed_org && first_reply {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
@@ -88,7 +88,7 @@ impl Command {
                 )
                 .await?;
 
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         if check_info.executed {
@@ -107,7 +107,7 @@ impl Command {
                     .await?;
             }
 
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         if !check_info.allowed_repo && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
@@ -125,9 +125,10 @@ impl Command {
                         vec![("user".to_string(), sender.login.clone())],
                     )
                     .await?;
+                return Ok(EventResult::RepliedWithError);
             }
 
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         if check_info.excluded && !matches!(self, Command::Include(_)) {
@@ -136,7 +137,7 @@ impl Command {
                 pr.full_id
             );
 
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         match self {

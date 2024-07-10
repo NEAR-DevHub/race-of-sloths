@@ -20,7 +20,7 @@ impl BotExcluded {
         pr: &PrMetadata,
         context: Context,
         _check_info: PRInfo,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !self.author.is_maintainer() {
             info!(
                 "Tried to exclude a PR from not maintainer: {}. Skipping",
@@ -34,7 +34,7 @@ impl BotExcluded {
                     vec![],
                 )
                 .await?;
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         debug!("Excluding PR {}", pr.full_id);
@@ -43,7 +43,7 @@ impl BotExcluded {
         context
             .reply(pr, self.comment_id, MsgCategory::ExcludeMessages, vec![])
             .await?;
-        Ok(true)
+        Ok(EventResult::success(true))
     }
 
     pub fn construct(comment: &CommentRepr) -> Command {

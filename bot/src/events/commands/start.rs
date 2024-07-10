@@ -29,10 +29,10 @@ impl BotIncluded {
         context: Context,
         info: PRInfo,
         sender: &User,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if info.exist {
             debug!("Sloth is already included in {}. Skipping", pr.full_id,);
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         if pr.merged.is_some() || pr.closed {
@@ -45,7 +45,7 @@ impl BotIncluded {
                     vec![],
                 )
                 .await?;
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         debug!("Starting PR {}", pr.full_id);
@@ -68,7 +68,7 @@ impl BotIncluded {
 
         context.status_message(pr, None, check_info).await;
 
-        Ok(false)
+        Ok(EventResult::success(false))
     }
 
     pub fn construct(comment: &CommentRepr) -> Command {

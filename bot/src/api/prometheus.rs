@@ -7,6 +7,8 @@ use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
 use shared::github::PrMetadata;
 
+use crate::events::EventResult;
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, EncodeLabelValue)]
 
 pub enum EventType {
@@ -49,6 +51,7 @@ pub struct MetricRecord {
     pub repository: String,
     pub pr_number: u64,
     pub success: u32,
+    pub result_text: String,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, EncodeLabelSet)]
@@ -130,17 +133,22 @@ impl PrometheusClient {
         &self,
         event: &crate::events::EventType,
         pr: &PrMetadata,
-        success: bool,
+        result: &anyhow::Result<EventResult>,
         time: chrono::DateTime<chrono::Utc>,
     ) {
         let event_type = event.into();
+        let result_text = match result {
+            Ok(res) => res.to_string(),
+            Err(_) => "Error".to_string(),
+        };
         let record = MetricRecord {
             event_type,
             author: pr.author.login.clone(),
             organization: pr.owner.clone(),
             repository: pr.repo.clone(),
             pr_number: pr.number,
-            success: success as u32,
+            success: result.is_ok() as u32,
+            result_text,
         };
         self.event.get_or_create(&record).inc();
 
@@ -148,7 +156,7 @@ impl PrometheusClient {
         self.event_processing_time
             .get_or_create(&TimeMetric {
                 event_type,
-                success: success as u32,
+                success: result.is_ok() as u32,
             })
             .observe(time.num_milliseconds() as f64 / 1000.0);
     }

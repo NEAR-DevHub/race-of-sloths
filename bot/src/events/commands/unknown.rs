@@ -37,7 +37,7 @@ impl UnknownCommand {
         context: Context,
         check_info: PRInfo,
         sender: &User,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !check_info.exist {
             // It's first call for this PR, so we will just include it
             let event = BotIncluded::new(self.timestamp, self.comment_id);
@@ -52,7 +52,7 @@ impl UnknownCommand {
                 vec![],
             )
             .await?;
-        Ok(false)
+        Ok(EventResult::RepliedWithError)
     }
 
     pub fn construct(comment: &CommentRepr, command: String, args: String) -> Command {

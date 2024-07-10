@@ -56,13 +56,13 @@ impl BotScored {
         context: Context,
         info: PRInfo,
         sender: &User,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !info.exist || info.executed {
             debug!(
                 "Sloth is not included before or PR is already executed in: {}. Skipping.",
                 pr.full_id,
             );
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         let (number, edited) = self.score();
@@ -75,7 +75,7 @@ impl BotScored {
             context
                 .reply_with_error(pr, self.comment_id, MsgCategory::ErrorSelfScore, vec![])
                 .await?;
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         context
@@ -103,7 +103,7 @@ impl BotScored {
         };
 
         context.reply(pr, self.comment_id, category, args).await?;
-        Ok(true)
+        Ok(EventResult::success(true))
     }
 
     pub fn construct(comment: &CommentRepr, input: String) -> Command {

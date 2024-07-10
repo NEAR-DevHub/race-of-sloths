@@ -4,6 +4,8 @@ use shared::{github::PrMetadata, Event, PRInfo};
 
 use crate::events::Context;
 
+use super::EventResult;
+
 #[derive(Debug, Clone)]
 pub struct PullRequestFinalize {}
 
@@ -14,22 +16,22 @@ impl PullRequestFinalize {
         pr: &PrMetadata,
         context: Context,
         info: PRInfo,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if info.executed {
             warn!("PR {} is already finalized. Skipping", pr.full_id);
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         let events = context.near.send_finalize(&pr.full_id).await?;
 
         if !info.allowed_repo {
-            return Ok(true);
+            return Ok(EventResult::success(false));
         }
 
         self.reply_depends_on_events(pr, context, events, info.average_score())
             .await?;
 
-        Ok(true)
+        Ok(EventResult::success(true))
     }
 
     async fn reply_depends_on_events(

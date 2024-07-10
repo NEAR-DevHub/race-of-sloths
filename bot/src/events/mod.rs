@@ -28,6 +28,28 @@ pub struct Context {
     pub telegram: Arc<TelegramSubscriber>,
 }
 
+pub enum EventResult {
+    Success { should_update: bool },
+    Skipped,
+    RepliedWithError,
+}
+
+impl EventResult {
+    pub fn success(should_update: bool) -> Self {
+        Self::Success { should_update }
+    }
+}
+
+impl std::fmt::Display for EventResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventResult::Success { .. } => write!(f, "Success"),
+            EventResult::Skipped => write!(f, "Skipped"),
+            EventResult::RepliedWithError => write!(f, "Replied with error"),
+        }
+    }
+}
+
 impl Context {
     pub async fn status_message(
         &self,
@@ -107,7 +129,7 @@ pub struct Event {
 }
 
 impl Event {
-    pub async fn execute(&self, context: Context) -> anyhow::Result<bool> {
+    pub async fn execute(&self, context: Context) -> anyhow::Result<EventResult> {
         let check_info = context.check_info(&self.pr).await?;
 
         let result = match &self.event {
@@ -137,10 +159,10 @@ impl Event {
                 action.execute(&self.pr, context.clone(), check_info).await
             }
         };
-        send_event_to_telegram(&context.telegram, self, result.is_ok());
+        send_event_to_telegram(&context.telegram, self, &result);
         context
             .prometheus
-            .record(&self.event, &self.pr, result.is_ok(), self.event_time);
+            .record(&self.event, &self.pr, &result, self.event_time);
 
         result
     }
@@ -201,16 +223,17 @@ impl std::fmt::Display for EventType {
 fn send_event_to_telegram(
     telegram: &Arc<TelegramSubscriber>,
     event: &crate::events::Event,
-    success: bool,
+    result: &anyhow::Result<EventResult>,
 ) {
+    let text = if let Ok(result) = result {
+        result.to_string()
+    } else {
+        "Failed".to_string()
+    };
+
     let message = format!(
         "{} in the [{}](https://github.com/{}/{}/pull/{}) was {}",
-        event.event,
-        event.pr.full_id,
-        event.pr.owner,
-        event.pr.repo,
-        event.pr.number,
-        if success { "successful" } else { "failed" },
+        event.event, event.pr.full_id, event.pr.owner, event.pr.repo, event.pr.number, text
     );
     telegram.send_to_telegram(&message, &Level::INFO);
 }

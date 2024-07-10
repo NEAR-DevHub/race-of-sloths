@@ -20,7 +20,7 @@ impl BotPaused {
         context: Context,
         check_info: PRInfo,
         sender: &User,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !check_info.allowed_repo {
             info!(
                 "Tried to pause a PR from paused repo: {}. Skipping",
@@ -34,7 +34,7 @@ impl BotPaused {
                     vec![],
                 )
                 .await?;
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         if !sender.is_maintainer() {
@@ -50,7 +50,7 @@ impl BotPaused {
                     vec![],
                 )
                 .await?;
-            return Ok(false);
+            return Ok(EventResult::RepliedWithError);
         }
 
         debug!("Pausing the repository in the PR: {}", pr.full_id);
@@ -58,7 +58,7 @@ impl BotPaused {
         context
             .reply(pr, self.comment_id, MsgCategory::PauseMessage, vec![])
             .await?;
-        Ok(true)
+        Ok(EventResult::success(false))
     }
 
     pub fn construct(comment: &CommentRepr) -> Command {
@@ -83,13 +83,13 @@ impl BotUnpaused {
         context: Context,
         info: PRInfo,
         sender: &User,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if !sender.is_maintainer() {
             info!(
                 "Tried to unpause a PR from not maintainer: {}. Skipping",
                 pr.full_id
             );
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         if !info.allowed_repo {
@@ -98,7 +98,7 @@ impl BotUnpaused {
             context
                 .reply(pr, self.comment_id, MsgCategory::UnpauseMessage, vec![])
                 .await?;
-            Ok(false)
+            Ok(EventResult::success(false))
         } else {
             context
                 .reply(
@@ -108,7 +108,7 @@ impl BotUnpaused {
                     vec![],
                 )
                 .await?;
-            Ok(false)
+            Ok(EventResult::RepliedWithError)
         }
     }
 

@@ -44,14 +44,14 @@ impl Action {
         pr: &PrMetadata,
         context: Context,
         check_info: PRInfo,
-    ) -> anyhow::Result<bool> {
+    ) -> anyhow::Result<EventResult> {
         if check_info.excluded {
             error!("Shouldn't happening. PR({}) is excluded, so should be removed, but we tracked action for it...", pr.full_id);
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
         if !check_info.exist {
             // Parsed notification but we weren't called before to include us
-            return Ok(false);
+            return Ok(EventResult::Skipped);
         }
 
         match self {
