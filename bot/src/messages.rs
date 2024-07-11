@@ -287,7 +287,6 @@ impl MessageLoader {
             )
             .unwrap_or_default();
         let status_message = self.status_message(bot_name, check_info, pr);
-        let message = self.update_pr_status_message(message, status_message);
         let common = self
             .get_message(MsgCategory::IncludeCommonMessage)
             .format(
@@ -296,7 +295,7 @@ impl MessageLoader {
                     .collect(),
             )
             .unwrap_or_default();
-        message + &common
+        message + &status_message + &common
     }
 
     pub fn status_message(&self, bot_name: &str, check_info: &PRInfo, pr: &PrMetadata) -> String {
@@ -305,7 +304,7 @@ impl MessageLoader {
         let status = if check_info.excluded {
             "excluded"
         } else if !check_info.exist {
-            "stale" // PR was removed for inactivity
+            "stale" // PR was remove for inactivity
         } else if check_info.executed {
             "executed"
         } else if check_info.votes.is_empty() {
@@ -411,19 +410,15 @@ impl MessageLoader {
         }
     }
 
-    pub fn update_pr_status_message(&self, old_text: String, status: String) -> String {
-        let place = old_text.find("<details><summary>Current status:");
+    pub fn update_pr_status_message(&self, old_text: String, status: String) -> Option<String> {
+        let place = old_text.find("<details><summary>Current status:")?;
 
-        if let Some(i) = place {
-            let end_details = old_text[i..].find("</details>");
-            if let Some(j) = end_details {
-                old_text[..i].to_string() + &status + &old_text[i + j + 10..]
-            } else {
-                tracing::error!("Failed to find the end of the details tag");
-                old_text[..i].to_string() + &status
-            }
+        let end_details = old_text[place..].find("</details>");
+        if let Some(j) = end_details {
+            Some(old_text[..place].to_string() + &status + &old_text[place + j + 10..])
         } else {
-            old_text + &status
+            tracing::error!("Failed to find the end of the details tag. It's a bug");
+            None
         }
     }
 
@@ -561,8 +556,9 @@ mod tests {
         let expected = "Welcome to the race!\n#### Current status: executed\n>New status info";
 
         let message_loader = load_message_loader();
-        let updated_text =
-            message_loader.update_pr_status_message(old_text.to_string(), new_status.to_string());
+        let updated_text = message_loader
+            .update_pr_status_message(old_text.to_string(), new_status.to_string())
+            .unwrap();
 
         assert_eq!(updated_text, expected);
     }
@@ -629,8 +625,9 @@ mod tests {
         let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
         assert_ne!(status_message_init, new_status_message);
 
-        let text2 =
-            message_loader.update_pr_status_message(text1.clone(), new_status_message.clone());
+        let text2 = message_loader
+            .update_pr_status_message(text1.clone(), new_status_message.clone())
+            .unwrap();
         assert_ne!(text1, text2);
         assert!(text2.contains(&new_status_message));
         assert!(!text2.contains(&status_message_init));
@@ -639,8 +636,9 @@ mod tests {
         let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
         assert_ne!(status_message_init, new_status_message);
 
-        let text3 =
-            message_loader.update_pr_status_message(text1.clone(), new_status_message.clone());
+        let text3 = message_loader
+            .update_pr_status_message(text1.clone(), new_status_message.clone())
+            .unwrap();
         assert_ne!(text3, text2);
         println!("{}", text3);
         assert!(text3.contains(&new_status_message));

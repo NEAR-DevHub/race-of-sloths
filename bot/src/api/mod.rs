@@ -22,7 +22,9 @@ pub struct GithubClient {
     pub user_handle: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct CommentRepr {
+    pub id: u64,
     pub user: User,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub text: String,
@@ -32,6 +34,7 @@ pub struct CommentRepr {
 impl From<Comment> for CommentRepr {
     fn from(comment: Comment) -> Self {
         Self {
+            id: comment.id.0,
             user: User::new(comment.user.login, comment.author_association),
             timestamp: comment.updated_at.unwrap_or(comment.created_at),
             comment_id: Some(comment.id.0),
@@ -49,6 +52,7 @@ impl TryFrom<Review> for CommentRepr {
     fn try_from(review: Review) -> Result<Self, ()> {
         let user = review.user.ok_or(())?;
         Ok(Self {
+            id: review.id.0,
             user: User::new(user.login, AuthorAssociation::Contributor),
             timestamp: review.submitted_at.unwrap_or_else(chrono::Utc::now),
             comment_id: None,
@@ -170,7 +174,8 @@ impl GithubClient {
             let first_bot_comment = comments
                 .iter()
                 .find(|c| c.user.login == self.user_handle)
-                .cloned();
+                .cloned()
+                .map(Into::into);
 
             let reviews = self
                 .octocrab
@@ -369,7 +374,7 @@ impl GithubClient {
         owner: &str,
         repo: &str,
         pr_number: u64,
-    ) -> anyhow::Result<Option<Comment>> {
+    ) -> anyhow::Result<Option<CommentRepr>> {
         let mut page = self
             .octocrab
             .issues(owner, repo)
@@ -382,7 +387,7 @@ impl GithubClient {
             let items = page.take_items();
             for comment in items {
                 if comment.user.login == self.user_handle {
-                    return Ok(Some(comment));
+                    return Ok(Some(comment.into()));
                 }
             }
 

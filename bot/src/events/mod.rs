@@ -4,7 +4,10 @@ use chrono::Utc;
 use octocrab::models::{issues::Comment, NotificationId};
 use tracing::{info, instrument, Level};
 
-use crate::{api, messages::MessageLoader};
+use crate::{
+    api::{self, CommentRepr},
+    messages::MessageLoader,
+};
 
 use shared::{
     github::{PrMetadata, User},
@@ -54,7 +57,7 @@ impl Context {
     pub async fn status_message(
         &self,
         pr: &PrMetadata,
-        mut comment: Option<Comment>,
+        mut comment: Option<CommentRepr>,
         info: PRInfo,
     ) {
         if comment.is_none() {
@@ -68,50 +71,39 @@ impl Context {
 
         let result = match comment {
             Some(comment) => {
-                let text = comment
-                    .body
-                    .or(comment.body_html)
-                    .or(comment.body_text)
-                    .unwrap_or_default();
-                let status = self
-                    .messages
-                    .status_message(&self.github.user_handle, &info, pr);
-
-                let message = self.messages.update_pr_status_message(text, status);
-
-                self.github
-                    .edit_comment(&pr.owner, &pr.repo, comment.id.0, &message)
-                    .await
-            }
-            None => {
-                let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
-                let user = match self
-                    .near
-                    .user_info(
-                        &pr.author.login,
-                        vec![
-                            TimePeriod::AllTime.time_string(timestamp),
-                            TimePeriod::Month.time_string(timestamp),
-                            TimePeriod::Week.time_string(timestamp),
-                        ],
-                    )
-                    .await
-                {
-                    Ok(info) => info,
-                    Err(e) => {
-                        tracing::error!("Failed to get user info for {}: {e}", pr.author.login);
-                        return;
+                let msg = if let Some(msg) = self.try_update_message(comment.text, &info, pr) {
+                    msg
+                } else {
+                    // Couldn't update the message, it probabl means we try to overwrite some other message (as example, that repo is paused)
+                    match self.new_status_message(pr, &info).await {
+                        Ok(msg) => msg,
+                        Err(e) => {
+                            tracing::error!(
+                                "Failed to get new status message for {}: {e}",
+                                pr.full_id
+                            );
+                            return;
+                        }
                     }
                 };
 
-                let message =
-                    self.messages
-                        .include_message_text(&self.github.user_handle, &info, pr, user);
-
                 self.github
-                    .reply(&pr.owner, &pr.repo, pr.number, &message)
+                    .edit_comment(&pr.owner, &pr.repo, comment.id, &msg)
                     .await
-                    .map(|_| ())
+            }
+            None => {
+                // No comment found, create a new one
+                match self.new_status_message(pr, &info).await {
+                    Ok(msg) => self
+                        .github
+                        .reply(&pr.owner, &pr.repo, pr.number, &msg)
+                        .await
+                        .map(|_| ()),
+                    Err(e) => {
+                        tracing::error!("Failed to get new status message for {}: {e}", pr.full_id);
+                        return;
+                    }
+                }
             }
         };
 
@@ -119,12 +111,39 @@ impl Context {
             tracing::error!("Failed to update status comment for {}: {e}", pr.full_id);
         }
     }
+
+    async fn new_status_message(&self, pr: &PrMetadata, info: &PRInfo) -> anyhow::Result<String> {
+        let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
+        let user = self
+            .near
+            .user_info(
+                &pr.author.login,
+                vec![
+                    TimePeriod::AllTime.time_string(timestamp),
+                    TimePeriod::Month.time_string(timestamp),
+                    TimePeriod::Week.time_string(timestamp),
+                ],
+            )
+            .await?;
+
+        Ok(self
+            .messages
+            .include_message_text(&self.github.user_handle, info, pr, user))
+    }
+
+    fn try_update_message(&self, text: String, info: &PRInfo, pr: &PrMetadata) -> Option<String> {
+        let status = self
+            .messages
+            .status_message(&self.github.user_handle, info, pr);
+
+        self.messages.update_pr_status_message(text, status)
+    }
 }
 
 pub struct Event {
     pub event: EventType,
     pub pr: PrMetadata,
-    pub comment: Option<Comment>,
+    pub comment: Option<CommentRepr>,
     pub event_time: chrono::DateTime<Utc>,
 }
 

@@ -177,6 +177,7 @@ pub mod tests {
 
     fn generate_comment(text: &str) -> CommentRepr {
         CommentRepr {
+            id: 0,
             user: User::new(
                 "username".to_string(),
                 octocrab::models::AuthorAssociation::Contributor,
