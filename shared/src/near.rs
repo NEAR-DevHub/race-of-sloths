@@ -165,6 +165,7 @@ impl NearClient {
             .contract
             .view("check_info")
             .args_json(args)
+            .finality(near_workspaces::types::Finality::Optimistic)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call is_organization_allowed: {:?}", e))?;
         let res: PRInfo = res.json()?;
