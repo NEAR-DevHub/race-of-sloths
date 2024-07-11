@@ -21,7 +21,7 @@ impl BotPaused {
         check_info: PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
-        if !check_info.allowed_repo {
+        if check_info.paused {
             info!(
                 "Tried to pause a PR from paused repo: {}. Skipping",
                 pr.full_id
@@ -92,7 +92,7 @@ impl BotUnpaused {
             return Ok(EventResult::Skipped);
         }
 
-        if !info.allowed_repo {
+        if info.paused {
             context.near.send_unpause(&pr.owner, &pr.repo).await?;
             debug!("Unpaused PR {}", pr.full_id);
             context
