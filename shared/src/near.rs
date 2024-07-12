@@ -19,15 +19,26 @@ pub struct NearClient {
 }
 
 impl NearClient {
-    pub async fn new(contract: String, sk: String, mainnet: bool) -> anyhow::Result<Self> {
+    pub async fn new(
+        contract: String,
+        sk: String,
+        mainnet: bool,
+        rpc_addr: Option<String>,
+    ) -> anyhow::Result<Self> {
         let sk = SecretKey::from_str(&sk)?;
         if mainnet {
-            let mainnet = near_workspaces::mainnet().await?;
-            let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet);
+            let mut mainnet = near_workspaces::mainnet();
+            if let Some(rpc_addr) = rpc_addr {
+                mainnet = mainnet.rpc_addr(&rpc_addr);
+            }
+            let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet.await?);
             return Ok(Self { contract });
         }
-        let testnet = near_workspaces::testnet().await?;
-        let contract = Contract::from_secret_key(contract.parse()?, sk, &testnet);
+        let mut testnet = near_workspaces::testnet();
+        if let Some(rpc_addr) = rpc_addr {
+            testnet = testnet.rpc_addr(&rpc_addr);
+        }
+        let contract = Contract::from_secret_key(contract.parse()?, sk, &testnet.await?);
         Ok(Self { contract })
     }
 

@@ -20,6 +20,7 @@ use shared::telegram;
 struct Env {
     github_token: String,
     contract: String,
+    rpc_addr: Option<String>,
     secret_key: String,
     is_mainnet: bool,
     message_file: PathBuf,
@@ -64,7 +65,8 @@ async fn main() -> anyhow::Result<()> {
     let prometheus: Arc<PrometheusClient> = Default::default();
     let github_api = GithubClient::new(env.github_token, prometheus.clone()).await?;
     let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
-    let near_api = NearClient::new(env.contract, env.secret_key, env.is_mainnet).await?;
+    let near_api =
+        NearClient::new(env.contract, env.secret_key, env.is_mainnet, env.rpc_addr).await?;
     let context = Context {
         github: github_api.into(),
         near: near_api.into(),

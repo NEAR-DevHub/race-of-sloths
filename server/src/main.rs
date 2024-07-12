@@ -18,6 +18,7 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(Debug, serde::Deserialize)]
 pub struct Env {
     contract: String,
+    rpc_addr: Option<String>,
     secret_key: String,
     is_mainnet: bool,
     near_timeout_in_seconds: Option<u64>,
@@ -58,9 +59,14 @@ async fn rocket() -> _ {
     let telegram: telegram::TelegramSubscriber =
         telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await;
 
-    let near_client = NearClient::new(env.contract.clone(), env.secret_key.clone(), env.is_mainnet)
-        .await
-        .expect("Failed to create Near client");
+    let near_client = NearClient::new(
+        env.contract.clone(),
+        env.secret_key.clone(),
+        env.is_mainnet,
+        env.rpc_addr,
+    )
+    .await
+    .expect("Failed to create Near client");
 
     let allowed_origins = AllowedOrigins::some_exact(&[
         "http://localhost:3000",
