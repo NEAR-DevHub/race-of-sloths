@@ -282,5 +282,5 @@ message = ["We are launching a survey \"Who is faster? You vs SpaceX\""]
 [contribution_8]
 variables = []
 message = [
-    "“Congratulatory messages are spent out! Your results have exceeded our imagination!",
+    "Congratulatory messages are spent out! Your results have exceeded our imagination!",
 ]
