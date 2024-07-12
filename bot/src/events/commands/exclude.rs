@@ -40,7 +40,14 @@ impl BotExcluded {
         debug!("Excluding PR {}", pr.full_id);
 
         context.near.send_exclude(pr).await?;
-        check_info.excluded = true;
+        *check_info = PRInfo {
+            exist: false,
+            votes: vec![],
+            merged: false,
+            executed: false,
+            excluded: true,
+            ..*check_info
+        };
         context
             .reply(pr, self.comment_id, MsgCategory::ExcludeMessages, vec![])
             .await?;

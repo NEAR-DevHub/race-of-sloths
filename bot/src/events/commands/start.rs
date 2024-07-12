@@ -48,12 +48,29 @@ impl BotIncluded {
             return Ok(EventResult::RepliedWithError);
         }
 
+        if info.excluded && !sender.is_maintainer() {
+            debug!(
+                "Tried to include an excluded PR from not maintainer: {}. Skipping",
+                pr.full_id
+            );
+            context
+                .reply_with_error(
+                    pr,
+                    self.user_comment_id,
+                    MsgCategory::ErrorRightsViolationMessage,
+                    vec![],
+                )
+                .await?;
+            return Ok(EventResult::RepliedWithError);
+        }
+
         debug!("Starting PR {}", pr.full_id);
         context
             .near
             .send_start(pr, self.timestamp, sender.is_maintainer())
             .await?;
         info.exist = true;
+        info.excluded = false;
 
         if let Some(comment_id) = self.user_comment_id {
             context
