@@ -43,7 +43,7 @@ impl Action {
         &self,
         pr: &PrMetadata,
         context: Context,
-        check_info: PRInfo,
+        check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if check_info.excluded {
             error!("Shouldn't happening. PR({}) is excluded, so should be removed, but we tracked action for it...", pr.full_id);

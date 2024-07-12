@@ -35,7 +35,7 @@ impl UnknownCommand {
         &self,
         pr: &PrMetadata,
         context: Context,
-        check_info: PRInfo,
+        check_info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if !check_info.exist {

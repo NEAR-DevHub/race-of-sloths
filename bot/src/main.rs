@@ -133,7 +133,7 @@ async fn event_task(context: Context) {
 
     let futures = events_per_pr.into_iter().map(|(key, events)| {
         debug!("Received {} events for PR {}", events.len(), key);
-        execute(context.clone(), events)
+        execute_events_from_one_pr(context.clone(), events)
     });
 
     join_all(futures).await;
@@ -157,11 +157,13 @@ async fn merge_and_execute_task(
         }
     };
 
-    execute(context.clone(), events).await;
+    for event in events {
+        execute_events_from_one_pr(context.clone(), vec![event]).await;
+    }
 
     // It matters to first execute the merge events and then finalize
     // as the merge event is a requirement for the finalize event
-    let event = match finalized_events(&context).await {
+    let events = match finalized_events(&context).await {
         Ok(events) => events,
         Err(e) => {
             error!("Failed to get finalize events: {}", e);
@@ -169,28 +171,44 @@ async fn merge_and_execute_task(
         }
     };
 
-    execute(context.clone(), event).await;
+    for event in events {
+        execute_events_from_one_pr(context.clone(), vec![event]).await;
+    }
 
     current_time + merge_interval
 }
 
 // Runs events from the same PR
 #[instrument(skip(context, events))]
-async fn execute(context: Context, mut events: Vec<Event>) {
+async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
+    // TODO: pretty sure that we can achive deduplication with keeping the last element more easily
+    events.reverse();
+    events.dedup_by(|a, b| a.pr.full_id == b.pr.full_id && a.event.same_event(&b.event));
+    events.reverse();
+
     if events.is_empty() {
         return;
     }
 
     debug!("Executing {} events", events.len());
     let mut should_update = false;
+    let event = &events[0];
+    let pr = &event.pr;
 
-    // TODO: pretty sure that we can achive deduplication with keeping the last element more easily
-    events.reverse();
-    events.dedup_by(|a, b| a.pr.full_id == b.pr.full_id && a.event.same_event(&b.event));
-    events.reverse();
+    if !events.iter().all(|e| pr.full_id == e.pr.full_id) {
+        error!("Constraint failed: all events should be for the same PR")
+    }
+
+    let mut check_info = match context.check_info(pr).await {
+        Ok(info) => info,
+        Err(e) => {
+            error!("Failed to get PR info for {}: {e}", pr.full_id);
+            return;
+        }
+    };
 
     for event in &events {
-        match event.execute(context.clone()).await {
+        match event.execute(context.clone(), &mut check_info).await {
             Ok(EventResult::Success { should_update: upd }) => {
                 should_update |= upd;
             }
@@ -200,8 +218,6 @@ async fn execute(context: Context, mut events: Vec<Event>) {
             }
         }
     }
-    let event = &events[0];
-    let pr = &event.pr;
 
     if !should_update {
         debug!(
@@ -215,16 +231,9 @@ async fn execute(context: Context, mut events: Vec<Event>) {
         "Finished executing events. Updating status comment for {}",
         pr.full_id
     );
-    let info = match context.check_info(pr).await {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to get PR info for {}: {e}", pr.full_id);
-            return;
-        }
-    };
 
     context
-        .status_message(pr, event.comment.clone(), info)
+        .status_message(pr, event.comment.clone(), check_info)
         .await;
 }
 

@@ -17,7 +17,7 @@ pub struct Score {
     pub score: u32,
 }
 
-#[derive(Serialize, Deserialize, NearSchema, Default)]
+#[derive(Serialize, Debug, Clone, Deserialize, NearSchema, Default)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
     pub votes: Vec<Score>,

@@ -18,7 +18,7 @@ impl BotPaused {
         &self,
         pr: &PrMetadata,
         context: Context,
-        check_info: PRInfo,
+        check_info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if check_info.paused {
@@ -55,6 +55,7 @@ impl BotPaused {
 
         debug!("Pausing the repository in the PR: {}", pr.full_id);
         context.near.send_pause(&pr.owner, &pr.repo).await?;
+        check_info.paused = true;
         context
             .reply(pr, self.comment_id, MsgCategory::PauseMessage, vec![])
             .await?;
@@ -81,7 +82,7 @@ impl BotUnpaused {
         &self,
         pr: &PrMetadata,
         context: Context,
-        info: PRInfo,
+        info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if !sender.is_maintainer() {
@@ -94,6 +95,7 @@ impl BotUnpaused {
 
         if info.paused {
             context.near.send_unpause(&pr.owner, &pr.repo).await?;
+            info.paused = false;
             debug!("Unpaused PR {}", pr.full_id);
             context
                 .reply(pr, self.comment_id, MsgCategory::UnpauseMessage, vec![])
