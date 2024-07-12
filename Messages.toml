@@ -245,19 +245,19 @@ message = ["New Sloth joined the Race! Welcome!"]
 [first_week_contribution]
 variables = []
 message = [
-    "Weekly streak is on the road, smart strategy! Secure your streak with another PR",
+    "Weekly streak is on the road, smart strategy! Secure your streak with another PR!",
 ]
 
 [first_month_contribution]
 variables = []
 message = [
-    "Do you want to apply for monthly streak? Get 8+ score for a single PR this month and receive boost for race-of-sloth",
+    "Do you want to apply for monthly streak? Get 8+ score for a single PR this month and receive boost for race-of-sloths!",
 ]
 
 [contribution_3]
 variables = []
 message = [
-    "Are you going to win race-of-sloth this month? If so, you should speed up! Run, Sloth, Run",
+    "Are you going to win race-of-sloths this month? If so, you should speed up! Run, Sloth, run!",
 ]
 
 [contribution_4]
@@ -271,7 +271,7 @@ message = ["Great job! Usain Bolt jealous of your results!"]
 [contribution_6]
 variables = []
 message = [
-    "King of Sloth shakes your hand! Yellow leader's jersey is yours deservedly",
+    "King of Sloths shakes your hand! Yellow leader's jersey is yours deservedly!",
 ]
 
 [contribution_7]
@@ -281,5 +281,5 @@ message = ["We are launching a survey \"Who is faster? You vs SpaceX\""]
 [contribution_8]
 variables = []
 message = [
-    "“Congratulatory messages are spent out! Your results have exceeded our imagination",
+    "Congratulatory messages are spent out! Your results have exceeded our imagination!",
 ]
