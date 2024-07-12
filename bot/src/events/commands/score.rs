@@ -2,7 +2,7 @@ use tracing::{debug, instrument};
 
 use crate::messages::MsgCategory;
 
-use shared::{github::User, PRInfo};
+use shared::{github::User, PRInfo, Score};
 
 use super::*;
 
@@ -54,7 +54,7 @@ impl BotScored {
         &self,
         pr: &PrMetadata,
         context: Context,
-        info: PRInfo,
+        info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if !info.exist || info.executed {
@@ -83,6 +83,15 @@ impl BotScored {
             .send_scored(pr, &sender.login, number as u64)
             .await?;
 
+        if let Some(vote) = info.votes.iter_mut().find(|v| v.user == sender.login) {
+            vote.score = number as u32;
+        } else {
+            info.votes.push(Score {
+                user: sender.login.clone(),
+                score: number as u32,
+            });
+        }
+
         let (category, args) = match (number, edited) {
             (num, true) => (
                 MsgCategory::CorrectableScoringMessage,
@@ -103,6 +112,7 @@ impl BotScored {
         };
 
         context.reply(pr, self.comment_id, category, args).await?;
+
         Ok(EventResult::success(true))
     }
 

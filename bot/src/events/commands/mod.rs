@@ -70,7 +70,7 @@ impl Command {
         &self,
         pr: &PrMetadata,
         context: Context,
-        check_info: PRInfo,
+        check_info: &mut PRInfo,
         sender: &User,
         first_reply: bool,
     ) -> anyhow::Result<EventResult> {

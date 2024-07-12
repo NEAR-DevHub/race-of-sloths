@@ -148,9 +148,11 @@ pub struct Event {
 }
 
 impl Event {
-    pub async fn execute(&self, context: Context) -> anyhow::Result<EventResult> {
-        let check_info = context.check_info(&self.pr).await?;
-
+    pub async fn execute(
+        &self,
+        context: Context,
+        check_info: &mut PRInfo,
+    ) -> anyhow::Result<EventResult> {
         let result = match &self.event {
             EventType::Command {
                 command,

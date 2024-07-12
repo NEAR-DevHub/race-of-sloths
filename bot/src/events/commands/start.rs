@@ -27,7 +27,7 @@ impl BotIncluded {
         &self,
         pr: &PrMetadata,
         context: Context,
-        info: PRInfo,
+        info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if info.exist {
@@ -53,6 +53,7 @@ impl BotIncluded {
             .near
             .send_start(pr, self.timestamp, sender.is_maintainer())
             .await?;
+        info.exist = true;
 
         if let Some(comment_id) = self.user_comment_id {
             context
@@ -61,12 +62,7 @@ impl BotIncluded {
                 .await?;
         }
 
-        let check_info = PRInfo {
-            exist: true,
-            ..info
-        };
-
-        context.status_message(pr, None, check_info).await;
+        context.status_message(pr, None, info.clone()).await;
 
         Ok(EventResult::success(false))
     }

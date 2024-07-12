@@ -14,12 +14,12 @@ pub struct BotExcluded {
 }
 
 impl BotExcluded {
-    #[instrument(skip(self, pr, context, _check_info), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, check_info), fields(pr = pr.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
         context: Context,
-        _check_info: PRInfo,
+        check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if !self.author.is_maintainer() {
             info!(
@@ -40,6 +40,7 @@ impl BotExcluded {
         debug!("Excluding PR {}", pr.full_id);
 
         context.near.send_exclude(pr).await?;
+        check_info.excluded = true;
         context
             .reply(pr, self.comment_id, MsgCategory::ExcludeMessages, vec![])
             .await?;
