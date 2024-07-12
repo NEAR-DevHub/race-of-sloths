@@ -28,7 +28,6 @@ impl PullRequestStale {
             votes: vec![],
             merged: false,
             executed: false,
-            excluded: false,
             ..*check_info
         };
 
