@@ -551,7 +551,7 @@ mod tests {
     #[test]
     fn test_update_message_with_existing_status() {
         let old_text =
-            "Welcome to the race!\n<details><summary>Current status: <i>waiting for scoring</i></summary>";
+            "Welcome to the race!\n<details><summary>Current status: <i>waiting for scoring</i></summary></details>";
         let new_status = "#### Current status: executed\n>New status info";
         let expected = "Welcome to the race!\n#### Current status: executed\n>New status info";
 

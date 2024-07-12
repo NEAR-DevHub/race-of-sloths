@@ -15,7 +15,7 @@ impl PullRequestStale {
         &self,
         pr: &PrMetadata,
         context: Context,
-        check_info: PRInfo,
+        check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if check_info.merged {
             warn!("PR {} is already merged. Skipping", pr.full_id);
@@ -23,6 +23,15 @@ impl PullRequestStale {
         }
 
         context.near.send_stale(pr).await?;
+        *check_info = PRInfo {
+            exist: false,
+            votes: vec![],
+            merged: false,
+            executed: false,
+            excluded: false,
+            ..*check_info
+        };
+
         if !check_info.allowed_repo || check_info.paused {
             return Ok(EventResult::success(false));
         }

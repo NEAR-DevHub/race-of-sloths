@@ -15,7 +15,7 @@ impl PullRequestFinalize {
         &self,
         pr: &PrMetadata,
         context: Context,
-        info: PRInfo,
+        info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if info.executed {
             warn!("PR {} is already finalized. Skipping", pr.full_id);
@@ -23,6 +23,7 @@ impl PullRequestFinalize {
         }
 
         let events = context.near.send_finalize(&pr.full_id).await?;
+        info.executed = true;
 
         if !info.allowed_repo || info.paused {
             return Ok(EventResult::success(false));

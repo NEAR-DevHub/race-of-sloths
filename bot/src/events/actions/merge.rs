@@ -15,13 +15,14 @@ impl PullRequestMerge {
         &self,
         pr: &PrMetadata,
         context: Context,
-        info: PRInfo,
+        info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if info.merged {
             return Ok(EventResult::Skipped);
         }
 
         context.near.send_merge(pr).await?;
+        info.merged = true;
 
         if !info.allowed_repo || info.paused {
             return Ok(EventResult::success(false));
