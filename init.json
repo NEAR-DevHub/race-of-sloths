@@ -70,7 +70,9 @@
                 "counters",
                 "donation-examples",
                 "guest-book-examples",
-                "cross-contract-calls"
+                "cross-contract-calls",
+                "coin-flip-examples",
+                "near-multichain"
             ]
         },
         {
@@ -92,6 +94,15 @@
                 "neardata-server",
                 "fast-near",
                 "fastnear-api-server-rs"
+            ]
+        },
+        {
+            "organization": "nearbuilders",
+            "repos": [
+                "bos-workspace",
+                "near-bos-webcomponent",
+                "gateway",
+                "near-social-js"
             ]
         }
     ]

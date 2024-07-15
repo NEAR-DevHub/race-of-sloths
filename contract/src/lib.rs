@@ -240,6 +240,17 @@ impl Contract {
         self.repos.remove(&(organization, repo));
     }
 
+    pub fn include_org_with_repos(&mut self, allowed_org: AllowedRepos) {
+        self.assert_sloth();
+
+        for repo in allowed_org.repos {
+            self.repos.insert(
+                (allowed_org.organization.to_string(), repo),
+                VersionedRepository::V1(Repository { paused: false }),
+            );
+        }
+    }
+
     pub fn include_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
