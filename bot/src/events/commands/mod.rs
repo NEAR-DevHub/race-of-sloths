@@ -32,7 +32,7 @@ impl Command {
         let (command, args) = common::extract_command_with_args(bot_name, comment)?;
 
         Some(match command.as_str() {
-            "score" | "rate" | "value" => BotScored::construct(comment, args),
+            "score" | "score:" | "rate" | "value" => BotScored::construct(comment, args),
             "pause" | "block" => BotPaused::construct(comment),
             "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment),
             "exclude" | "leave" => BotExcluded::construct(comment),
@@ -210,6 +210,24 @@ pub mod tests {
             body: "abc".to_string(),
             closed: false,
         }
+    }
+
+    #[test]
+    pub fn dont_parse_in_the_middle() {
+        let comment = generate_comment(&format!("Hello @{NAME} world"));
+        let command = Command::parse_command(NAME, &default_pr_metadata(), &comment);
+
+        assert!(command.is_none());
+    }
+
+    #[test]
+    pub fn multi_line_comment_works() {
+        let comment = generate_comment(&format!(
+            "Hello buddy, i'm working here on super duper pr.\nAhey\n   @{NAME} score 8"
+        ));
+        let command = Command::parse_command(NAME, &default_pr_metadata(), &comment);
+
+        assert!(matches!(command, Some(Command::Score(_))));
     }
 
     #[test]
