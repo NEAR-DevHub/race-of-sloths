@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT pull_requests.id\n            FROM pull_requests\n            JOIN repos r ON repo_id = r.id\n            JOIN organizations o ON r.organization_id = o.id\n            WHERE o.login = $1 AND r.name = $2 AND number = $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d3cd768e60c4698c008c7fa5ae0b234de830a4f9eccabb594ce1f049a860b142"
+}

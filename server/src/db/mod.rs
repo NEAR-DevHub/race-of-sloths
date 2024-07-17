@@ -586,6 +586,44 @@ impl DB {
         Ok(rec)
     }
 
+    pub async fn get_projects(&self) -> anyhow::Result<Vec<(String, String)>> {
+        let rec = sqlx::query!(
+            r#"
+            SELECT o.login, r.name
+            FROM repos r
+            JOIN organizations o ON r.organization_id = o.id
+            "#,
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(rec.into_iter().map(|r| (r.login, r.name)).collect())
+    }
+
+    pub async fn is_pr_available(
+        &self,
+        org: &str,
+        repo: &str,
+        number: i32,
+    ) -> anyhow::Result<bool> {
+        let rec = sqlx::query!(
+            r#"
+            SELECT pull_requests.id
+            FROM pull_requests
+            JOIN repos r ON repo_id = r.id
+            JOIN organizations o ON r.organization_id = o.id
+            WHERE o.login = $1 AND r.name = $2 AND number = $3
+            "#,
+            org,
+            repo,
+            number
+        )
+        .fetch_optional(&self.0)
+        .await?;
+
+        Ok(rec.is_some())
+    }
+
     pub async fn clear_prs(&self) -> anyhow::Result<()> {
         sqlx::query!("DELETE FROM pull_requests")
             .execute(&self.0)

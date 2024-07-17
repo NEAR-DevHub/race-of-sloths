@@ -11,7 +11,7 @@ use rocket::{fairing::AdHoc, fs::NamedFile, State};
 use rocket_cors::AllowedOrigins;
 use shared::{near::NearClient, telegram};
 
-use race_of_sloths_server::{contract_pull, db, github_pull};
+use race_of_sloths_server::{contract_pull, db, github_pull, weekly_stats};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -46,6 +46,8 @@ async fn favicon(telegram: &State<Arc<telegram::TelegramSubscriber>>) -> Option<
     }
 }
 
+const WEEK_IN_SECONDS: u64 = 7 * 24 * 60 * 60;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv::dotenv().ok();
@@ -53,6 +55,7 @@ async fn rocket() -> _ {
     let env = envy::from_env::<Env>().expect("Failed to load environment variables");
     let near_sleep = Duration::from_secs(env.near_timeout_in_seconds.unwrap_or(20));
     let github_sleep = Duration::from_secs(env.github_timeout_in_minutes.unwrap_or(60) as u64 * 60);
+    let weekly_sleep = Duration::from_secs(WEEK_IN_SECONDS);
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let prometheus = rocket_prometheus::PrometheusMetrics::new();
 
@@ -99,6 +102,7 @@ async fn rocket() -> _ {
             github_sleep,
             atomic_bool.clone(),
         ))
+        .attach(weekly_stats::stage(weekly_sleep, atomic_bool.clone()))
         .attach(rocket::fairing::AdHoc::on_shutdown(
             "Stop loading users from Near and Github metadata",
             |_| {

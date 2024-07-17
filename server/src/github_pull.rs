@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use octocrab::Octocrab;
+use octocrab::{models::pulls::PullRequest, Octocrab};
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
 use shared::telegram::TelegramSubscriber;
@@ -41,6 +41,50 @@ impl GithubClient {
                 .language
                 .and_then(|l| l.as_str().map(ToString::to_string)),
         })
+    }
+
+    pub async fn pull_requests_for_period(
+        &self,
+        org: &str,
+        repo: &str,
+        since: chrono::NaiveDate,
+    ) -> anyhow::Result<Vec<PullRequest>> {
+        let mut page = self
+            .octocrab
+            .pulls(org, repo)
+            .list()
+            .state(octocrab::params::State::All)
+            .sort(octocrab::params::pulls::Sort::Updated)
+            .direction(octocrab::params::Direction::Descending)
+            .per_page(100)
+            .send()
+            .await?;
+        let mut ret = page.take_items();
+        while ret.last().map_or(false, |pr| {
+            pr.updated_at
+                .or(pr.created_at)
+                .unwrap_or_default()
+                .date_naive()
+                >= since
+        }) {
+            let next_page = self.octocrab.get_page(&page.next).await?;
+            if let Some(mut next_page) = next_page {
+                ret.append(&mut next_page.take_items());
+                page = next_page;
+            } else {
+                break;
+            }
+        }
+
+        let ret = ret.into_iter().filter(|pr| {
+            pr.updated_at
+                .or(pr.created_at)
+                .unwrap_or_default()
+                .date_naive()
+                >= since
+        });
+
+        Ok(ret.collect())
     }
 
     #[instrument(skip(self))]
@@ -152,7 +196,7 @@ pub fn stage(
     sleep_duration: Duration,
     atomic_bool: Arc<AtomicBool>,
 ) -> AdHoc {
-    AdHoc::on_ignite("Installing entrypoints", move |rocket| async move {
+    AdHoc::on_ignite("GitHub metadata pull", move |rocket| async move {
         rocket
             .manage(Arc::new(github_client))
             .attach(AdHoc::on_liftoff(
