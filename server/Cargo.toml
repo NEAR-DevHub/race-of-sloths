@@ -26,5 +26,6 @@ http-body-util.workspace = true
 rocket_cors.workspace = true
 num-format.workspace = true
 tracing.workspace = true
+csv = "1.0"
 
 shared = { workspace = true, features = ["client"] }

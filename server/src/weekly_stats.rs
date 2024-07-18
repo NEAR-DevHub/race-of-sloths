@@ -1,53 +1,59 @@
 use std::{
+    collections::HashMap,
     sync::{atomic::AtomicBool, Arc},
+    thread::sleep,
     time::Duration,
 };
 
+use octocrab::models::pulls::PullRequest;
 use rocket::{fairing::AdHoc, futures::future::join_all};
 use rocket_db_pools::Database;
+use serde::{Deserialize, Serialize};
 use shared::telegram::TelegramSubscriber;
 use tracing::Level;
 
 use crate::{db::DB, github_pull::GithubClient};
+
+#[derive(Serialize, Deserialize)]
+pub struct Prs {
+    pub org_repo: String,
+    pub url: String,
+    pub user_login: String,
+}
 
 async fn calculate_weekly_pr_stats(
     db: &DB,
     github: &GithubClient,
     telegram: &TelegramSubscriber,
 ) -> anyhow::Result<()> {
+    rocket::tokio::time::sleep(Duration::from_secs(10)).await;
     let projects = db.get_projects().await?;
-    let mut project_stats = Vec::with_capacity(projects.len());
+    let file = std::fs::File::create("prs.csv")?;
+    let mut writer = csv::Writer::from_writer(file);
     for (org, repo) in projects {
         let period = (chrono::Utc::now() - chrono::Duration::days(7)).date_naive();
         let prs = github.pull_requests_for_period(&org, &repo, period).await?;
-        let result = join_all(
-            prs.iter()
-                .map(|pr| db.is_pr_available(&org, &repo, pr.number as i32)),
-        )
-        .await
-        .into_iter()
-        .filter(|r| matches!(r, Ok(true)))
-        .count();
 
-        project_stats.push((org, repo, prs.len(), result));
+        for pr in prs {
+            if pr.closed_at.is_some()
+                || db
+                    .is_pr_available(&org, &repo, pr.number as i32)
+                    .await
+                    .unwrap_or_default()
+            {
+                continue;
+            }
+            writer
+                .serialize(Prs {
+                    org_repo: format!("{org}/{repo}"),
+                    url: format!("https://github.com/{org}/{repo}/pull/{}", pr.number),
+                    user_login: pr.user.unwrap().login,
+                })
+                .unwrap();
+        }
     }
 
-    project_stats.sort_by(|(_, _, prs1, with_sloth1), (_, _, prs2, with_sloth2)| {
-        let diff1 = *prs1 - *with_sloth1;
-        let diff2 = *prs2 - *with_sloth2;
-        diff2.cmp(&diff1)
-    });
-
-    let mut message = String::from("Weekly PR stats:\n");
-    for (org, repo, prs, prs_with_sloth) in project_stats.into_iter().take(10) {
-        message.push_str(&format!(
-            "- [{org}/{repo}](https://github.com/{org}/{repo}) - {prs} PRs, {prs_with_sloth} PRs with sloth, {} Difference\n",
-            prs - prs_with_sloth
-        ));
-    }
-
-    telegram.send_to_telegram(&message, &Level::INFO);
-
+    panic!("Done");
     Ok(())
 }
 
