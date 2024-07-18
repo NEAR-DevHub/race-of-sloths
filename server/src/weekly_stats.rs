@@ -53,6 +53,7 @@ async fn calculate_weekly_pr_stats(
         }
     }
 
+    writer.flush();
     panic!("Done");
     Ok(())
 }
