@@ -53,7 +53,7 @@ impl GithubClient {
             .octocrab
             .pulls(org, repo)
             .list()
-            .state(octocrab::params::State::All)
+            .state(octocrab::params::State::Open)
             .sort(octocrab::params::pulls::Sort::Updated)
             .direction(octocrab::params::Direction::Descending)
             .per_page(100)
