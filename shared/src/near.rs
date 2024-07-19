@@ -58,10 +58,9 @@ impl NearClient {
             .contract
             .call("sloth_include")
             .args_json(args)
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?;
 
         process_execution_final_result(result)
     }
@@ -83,10 +82,9 @@ impl NearClient {
             .contract
             .call("sloth_scored")
             .args_json(args)
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -105,10 +103,9 @@ impl NearClient {
             .contract
             .call("sloth_merged")
             .args_json(args)
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -120,10 +117,9 @@ impl NearClient {
             .args_json(json!({
                 "organization": organization,
                 "repo": repo,}))
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -135,10 +131,9 @@ impl NearClient {
             .args_json(json!({
                 "organization": organization,
                 "repo": repo,}))
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -248,10 +243,9 @@ impl NearClient {
             .contract
             .call("sloth_stale")
             .args_json(args)
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -265,10 +259,9 @@ impl NearClient {
             .contract
             .call("sloth_exclude")
             .args_json(args)
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -280,10 +273,9 @@ impl NearClient {
             .args_json(json!({
                 "pr_id": pr_id,
             }))
-            .transact_async()
+            .transact()
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
-            .await?;
+            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?;
         process_execution_final_result(result)
     }
 

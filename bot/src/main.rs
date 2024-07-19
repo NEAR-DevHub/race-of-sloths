@@ -157,9 +157,10 @@ async fn merge_and_execute_task(
         }
     };
 
-    for event in events {
-        execute_events_from_one_pr(context.clone(), vec![event]).await;
-    }
+    let futures = events
+        .into_iter()
+        .map(|event| async { execute_events_from_one_pr(context.clone(), vec![event]).await });
+    join_all(futures).await;
 
     // It matters to first execute the merge events and then finalize
     // as the merge event is a requirement for the finalize event
@@ -171,9 +172,10 @@ async fn merge_and_execute_task(
         }
     };
 
-    for event in events {
-        execute_events_from_one_pr(context.clone(), vec![event]).await;
-    }
+    let futures = events
+        .into_iter()
+        .map(|event| async { execute_events_from_one_pr(context.clone(), vec![event]).await });
+    join_all(futures).await;
 
     current_time + merge_interval
 }
