@@ -21,6 +21,7 @@ pub enum EventType {
     Merge,
     Finalize,
     Stale,
+    Update,
 }
 
 impl From<&crate::events::EventType> for EventType {
@@ -33,6 +34,7 @@ impl From<&crate::events::EventType> for EventType {
                 crate::events::commands::Command::Unpause(_) => EventType::Unpause,
                 crate::events::commands::Command::Excluded(_) => EventType::Excluded,
                 crate::events::commands::Command::Unknown(_) => EventType::Unknown,
+                crate::events::commands::Command::Update(_) => EventType::Update,
             },
             crate::events::EventType::Action(action) => match action {
                 crate::events::actions::Action::Merge(_) => EventType::Merge,

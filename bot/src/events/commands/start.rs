@@ -32,7 +32,8 @@ impl BotIncluded {
     ) -> anyhow::Result<EventResult> {
         if info.exist {
             debug!("Sloth is already included in {}. Skipping", pr.full_id,);
-            return Ok(EventResult::Skipped);
+            // Let's update the status message just in case
+            return Ok(EventResult::success(true));
         }
 
         if pr.merged.is_some() || pr.closed {

@@ -52,7 +52,8 @@ impl UnknownCommand {
                 vec![],
             )
             .await?;
-        Ok(EventResult::RepliedWithError)
+
+        Ok(EventResult::success(true))
     }
 
     pub fn construct(comment: &CommentRepr, command: String, args: String) -> Command {

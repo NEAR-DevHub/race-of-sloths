@@ -1,11 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::bail;
-use near_workspaces::{
-    result::{ExecutionResult, Value},
-    types::SecretKey,
-    Contract,
-};
+use near_workspaces::{result::ExecutionFinalResult, types::SecretKey, Contract};
 use serde_json::json;
 use tracing::instrument;
 
@@ -42,14 +38,6 @@ impl NearClient {
         Ok(Self { contract })
     }
 
-    fn get_events(&self, result: ExecutionResult<Value>) -> Vec<Event> {
-        result
-            .logs()
-            .into_iter()
-            .flat_map(|l| serde_json::from_str::<Event>(l).ok())
-            .collect()
-    }
-
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
     pub async fn send_start(
         &self,
@@ -73,10 +61,9 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?
-            .await?
-            .into_result()?;
+            .await?;
 
-        Ok(self.get_events(result))
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self), fields(pr = pr.full_id, user, score))]
@@ -99,9 +86,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
@@ -122,9 +108,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self))]
@@ -138,9 +123,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self))]
@@ -154,9 +138,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self))]
@@ -268,9 +251,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.full_id))]
@@ -286,9 +268,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self))]
@@ -302,9 +283,8 @@ impl NearClient {
             .transact_async()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?
-            .await?
-            .into_result()?;
-        Ok(self.get_events(result))
+            .await?;
+        process_execution_final_result(result)
     }
 
     #[instrument(skip(self))]
@@ -407,4 +387,25 @@ impl NearClient {
         let res = res.json()?;
         Ok(res)
     }
+}
+
+fn process_execution_final_result(result: ExecutionFinalResult) -> anyhow::Result<Vec<Event>> {
+    if !result.is_success() && !result.is_failure() {
+        tracing::error!(
+            "debugging: Result is not success and not failure. {:?}",
+            result
+        );
+        bail!("Execution is not final: {:?}", result);
+    }
+
+    if !result.is_success() {
+        bail!("Execution failure: {:?}", result);
+    }
+
+    let events = result
+        .logs()
+        .into_iter()
+        .flat_map(|l| serde_json::from_str::<Event>(l).ok())
+        .collect();
+    Ok(events)
 }

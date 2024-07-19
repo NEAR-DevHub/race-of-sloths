@@ -1,4 +1,5 @@
 use shared::github::User;
+use update::BotUpdated;
 
 use crate::messages::MsgCategory;
 
@@ -9,6 +10,7 @@ pub mod pause;
 pub mod score;
 pub mod start;
 pub mod unknown;
+pub mod update;
 
 use self::api::CommentRepr;
 pub use self::{exclude::*, pause::*, score::*, start::*, unknown::*};
@@ -21,6 +23,7 @@ pub enum Command {
     Unpause(BotUnpaused),
     Excluded(BotExcluded),
     Unknown(UnknownCommand),
+    Update(BotUpdated),
 }
 
 impl Command {
@@ -37,6 +40,7 @@ impl Command {
             "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment),
             "exclude" | "leave" => BotExcluded::construct(comment),
             "include" | "in" | "start" | "join" => BotIncluded::construct(comment),
+            "update" => BotUpdated::construct(comment),
             _ if command.chars().all(char::is_numeric) && !command.is_empty() => {
                 BotScored::construct(comment, command)
             }
@@ -62,6 +66,7 @@ impl Command {
             Command::Unpause(event) => &event.timestamp,
             Command::Excluded(event) => &event.timestamp,
             Command::Unknown(event) => &event.timestamp,
+            Command::Update(event) => &event.timestamp,
         }
     }
 
@@ -150,6 +155,7 @@ impl Command {
             Command::Unpause(event) => event.execute(pr, context, check_info, sender).await,
             Command::Excluded(event) => event.execute(pr, context, check_info).await,
             Command::Unknown(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Update(event) => event.execute(pr, context, check_info, sender).await,
         }
     }
 }
@@ -163,6 +169,7 @@ impl std::fmt::Display for Command {
             Command::Unpause(_) => write!(f, "Unpause"),
             Command::Excluded(_) => write!(f, "Excluded"),
             Command::Unknown(_) => write!(f, "Unknown"),
+            Command::Update(_) => write!(f, "Update"),
         }
     }
 }
