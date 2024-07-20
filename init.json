@@ -1,109 +1,107 @@
 {
-    "sloth": "race-of-sloths.near",
-    "allowed_repos": [
-        {
-            "organization": "near",
-            "repos": [
-                "nearcore",
-                "fast-auth-signer",
-                "near-sdk-rs",
-                "cargo-near",
-                "wallet-selector",
-                "near-public-lakehouse",
-                "mpc",
-                "near-api-js",
-                "cargo-near-new-project-template",
-                "docs",
-                "NEPs",
-                "near-jsonrpc-client-rs",
-                "near-sandbox",
-                "queryapi",
-                "near-cli-rs",
-                "near-fastauth-wallet",
-                "near-lake-indexer",
-                "near-workspaces-rs",
-                "near-workspaces-js",
-                "near-lake-framework-rs",
-                "near-lake-framework-js",
-                "chainsig-lib",
-                "node-docs",
-                "read-rpc",
-                "near-sdk-js",
-                "borsh-rs",
-                "borsh-js",
-                "pagoda-relayer-rs",
-                "multichain-gas-station-contract",
-                "near-sdk-js-template-project",
-                "create-near-app",
-                "near-sdk-contract-tools"
-            ]
-        },
-        {
-            "organization": "NEAR-DevHub",
-            "repos": [
-                "neardevhub-contract",
-                "neardevhub-bos",
-                "race-of-sloths",
-                "neardevhub-treasury-dashboard",
-                "race-of-sloths-website"
-            ]
-        },
-        {
-            "organization": "bos-cli-rs",
-            "repos": [
-                "near-socialdb-client-rs",
-                "bos-cli-rs"
-            ]
-        },
-        {
-            "organization": "NearSocial",
-            "repos": [
-                "viewer",
-                "VM",
-                "social-db"
-            ]
-        },
-        {
-            "organization": "near-examples",
-            "repos": [
-                "hello-near-examples",
-                "counters",
-                "donation-examples",
-                "guest-book-examples",
-                "cross-contract-calls",
-                "coin-flip-examples",
-                "near-multichain"
-            ]
-        },
-        {
-            "organization": "aurora-is-near",
-            "repos": [
-                "doc.aurora.dev",
-                "aurora-cli-rs",
-                "borealis-engine-lib",
-                "aurora-engine",
-                "sputnikvm",
-                "btc-light-client-contract",
-                "rainbow-bridge-client"
-            ]
-        },
-        {
-            "organization": "fastnear",
-            "repos": [
-                "libs",
-                "neardata-server",
-                "fast-near",
-                "fastnear-api-server-rs"
-            ]
-        },
-        {
-            "organization": "nearbuilders",
-            "repos": [
-                "bos-workspace",
-                "near-bos-webcomponent",
-                "gateway",
-                "near-social-js"
-            ]
-        }
-    ]
+  "sloth": "race-of-sloths.near",
+  "allowed_repos": [
+    {
+      "organization": "near",
+      "repos": [
+        "nearcore",
+        "fast-auth-signer",
+        "near-sdk-rs",
+        "cargo-near",
+        "wallet-selector",
+        "near-public-lakehouse",
+        "mpc",
+        "near-api-js",
+        "cargo-near-new-project-template",
+        "docs",
+        "NEPs",
+        "near-jsonrpc-client-rs",
+        "near-sandbox",
+        "queryapi",
+        "near-cli-rs",
+        "near-fastauth-wallet",
+        "near-lake-indexer",
+        "near-workspaces-rs",
+        "near-workspaces-js",
+        "near-lake-framework-rs",
+        "near-lake-framework-js",
+        "chainsig-lib",
+        "node-docs",
+        "read-rpc",
+        "near-sdk-js",
+        "borsh-rs",
+        "borsh-js",
+        "pagoda-relayer-rs",
+        "multichain-gas-station-contract",
+        "near-sdk-js-template-project",
+        "create-near-app",
+        "near-sdk-contract-tools"
+      ]
+    },
+    {
+      "organization": "NEAR-DevHub",
+      "repos": [
+        "neardevhub-contract",
+        "neardevhub-bos",
+        "race-of-sloths",
+        "neardevhub-treasury-dashboard",
+        "race-of-sloths-website"
+      ]
+    },
+    {
+      "organization": "bos-cli-rs",
+      "repos": ["near-socialdb-client-rs", "bos-cli-rs"]
+    },
+    {
+      "organization": "NearSocial",
+      "repos": ["viewer", "VM", "social-db"]
+    },
+    {
+      "organization": "near-examples",
+      "repos": [
+        "hello-near-examples",
+        "counters",
+        "donation-examples",
+        "guest-book-examples",
+        "cross-contract-calls",
+        "coin-flip-examples",
+        "near-multichain"
+      ]
+    },
+    {
+      "organization": "aurora-is-near",
+      "repos": [
+        "doc.aurora.dev",
+        "aurora-cli-rs",
+        "borealis-engine-lib",
+        "aurora-engine",
+        "sputnikvm",
+        "btc-light-client-contract",
+        "rainbow-bridge-client"
+      ]
+    },
+    {
+      "organization": "fastnear",
+      "repos": [
+        "libs",
+        "neardata-server",
+        "fast-near",
+        "fastnear-api-server-rs",
+        "small-proxy-contract"
+      ]
+    },
+    {
+      "organization": "NEARBuilders",
+      "repos": [
+        "bos-workspace",
+        "near-bos-webcomponent",
+        "gateway",
+        "near-social-js"
+      ]
+    },
+    {
+      "organization": "mynearwallet",
+      "repos": ["my-near-wallet"]
+    }
+  ]
 }
