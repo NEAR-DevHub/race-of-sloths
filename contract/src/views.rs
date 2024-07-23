@@ -115,6 +115,17 @@ impl Contract {
             .collect()
     }
 
+    pub fn users_by_name(
+        &self,
+        users: Vec<GithubHandle>,
+        periods: Vec<TimePeriodString>,
+    ) -> Vec<User> {
+        users
+            .into_iter()
+            .filter_map(|user| self.user(&user, periods.clone()))
+            .collect()
+    }
+
     // TODO: remove this method after we would have enough data in the PRs
     pub fn repos(&self) -> Vec<AllowedRepos> {
         let mut repos = HashMap::new();
