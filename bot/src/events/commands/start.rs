@@ -1,3 +1,4 @@
+use chrono::Duration;
 use tracing::{debug, instrument};
 
 use crate::messages::MsgCategory;
@@ -36,18 +37,24 @@ impl BotIncluded {
             return Ok(EventResult::success(true));
         }
 
-        if pr.merged.is_some() || pr.closed {
-            debug!("PR {} is already merged. Skipping", pr.full_id,);
-            context
-                .reply_with_error(
-                    pr,
-                    self.user_comment_id,
-                    MsgCategory::ErrorLateIncludeMessage,
-                    vec![],
-                )
-                .await?;
-            return Ok(EventResult::RepliedWithError);
-        }
+        let timestamp = match (pr.merged, pr.closed) {
+            (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(1) => {
+                merged_at
+            }
+            (_, false) => self.timestamp,
+            _ => {
+                debug!("PR {} is already merged. Skipping", pr.full_id,);
+                context
+                    .reply_with_error(
+                        pr,
+                        self.user_comment_id,
+                        MsgCategory::ErrorLateIncludeMessage,
+                        vec![],
+                    )
+                    .await?;
+                return Ok(EventResult::RepliedWithError);
+            }
+        };
 
         if info.excluded && !sender.is_maintainer() {
             debug!(
@@ -68,7 +75,7 @@ impl BotIncluded {
         debug!("Starting PR {}", pr.full_id);
         context
             .near
-            .send_start(pr, self.timestamp, sender.is_maintainer())
+            .send_start(pr, timestamp, sender.is_maintainer())
             .await?;
         info.exist = true;
         info.excluded = false;
