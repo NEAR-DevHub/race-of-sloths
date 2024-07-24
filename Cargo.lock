@@ -4834,6 +4834,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "race-of-sloths-contest"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "rand",
+ "rand_chacha",
+ "shared",
+ "tokio",
+]
+
+[[package]]
 name = "race-of-sloths-server"
 version = "0.1.0"
 dependencies = [
