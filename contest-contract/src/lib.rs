@@ -22,7 +22,6 @@ impl Contract {
         Self { account }
     }
 
-    #[private]
     pub fn contest_results(
         &mut self,
         participants: Vec<GithubHandle>,
