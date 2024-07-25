@@ -269,7 +269,13 @@ impl MessageLoader {
                 id: 0,
                 name: pr.author.login.clone(),
                 percentage_bonus: 0,
-                period_data: vec![],
+                period_data: vec![(
+                    "all-time".to_string(),
+                    shared::UserPeriodData {
+                        prs_opened: 1,
+                        ..Default::default()
+                    },
+                )],
                 streaks: vec![],
             }
         };
@@ -364,35 +370,33 @@ impl MessageLoader {
             .unwrap_or_default();
 
         let all_time_period = TimePeriod::AllTime.time_string(timestamp);
-        let all_time_statistics = user
-            .get_period(&all_time_period)
-            .cloned()
-            .unwrap_or_default();
+        let all_time_statistics = user.get_period(&all_time_period);
 
         let weekly_period = TimePeriod::Week.time_string(timestamp);
         let weekly_statistics = user.get_period(&weekly_period).cloned().unwrap_or_default();
 
-        let message_type = if all_time_statistics.prs_opened <= 1 {
-            MsgCategory::FirstTimeContribution
-        } else if monthly_statistics.prs_opened == 1 {
-            MsgCategory::FirstMonthContribution
-        } else if weekly_statistics.prs_opened == 1 {
-            MsgCategory::FirstWeekContribution
-        } else if monthly_statistics.prs_opened == 3 {
-            MsgCategory::Contribution3
-        } else if monthly_statistics.prs_opened == 4 {
-            MsgCategory::Contribution4
-        } else if monthly_statistics.prs_opened == 5 {
-            MsgCategory::Contribution5
-        } else if monthly_statistics.prs_opened == 6 {
-            MsgCategory::Contribution6
-        } else if monthly_statistics.prs_opened == 7 {
-            MsgCategory::Contribution7
-        } else if monthly_statistics.prs_opened == 8 {
-            MsgCategory::Contribution8
-        } else {
-            return String::new();
-        };
+        let message_type =
+            if all_time_statistics.is_none() || all_time_statistics.unwrap().prs_opened == 1 {
+                MsgCategory::FirstTimeContribution
+            } else if monthly_statistics.prs_opened == 1 {
+                MsgCategory::FirstMonthContribution
+            } else if weekly_statistics.prs_opened == 1 {
+                MsgCategory::FirstWeekContribution
+            } else if monthly_statistics.prs_opened == 3 {
+                MsgCategory::Contribution3
+            } else if monthly_statistics.prs_opened == 4 {
+                MsgCategory::Contribution4
+            } else if monthly_statistics.prs_opened == 5 {
+                MsgCategory::Contribution5
+            } else if monthly_statistics.prs_opened == 6 {
+                MsgCategory::Contribution6
+            } else if monthly_statistics.prs_opened == 7 {
+                MsgCategory::Contribution7
+            } else if monthly_statistics.prs_opened == 8 {
+                MsgCategory::Contribution8
+            } else {
+                return String::new();
+            };
 
         match self.get_message(message_type).format(
             [("pr_author_username".to_string(), user.name.clone())]
