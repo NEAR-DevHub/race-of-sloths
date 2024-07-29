@@ -117,25 +117,25 @@ This pull request is a part of the Race of Sloths and has not been scored yet. S
 variables = ["rating", "score"]
 message = ["""### ✅ PR is finalized! 
 Your contribution is much appreciated with a final score of {score}!
-You have received {rating} Sloth points for this contribution
+You have received {rating} Sloth points for this contribution! Check out your position in the [Leaderboard]({leaderboard_link})!
 """]
 
 [final_messages_weekly_streak]
 variables = ["pr_author_username"]
 message = [
-    "Another weekly streak completed, well done @{pr_author_username}! To keep your weekly streak and get another bonus make pull request next week! Looking forward to see you in race-of-sloths",
+    "Another weekly streak completed, well done @{pr_author_username}! To keep your weekly streak and get another bonus make pull request next week! Look at [Leaderboard]({leaderboard_link})!",
 ]
 
 [final_messages_monthly_streak]
 variables = ["pr_author_username"]
 message = [
-    "Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! To keep your monthly streak make another pull request next month and get 8+ score for it",
+    "Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! To keep your monthly streak make another pull request next month and get 8+ score for it! Engoy your position in the [Leaderboard]({leaderboard_link})!",
 ]
 
 [final_messages_first_lifetime_bonus]
 variables = ["pr_author_username"]
 message = [
-    "@{pr_author_username}, welcome to the Hall of Sloth fame! You have been honored with a Bronze rank and a 5% lifetime bonus to all rating points you earn with your next contributions!",
+    "@{pr_author_username}, welcome to the Hall of Sloth fame! You have been honored with a Bronze rank and a 5% lifetime bonus to all rating points you earn with your next contributions! Enjoy your new status [Profile]({link}/profile/{pr_author_username})!",
 ]
 
 [final_messages_lifetime_bonus]
@@ -146,7 +146,7 @@ variables = [
     "rank_name",
 ]
 message = [
-    "Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +{lifetime_reward}% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%!",
+    "Congratulations @{pr_author_username}! You have achieved a {rank_name} rank in the Hall of Sloth fame! We add another +{lifetime_reward}% lifetime bonus to all rating points you earn with your next contributions with your total bonus being now {total_lifetime_percent}%! Enjoy your updated status [Profile]({link}/profile/{pr_author_username})!",
 ]
 
 [final_messages_feedback_form]
