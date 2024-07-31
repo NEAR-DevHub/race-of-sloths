@@ -129,3 +129,21 @@ pub struct UserCachedMetadata {
     pub image_base64: String,
     pub load_time: chrono::NaiveDateTime,
 }
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct Statistics {
+    pub number_of_sloths: Option<i64>,
+    pub number_of_repos: Option<i64>,
+    pub number_of_orgs: Option<i64>,
+    pub number_of_contributions: Option<i64>,
+    pub total_rating: Option<i64>,
+    pub highest_sloth_login: GithubHandle,
+    pub highest_sloth_full_name: Option<String>,
+    pub highest_sloth_rating: Option<i32>,
+    pub fastest_repo_name: String,
+    pub fastest_org_full_name: Option<String>,
+    pub fastest_org_login: String,
+    pub fastest_pr_number: Option<i32>,
+    pub fastest_included: Option<chrono::NaiveDateTime>,
+    pub fastest_merged: Option<chrono::NaiveDateTime>,
+}

@@ -12,7 +12,7 @@ pub struct DB(PgPool);
 
 pub mod types;
 
-use types::LeaderboardRecord;
+use types::{LeaderboardRecord, Statistics};
 
 use self::types::{
     RepoLeaderboardRecord, RepoRecord, StreakRecord, User, UserCachedMetadata,
@@ -347,7 +347,7 @@ impl DB {
         place_strings: &[String],
     ) -> anyhow::Result<Option<UserRecord>> {
         let (user_rec, full_name, percent) = match sqlx::query!(
-            "SELECT id, full_name, permanent_bonus FROM users 
+            "SELECT id, full_name, permanent_bonus FROM users
             WHERE login = $1",
             login
         )
@@ -362,7 +362,7 @@ impl DB {
             UserPeriodRecord,
             r#"
                 SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged, total_rating
-                FROM user_period_data 
+                FROM user_period_data
                 WHERE user_id = $1
                 "#,
             user_rec,
@@ -435,7 +435,7 @@ impl DB {
         // TODO: Replace this with a single query
         let total_count = sqlx::query!(
             r#"SELECT COUNT(DISTINCT(user_id)) as id
-            FROM user_period_data 
+            FROM user_period_data
             WHERE period_type = $1
             "#,
             period
@@ -698,6 +698,14 @@ impl DB {
         }
 
         Ok(())
+    }
+
+    pub async fn statistics(&self) -> anyhow::Result<Statistics> {
+        let rec = sqlx::query_file_as!(Statistics, "./sql/get_statistics.sql")
+            .fetch_one(&self.0)
+            .await?;
+
+        Ok(rec)
     }
 }
 

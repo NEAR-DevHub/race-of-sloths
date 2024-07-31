@@ -3,6 +3,7 @@ use utoipa::OpenApi;
 
 pub mod aliases;
 pub mod leaderboards;
+pub mod statistics;
 pub mod types;
 pub mod user;
 
@@ -18,6 +19,7 @@ pub mod user;
         user::get_user,
         user::get_user_contributions,
         user::get_badge,
+        statistics::get_statistics
     ),
     components(schemas(
         types::PaginatedResponse<types::LeaderboardResponse>,
@@ -32,6 +34,7 @@ pub mod user;
         types::UserProfile,
         types::GithubMeta,
         types::Streak,
+        types::Statistics
     )),
     tags(
         (name = "Race of Sloths", description = "Race of Sloths endpoints.")
@@ -45,5 +48,6 @@ pub fn stage(font: String) -> AdHoc {
             .attach(user::stage(font))
             .attach(leaderboards::stage())
             .attach(aliases::stage())
+            .attach(statistics::stage())
     })
 }

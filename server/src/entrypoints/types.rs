@@ -277,3 +277,44 @@ impl From<UserContributionRecord> for UserContributionResponse {
         }
     }
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct Statistics {
+    pub number_of_slots: u32,
+    pub number_of_repos: u32,
+    pub number_of_orgs: u32,
+    pub number_of_contributions: u32,
+    pub total_rating: u32,
+    pub highest_sloth_rating: (GithubMeta, u32),
+    pub shortest_merge_time: (String, String),
+}
+
+impl From<crate::db::types::Statistics> for Statistics {
+    fn from(value: crate::db::types::Statistics) -> Self {
+        dbg!(&value);
+        let duration = value
+            .fastest_merged
+            .map(|x| x - value.fastest_included.unwrap_or_default())
+            .unwrap_or_default();
+        Self {
+            number_of_slots: value.number_of_sloths.unwrap_or_default() as u32,
+            number_of_repos: value.number_of_repos.unwrap_or_default() as u32,
+            number_of_orgs: value.number_of_orgs.unwrap_or_default() as u32,
+            number_of_contributions: value.number_of_contributions.unwrap_or_default() as u32,
+            total_rating: value.total_rating.unwrap_or_default() as u32,
+            highest_sloth_rating: (
+                GithubMeta::new(value.highest_sloth_login, value.highest_sloth_full_name),
+                value.highest_sloth_rating.unwrap_or_default() as u32,
+            ),
+            shortest_merge_time: (
+                format!(
+                    "https://github.com/{}/{}/pull/{}",
+                    value.fastest_org_login,
+                    value.fastest_repo_name,
+                    value.fastest_pr_number.unwrap_or_default()
+                ),
+                duration.to_string(),
+            ),
+        }
+    }
+}
