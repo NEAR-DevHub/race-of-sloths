@@ -130,7 +130,7 @@ message = [
 [final_messages_monthly_streak]
 variables = ["pr_author_username"]
 message = [
-    "Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! To keep your monthly streak make another pull request next month and get 8+ score for it! Engoy your position in the [Leaderboard]({leaderboard_link})!",
+    "Congratulations @{pr_author_username}! Your PR was highly scored and you completed another monthly streak! To keep your monthly streak make another pull request next month and get 8+ score for it! Enjoy your position in the [Leaderboard]({leaderboard_link})!",
 ]
 
 [final_messages_first_lifetime_bonus]
