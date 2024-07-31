@@ -280,7 +280,7 @@ impl From<UserContributionRecord> for UserContributionResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct Statistics {
-    pub number_of_slots: u32,
+    pub number_of_sloths: u32,
     pub number_of_repos: u32,
     pub number_of_orgs: u32,
     pub number_of_contributions: u32,
@@ -297,7 +297,7 @@ impl From<crate::db::types::Statistics> for Statistics {
             .map(|x| x - value.fastest_included.unwrap_or_default())
             .unwrap_or_default();
         Self {
-            number_of_slots: value.number_of_sloths.unwrap_or_default() as u32,
+            number_of_sloths: value.number_of_sloths.unwrap_or_default() as u32,
             number_of_repos: value.number_of_repos.unwrap_or_default() as u32,
             number_of_orgs: value.number_of_orgs.unwrap_or_default() as u32,
             number_of_contributions: value.number_of_contributions.unwrap_or_default() as u32,
