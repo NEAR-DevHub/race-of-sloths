@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(DISTINCT(user_id)) as id\n            FROM user_period_data \n            WHERE period_type = $1\n            ",
+  "query": "SELECT COUNT(DISTINCT(user_id)) as id\n            FROM user_period_data\n            WHERE period_type = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "11c742b3ce7ea8cfc05f8d3bb0b711fc7282d48b00a9f7c5a977aa62c505c91e"
+  "hash": "9845a6cba40f40d0da220b3e6e8f02c7aecfb3d16844dea24a998a3a33bf83a8"
 }

@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH sloth_stats AS (\n    SELECT\n        (\n            SELECT\n                COUNT(*)\n            FROM\n                users\n        ) AS number_of_sloths,\n        (\n            SELECT\n                COUNT(*)\n            FROM\n                organizations\n        ) AS number_of_orgs,\n        (\n            SELECT\n                COUNT(*)\n            FROM\n                repos\n        ) AS number_of_repos,\n        (\n            SELECT\n                COUNT(*)\n            FROM\n                pull_requests\n        ) AS number_of_contributions,\n        (\n            SELECT\n                SUM(total_rating)\n            FROM\n                user_period_data upd\n            WHERE\n                period_type = 'all-time'\n        ) AS total_rating\n),\nhighest_rating AS (\n    SELECT\n        upd.total_rating AS highest_sloth_rating,\n        u.login,\n        u.full_name\n    FROM\n        user_period_data upd\n        JOIN users u ON u.id = upd.user_id\n    WHERE\n        period_type = 'all-time'\n    ORDER BY\n        total_rating DESC\n    LIMIT\n        1\n), fastest_merge AS (\n    SELECT\n        r.name,\n        o.login,\n        o.full_name,\n        pr.created_at,\n        pr.merged_at,\n        pr.number\n    FROM\n        pull_requests pr\n        JOIN repos r ON pr.repo_id = r.id\n        JOIN organizations o ON o.id = r.organization_id\n    ORDER BY\n        pr.merged_at - pr.created_at ASC\n    LIMIT\n        1\n)\nSELECT\n    ss.number_of_sloths,\n    ss.number_of_orgs,\n    ss.number_of_repos,\n    ss.number_of_contributions,\n    ss.total_rating,\n    hr.highest_sloth_rating,\n    hr.login AS highest_sloth_login,\n    hr.full_name AS highest_sloth_full_name,\n    fm.name AS fastest_repo_name,\n    fm.login AS fastest_org_login,\n    fm.full_name AS fastest_org_full_name,\n    fm.created_at as fastest_included,\n    fm.merged_at as fastest_merged,\n    fm.number AS fastest_pr_number\nFROM\n    sloth_stats ss,\n    highest_rating hr,\n    fastest_merge fm;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "number_of_sloths",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "number_of_orgs",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "number_of_repos",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "number_of_contributions",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_rating",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "highest_sloth_rating",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "highest_sloth_login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "highest_sloth_full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "fastest_repo_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "fastest_org_login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "fastest_org_full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "fastest_included",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 12,
+        "name": "fastest_merged",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 13,
+        "name": "fastest_pr_number",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8ee4104fd4da0df005bba732952d9b4232dc0d96022f5ecc7557cbd4e9c1a011"
+}
