@@ -6,7 +6,7 @@ use tracing::{info, instrument, Level};
 
 use crate::{
     api::{self, CommentRepr},
-    messages::MessageLoader,
+    messages::{FinalMessageData, MessageLoader},
 };
 
 use shared::{
@@ -59,6 +59,7 @@ impl Context {
         pr: &PrMetadata,
         mut comment: Option<CommentRepr>,
         info: PRInfo,
+        final_data: Option<FinalMessageData>,
     ) {
         if comment.is_none() {
             comment = self
@@ -71,11 +72,13 @@ impl Context {
 
         let result = match comment {
             Some(comment) => {
-                let msg = if let Some(msg) = self.try_update_message(comment.text, &info, pr) {
+                let msg = if let Some(msg) =
+                    self.try_update_message(comment.text, &info, pr, final_data.clone())
+                {
                     msg
                 } else {
                     // Couldn't update the message, it probabl means we try to overwrite some other message (as example, that repo is paused)
-                    match self.new_status_message(pr, &info).await {
+                    match self.new_status_message(pr, &info, final_data).await {
                         Ok(msg) => msg,
                         Err(e) => {
                             tracing::error!(
@@ -93,7 +96,7 @@ impl Context {
             }
             None => {
                 // No comment found, create a new one
-                match self.new_status_message(pr, &info).await {
+                match self.new_status_message(pr, &info, final_data).await {
                     Ok(msg) => self
                         .github
                         .reply(&pr.owner, &pr.repo, pr.number, &msg)
@@ -112,7 +115,12 @@ impl Context {
         }
     }
 
-    async fn new_status_message(&self, pr: &PrMetadata, info: &PRInfo) -> anyhow::Result<String> {
+    async fn new_status_message(
+        &self,
+        pr: &PrMetadata,
+        info: &PRInfo,
+        final_data: Option<FinalMessageData>,
+    ) -> anyhow::Result<String> {
         let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default() as u64;
         let user = self
             .near
@@ -128,13 +136,23 @@ impl Context {
 
         Ok(self
             .messages
-            .include_message_text(&self.github.user_handle, info, pr, user))
+            .include_message_text(&self.github.user_handle, info, pr, user, final_data))
     }
 
-    fn try_update_message(&self, text: String, info: &PRInfo, pr: &PrMetadata) -> Option<String> {
+    fn try_update_message(
+        &self,
+        text: String,
+        info: &PRInfo,
+        pr: &PrMetadata,
+        final_data: Option<FinalMessageData>,
+    ) -> Option<String> {
         let status = self
             .messages
-            .status_message(&self.github.user_handle, info, pr);
+            .status_message(&self.github.user_handle, info, pr, final_data)
+            .unwrap_or_else(|err| {
+                tracing::error!("Failed to get status message for {}: {err}", pr.full_id);
+                String::default()
+            });
 
         self.messages.update_pr_status_message(text, status)
     }

@@ -181,20 +181,19 @@ impl VersionedUserPeriodData {
         *self = VersionedUserPeriodData::V1(data);
     }
 
-    pub fn pr_executed_with_score(&mut self, score: u32) {
+    pub fn pr_scored(&mut self, old_score: u32, new_score: u32) {
         let mut data: UserPeriodData = self.clone().into();
-        data.executed_prs += 1;
-        data.total_score += score;
-        if score > data.largest_score {
-            data.largest_score = score;
+        data.total_score += new_score;
+        data.total_score -= old_score;
+
+        let rating = new_score * 10;
+        data.total_rating += rating;
+        data.total_rating -= old_score * 10;
+
+        if new_score > data.largest_score {
+            data.largest_score = new_score;
         }
 
-        *self = VersionedUserPeriodData::V1(data);
-    }
-
-    pub fn pr_final_rating(&mut self, rating: u32) {
-        let mut data: UserPeriodData = self.clone().into();
-        data.total_rating += rating;
         if rating > data.largest_rating_per_pr {
             data.largest_rating_per_pr = rating;
         }
@@ -202,9 +201,30 @@ impl VersionedUserPeriodData {
         *self = VersionedUserPeriodData::V1(data);
     }
 
-    pub fn pr_closed(&mut self) {
+    pub fn pr_executed(&mut self) {
+        let mut data: UserPeriodData = self.clone().into();
+        data.executed_prs += 1;
+
+        *self = VersionedUserPeriodData::V1(data);
+    }
+
+    pub fn pr_bonus_rating(&mut self, total_rating: u32, old_rating: u32) {
+        let mut data: UserPeriodData = self.clone().into();
+        data.total_rating += total_rating;
+        data.total_rating -= old_rating;
+
+        if total_rating > data.largest_rating_per_pr {
+            data.largest_rating_per_pr = total_rating;
+        }
+
+        *self = VersionedUserPeriodData::V1(data);
+    }
+
+    pub fn pr_closed(&mut self, score: u32) {
         let mut data: UserPeriodData = self.clone().into();
         data.prs_opened -= 1;
+        data.total_score -= score;
+        data.total_rating -= score * 10;
         *self = VersionedUserPeriodData::V1(data);
     }
 }

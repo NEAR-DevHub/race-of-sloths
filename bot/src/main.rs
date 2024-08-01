@@ -235,7 +235,7 @@ async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
     );
 
     context
-        .status_message(pr, event.comment.clone(), check_info)
+        .status_message(pr, event.comment.clone(), check_info, None)
         .await;
 }
 

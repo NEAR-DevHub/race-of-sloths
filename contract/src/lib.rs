@@ -186,7 +186,7 @@ impl Contract {
         let timestamp = env::block_timestamp();
         let pr = PRv2::new(organization, repo, pr_number, user, timestamp, created_at);
 
-        self.apply_to_periods(timestamp, user_id, |data| data.pr_opened());
+        self.apply_to_periods(pr.included_at, user_id, |data| data.pr_opened());
         self.prs.insert(pr_id, VersionedPR::V2(pr));
     }
 
@@ -197,8 +197,15 @@ impl Contract {
             Some(x) => x.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
-
+        let (user_id, _) = self.get_or_create_account(&pr.author);
+        let old_score = pr.score().unwrap_or_default();
         pr.add_score(user, score);
+        let new_score = pr.score().unwrap();
+
+        self.apply_to_periods(pr.included_at, user_id, |data| {
+            data.pr_scored(old_score, new_score);
+        });
+
         self.prs.insert(pr_id.clone(), VersionedPR::V2(pr));
     }
 
@@ -228,7 +235,7 @@ impl Contract {
         let (user_id, _) = self.get_or_create_account(&pr.author);
 
         self.apply_to_periods(pr.included_at, user_id, |data| {
-            data.pr_closed();
+            data.pr_closed(pr.score().unwrap_or_default());
         });
 
         self.prs.remove(&pr_id);
@@ -302,7 +309,9 @@ impl Contract {
         };
         require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
         let (user_id, _) = self.get_or_create_account(&pr.author);
-        self.apply_to_periods(pr.included_at, user_id, |data| data.pr_closed());
+        self.apply_to_periods(pr.included_at, user_id, |data| {
+            data.pr_closed(pr.score().unwrap_or_default())
+        });
         self.prs.remove(&pr_id);
     }
 
@@ -327,16 +336,21 @@ impl Contract {
 
         let (user_id, _) = self.get_or_create_account(&pr.author);
 
-        if pr.score().is_none() {
+        let autoscore = if pr.score().is_none() {
             let (is_active, autoscore_user) = active_pr.unwrap_or_default();
             let autoscore = if is_active { 2 } else { 1 };
             pr.add_score(autoscore_user, autoscore);
             events::log_event(Event::Autoscored { score: autoscore });
-        }
-        let score = pr.score().unwrap_or_default();
+            Some(autoscore)
+        } else {
+            None
+        };
 
-        self.apply_to_periods(pr.merged_at.unwrap(), user_id, |data| {
-            data.pr_executed_with_score(score)
+        self.apply_to_periods(pr.included_at, user_id, |data| {
+            if let Some(autoscore) = autoscore {
+                data.pr_scored(0, autoscore);
+            }
+            data.pr_executed()
         });
 
         let (user_id, mut user) = self.get_or_create_account(&pr.author);
@@ -372,7 +386,7 @@ impl Contract {
         pr.streak_bonus_rating = bonus_points;
         pr.percentage_multiplier = user.lifetime_percentage_bonus();
 
-        let rating = pr.rating();
+        let total_rating = pr.rating();
         let pr_number_this_week = self
             .sloths_per_period
             .get(&(user_id, TimePeriod::Week.time_string(timestamp)))
@@ -382,15 +396,16 @@ impl Contract {
             })
             .unwrap_or_default();
         events::log_event(Event::ExecutedWithRating {
-            rating,
+            rating: total_rating,
             applied_multiplier: pr.percentage_multiplier,
             pr_number_this_week,
         });
 
-        self.users[user_id] = VersionedAccount::V1(user);
-        self.apply_to_periods(pr.merged_at.unwrap(), user_id, |data| {
-            data.pr_final_rating(rating)
+        self.apply_to_periods(pr.included_at, user_id, |data| {
+            data.pr_bonus_rating(total_rating, pr.score().unwrap_or_default() * 10)
         });
+
+        self.users[user_id] = VersionedAccount::V1(user);
 
         self.prs.remove(&full_id);
         self.executed_prs.insert(full_id, VersionedPR::V2(pr));

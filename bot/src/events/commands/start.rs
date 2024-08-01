@@ -82,7 +82,7 @@ impl BotIncluded {
                 .await?;
         }
 
-        context.status_message(pr, None, info.clone()).await;
+        context.status_message(pr, None, info.clone(), None).await;
 
         Ok(EventResult::success(false))
     }

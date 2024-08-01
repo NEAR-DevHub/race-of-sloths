@@ -92,26 +92,25 @@ impl BotScored {
             });
         }
 
-        let (category, args) = match (number, edited) {
-            (num, true) => (
-                MsgCategory::CorrectableScoringMessage,
-                vec![
-                    ("reviewer", sender.login.clone()),
-                    ("corrected_score", num.to_string()),
-                    ("score", self.score.clone()),
-                ],
-            ),
-            (0, _) => (
-                MsgCategory::CorrectZeroScoringMessage,
-                vec![("pr_author_username", pr.author.login.clone())],
-            ),
-            (_, _) => (
-                MsgCategory::CorrectNonzeroScoringMessage,
-                vec![("reviewer", sender.login.clone())],
-            ),
-        };
-
-        context.reply(pr, self.comment_id, category, args).await?;
+        if edited {
+            context
+                .reply(
+                    pr,
+                    self.comment_id,
+                    MsgCategory::CorrectableScoringMessage,
+                    vec![
+                        ("reviewer", sender.login.clone()),
+                        ("corrected_score", number.to_string()),
+                        ("score", self.score.clone()),
+                    ],
+                )
+                .await?;
+        } else if let Some(comment) = self.comment_id {
+            context
+                .github
+                .like_comment(&pr.owner, &pr.repo, comment)
+                .await?;
+        }
 
         Ok(EventResult::success(true))
     }

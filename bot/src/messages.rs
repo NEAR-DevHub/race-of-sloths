@@ -13,15 +13,13 @@ use tracing::error;
 pub enum MsgCategory {
     IncludeBasicMessage,
     IncludeCommonMessage,
-    CorrectNonzeroScoringMessage,
-    CorrectZeroScoringMessage,
     CorrectableScoringMessage,
     ExcludeMessages,
     PauseMessage,
     UnpauseMessage,
     MergeWithoutScoreMessageByOtherParty,
     MergeWithoutScoreMessageByAuthorWithoutReviewers,
-    FinalMessageCommon,
+    RatingMessagesCommon,
     FinalMessagesWeeklyStreak,
     FinalMessagesMonthlyStreak,
     FinalMessagesFirstLifetimeBonus,
@@ -105,15 +103,13 @@ pub struct MessageLoader {
     // Messages
     pub include_basic_messages: Messages,
     pub include_common_messages: Messages,
-    pub correct_nonzero_scoring_messages: Messages,
-    pub correct_zero_scoring_messages: Messages,
     pub correctable_scoring_messages: Messages,
     pub exclude_messages: Messages,
     pub pause_messages: Messages,
     pub unpause_messages: Messages,
     pub merge_without_score_by_other_party: Messages,
     pub merge_without_score_by_author_without_reviewers: Messages,
-    pub final_messages_common: Messages,
+    pub rating_messages_common: Messages,
     pub final_messages_weekly_streak: Messages,
     pub final_messages_monthly_streak: Messages,
     pub final_messages_first_lifetime_bonus: Messages,
@@ -144,6 +140,27 @@ pub struct MessageLoader {
     pub contribution_8: Messages,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct FinalMessageData {
+    pub username: String,
+    pub total_rating: u32,
+    pub score: u32,
+    pub weekly_streak_bonus: u32,
+    pub monthly_streak_bonus: u32,
+    pub lifetime_percent_reward: u32,
+    pub total_lifetime_percent: u32,
+    pub pr_number_this_week: u32,
+}
+
+impl FinalMessageData {
+    pub fn from_name(username: &str) -> Self {
+        Self {
+            username: username.to_string(),
+            ..Default::default()
+        }
+    }
+}
+
 impl MessageLoader {
     pub fn load_from_file(file_path: &PathBuf, bot_name: &str) -> anyhow::Result<Self> {
         let file_content = fs::read_to_string(file_path)?;
@@ -167,15 +184,13 @@ impl MessageLoader {
         let array_of_messages = vec![
             &mut self.include_basic_messages,
             &mut self.include_common_messages,
-            &mut self.correct_nonzero_scoring_messages,
-            &mut self.correct_zero_scoring_messages,
             &mut self.correctable_scoring_messages,
             &mut self.exclude_messages,
             &mut self.pause_messages,
             &mut self.unpause_messages,
             &mut self.merge_without_score_by_other_party,
             &mut self.merge_without_score_by_author_without_reviewers,
-            &mut self.final_messages_common,
+            &mut self.rating_messages_common,
             &mut self.final_messages_first_lifetime_bonus,
             &mut self.final_messages_lifetime_bonus,
             &mut self.final_messages_monthly_streak,
@@ -210,8 +225,6 @@ impl MessageLoader {
         let elem = match category {
             MsgCategory::IncludeBasicMessage => &self.include_basic_messages,
             MsgCategory::IncludeCommonMessage => &self.include_common_messages,
-            MsgCategory::CorrectNonzeroScoringMessage => &self.correct_nonzero_scoring_messages,
-            MsgCategory::CorrectZeroScoringMessage => &self.correct_zero_scoring_messages,
             MsgCategory::CorrectableScoringMessage => &self.correctable_scoring_messages,
             MsgCategory::ExcludeMessages => &self.exclude_messages,
             MsgCategory::PauseMessage => &self.pause_messages,
@@ -222,7 +235,7 @@ impl MessageLoader {
             MsgCategory::MergeWithoutScoreMessageByAuthorWithoutReviewers => {
                 &self.merge_without_score_by_author_without_reviewers
             }
-            MsgCategory::FinalMessageCommon => &self.final_messages_common,
+            MsgCategory::RatingMessagesCommon => &self.rating_messages_common,
             MsgCategory::FinalMessagesWeeklyStreak => &self.final_messages_weekly_streak,
             MsgCategory::FinalMessagesMonthlyStreak => &self.final_messages_monthly_streak,
             MsgCategory::FinalMessagesFirstLifetimeBonus => {
@@ -262,6 +275,7 @@ impl MessageLoader {
         check_info: &PRInfo,
         pr: &PrMetadata,
         user: Option<User>,
+        final_data: Option<FinalMessageData>,
     ) -> String {
         let user = if let Some(user) = user {
             user
@@ -294,7 +308,12 @@ impl MessageLoader {
                 .collect(),
             )
             .unwrap_or_default();
-        let status_message = self.status_message(bot_name, check_info, pr);
+        let status_message = self
+            .status_message(bot_name, check_info, pr, final_data)
+            .unwrap_or_else(|err| {
+                error!("Failed to format status message for {}: {err}", user.name,);
+                String::new()
+            });
         let common = self
             .get_message(MsgCategory::IncludeCommonMessage)
             .format(
@@ -306,7 +325,13 @@ impl MessageLoader {
         message + &status_message + &common
     }
 
-    pub fn status_message(&self, bot_name: &str, check_info: &PRInfo, pr: &PrMetadata) -> String {
+    pub fn status_message(
+        &self,
+        bot_name: &str,
+        check_info: &PRInfo,
+        pr: &PrMetadata,
+        final_data: Option<FinalMessageData>,
+    ) -> anyhow::Result<String> {
         let mut message = String::new();
 
         let status = if check_info.excluded {
@@ -328,7 +353,7 @@ impl MessageLoader {
         ));
 
         if status == "waiting for scoring" {
-            message.push_str(&format!("\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command"));
+            message.push_str(&format!("\nWe're waiting for maintainer to score this pull request with `@{bot_name} score [0,1,2,3,5,8,13]` command. Alternatively, autoscoring [1,2] will be applied for this pull request\n", bot_name = bot_name));
         }
 
         if status == "stale" {
@@ -346,20 +371,30 @@ impl MessageLoader {
             for vote in &check_info.votes {
                 message.push_str(&format!("| @{}  | {} |\n", vote.user, vote.score));
             }
-            let final_score = check_info.average_score();
-            message.push_str(&format!("\n**The average score is {}**\n", final_score));
         }
 
         if status == "executed" {
-            message.push_str(&format!(
-                "\n@{} check out your results on the [Race of Sloths Leaderboard!]({}) and in the [profile]({}/profile/{})\n",
-                pr.author.login, self.leaderboard_link, self.link, pr.author.login
-            ));
+            let final_data = final_data.ok_or_else(|| {
+                anyhow::anyhow!("Constraint violation: final_data is None for executed PR")
+            })?;
+            message.push_str("\n\n");
+            message.push_str(&self.final_message(final_data)?)
+        } else if !check_info.votes.is_empty() {
+            let score = check_info.average_score();
+            message.push_str("\n\n");
+            let rating = rating_breakthrough(score * 10, score, 0, 0, 0);
+            let final_common = self.get_message(MsgCategory::RatingMessagesCommon).format(
+                [("score", score.to_string()), ("rating", rating)]
+                    .into_iter()
+                    .collect(),
+            )?;
+            message.push_str("\n\n");
+            message.push_str(&final_common);
         }
 
         message.push_str("\n</details>");
 
-        message
+        Ok(message)
     }
 
     fn user_specific_message(&self, user: &User) -> String {
@@ -428,26 +463,34 @@ impl MessageLoader {
         }
     }
 
-    pub fn final_message(
+    fn final_message(
         &self,
-        user_name: &str,
-        total_rating: u32,
-        score: u32,
-        weekly: u32,
-        monthly: u32,
-        percent_reward: u32,
-        total_percent: u32,
-        pr_number_this_week: u32,
+        FinalMessageData {
+            username,
+            total_rating,
+            score,
+            weekly_streak_bonus,
+            monthly_streak_bonus,
+            lifetime_percent_reward,
+            total_lifetime_percent,
+            pr_number_this_week,
+        }: FinalMessageData,
     ) -> anyhow::Result<String> {
-        let rating = rating_breakthrough(total_rating, score, weekly, monthly, total_percent);
-        let final_common = self.get_message(MsgCategory::FinalMessageCommon).format(
+        let rating = rating_breakthrough(
+            total_rating,
+            score,
+            weekly_streak_bonus,
+            monthly_streak_bonus,
+            total_lifetime_percent,
+        );
+        let final_common = self.get_message(MsgCategory::RatingMessagesCommon).format(
             [("score", score.to_string()), ("rating", rating)]
                 .into_iter()
                 .collect(),
         )?;
 
-        let optional_message = if percent_reward > 0 && total_percent > 5 {
-            let rank: &str = match total_percent {
+        let optional_message = if lifetime_percent_reward > 0 && total_lifetime_percent > 5 {
+            let rank: &str = match total_lifetime_percent {
                 a if a >= 25 => "Rust",
                 a if a >= 20 => "Platinum",
                 a if a >= 15 => "Gold",
@@ -462,35 +505,23 @@ impl MessageLoader {
             self.get_message(MsgCategory::FinalMessagesLifetimeBonus)
                 .format(
                     [
-                        ("total_lifetime_percent", total_percent.to_string()),
-                        ("lifetime_percent", percent_reward.to_string()),
-                        ("pr_author_username", user_name.to_string()),
+                        ("total_lifetime_percent", total_lifetime_percent.to_string()),
+                        ("lifetime_percent", lifetime_percent_reward.to_string()),
+                        ("pr_author_username", username),
                         ("rank_name", rank.to_string()),
                     ]
                     .into_iter()
                     .collect(),
                 )?
-        } else if percent_reward > 0 {
+        } else if lifetime_percent_reward > 0 {
             self.get_message(MsgCategory::FinalMessagesFirstLifetimeBonus)
-                .format(
-                    [("pr_author_username", user_name.to_string())]
-                        .into_iter()
-                        .collect(),
-                )?
-        } else if monthly > 0 {
+                .format([("pr_author_username", username)].into_iter().collect())?
+        } else if monthly_streak_bonus > 0 {
             self.get_message(MsgCategory::FinalMessagesMonthlyStreak)
-                .format(
-                    [("pr_author_username", user_name.to_string())]
-                        .into_iter()
-                        .collect(),
-                )?
-        } else if weekly > 0 {
+                .format([("pr_author_username", username)].into_iter().collect())?
+        } else if weekly_streak_bonus > 0 {
             self.get_message(MsgCategory::FinalMessagesWeeklyStreak)
-                .format(
-                    [("pr_author_username", user_name.to_string())]
-                        .into_iter()
-                        .collect(),
-                )?
+                .format([("pr_author_username", username)].into_iter().collect())?
         } else if pr_number_this_week % 3 == 0 {
             self.get_message(MsgCategory::FinalMessagesFeedbackForm)
                 .format([].into_iter().collect())?
@@ -538,6 +569,8 @@ mod tests {
         github::{PrMetadata, User},
         Score,
     };
+
+    use crate::messages::FinalMessageData;
 
     use super::MessageLoader;
 
@@ -612,17 +645,21 @@ mod tests {
             closed: false,
         };
 
-        let text1 = message_loader.include_message_text("bot", &pr_info, &pr, Some(user));
-        let status_message_init = message_loader.status_message("bot", &pr_info, &pr);
+        let text1 = message_loader.include_message_text("bot", &pr_info, &pr, Some(user), None);
+        let status_message_init = message_loader
+            .status_message("bot", &pr_info, &pr, None)
+            .unwrap();
         println!("{}", text1);
-        assert!(text1.contains(&status_message_init));
+        assert!(text1.contains(&status_message_init),);
 
         pr_info.votes.push(Score {
             user: "b".to_string(),
             score: 5,
         });
 
-        let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
+        let new_status_message = message_loader
+            .status_message("bot", &pr_info, &pr, None)
+            .unwrap();
         assert_ne!(status_message_init, new_status_message);
 
         let text2 = message_loader
@@ -633,7 +670,23 @@ mod tests {
         assert!(!text2.contains(&status_message_init));
 
         pr_info.executed = true;
-        let new_status_message = message_loader.status_message("bot", &pr_info, &pr);
+        let new_status_message = message_loader
+            .status_message(
+                "bot",
+                &pr_info,
+                &pr,
+                Some(FinalMessageData {
+                    username: "user".to_string(),
+                    total_rating: 63,
+                    score: 5,
+                    weekly_streak_bonus: 10,
+                    monthly_streak_bonus: 0,
+                    lifetime_percent_reward: 0,
+                    total_lifetime_percent: 5,
+                    pr_number_this_week: 1,
+                }),
+            )
+            .unwrap();
         assert_ne!(status_message_init, new_status_message);
 
         let text3 = message_loader

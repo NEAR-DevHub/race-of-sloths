@@ -4,7 +4,7 @@ use shared::{github::PrMetadata, Event, PRInfo, Score};
 
 use crate::events::Context;
 
-use super::EventResult;
+use super::{EventResult, FinalMessageData};
 
 #[derive(Debug, Clone)]
 pub struct PullRequestFinalize {}
@@ -43,31 +43,25 @@ impl PullRequestFinalize {
             return Ok(EventResult::success(false));
         }
 
-        self.reply_depends_on_events(pr, context, events, info)
-            .await?;
+        self.react_on_events(pr, context, events, info).await?;
 
-        Ok(EventResult::success(true))
+        Ok(EventResult::success(false))
     }
 
-    async fn reply_depends_on_events(
+    async fn react_on_events(
         &self,
         pr: &PrMetadata,
         context: Context,
         events: Vec<Event>,
         info: &mut PRInfo,
     ) -> anyhow::Result<()> {
-        let mut lifetime_reward = 0;
-        let mut weekly_bonus = 0;
-        let mut monthly_bonus = 0;
-        let mut total_rating = 0;
-        let mut total_lifetime_bonus = 0;
-        let mut pr_this_week = 0;
-        let mut pr_scored = info.average_score();
+        let mut final_data = FinalMessageData::from_name(&pr.author.login);
+        final_data.score = info.average_score();
 
         for e in events {
             match e {
                 Event::StreakLifetimeRewarded { reward } => {
-                    lifetime_reward = reward;
+                    final_data.lifetime_percent_reward = reward;
                 }
                 Event::StreakFlatRewarded {
                     streak_id,
@@ -75,9 +69,9 @@ impl PullRequestFinalize {
                     ..
                 } => {
                     if streak_id == 0 {
-                        weekly_bonus = bonus_rating;
+                        final_data.weekly_streak_bonus = bonus_rating;
                     } else if streak_id == 1 {
-                        monthly_bonus = bonus_rating;
+                        final_data.monthly_streak_bonus = bonus_rating;
                     }
                 }
                 Event::ExecutedWithRating {
@@ -85,12 +79,12 @@ impl PullRequestFinalize {
                     applied_multiplier,
                     pr_number_this_week,
                 } => {
-                    total_rating = rating;
-                    total_lifetime_bonus = applied_multiplier;
-                    pr_this_week = pr_number_this_week;
+                    final_data.total_rating = rating;
+                    final_data.total_lifetime_percent = applied_multiplier;
+                    final_data.pr_number_this_week = pr_number_this_week;
                 }
                 Event::Autoscored { score } => {
-                    pr_scored = score;
+                    final_data.score = score;
                     info.votes.push(Score {
                         user: context.github.user_handle.clone(),
                         score,
@@ -100,22 +94,9 @@ impl PullRequestFinalize {
             }
         }
 
-        let message = context.messages.final_message(
-            &pr.author.login,
-            total_rating,
-            pr_scored,
-            weekly_bonus,
-            monthly_bonus,
-            lifetime_reward,
-            total_lifetime_bonus,
-            pr_this_week,
-        )?;
-
         context
-            .github
-            .reply(&pr.owner, &pr.repo, pr.number, &message)
-            .await?;
-
+            .status_message(pr, None, info.clone(), Some(final_data))
+            .await;
         Ok(())
     }
 }

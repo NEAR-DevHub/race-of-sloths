@@ -59,22 +59,6 @@ Feel free to check [our website]({link}) for additional details!
 """,
 ]
 
-[correct_nonzero_scoring_messages]
-variables = ["reviewer"]
-message = ["""### 🌟 Score recorded!
-
-@{reviewer}, thank you for scoring this pull request in the Race of Sloths!
-"""]
-
-[correct_zero_scoring_messages]
-variables = ["pr_author_username"]
-
-message = [
-    """### 0⃣️ Score recorded! 
-
-@{pr_author_username} Keep your spirits up! Every contribution is a learning opportunity, and your effort is genuinely appreciated. """,
-]
-
 [correctable_scoring_messages]
 variables = ["score", "corrected_score", "reviewer"]
 message = [
@@ -121,12 +105,13 @@ message = [
 As an alternative option auto-scoring [1, 2] will be applied to this PR!""",
 ]
 
-[final_messages_common]
+[rating_messages_common]
 variables = ["rating", "score"]
-message = ["""### ✅ PR is finalized! 
-Your contribution is much appreciated with a final score of {score}!
+message = [
+    """Your contribution is much appreciated with a final score of {score}!
 You have received {rating} Sloth points for this contribution
-"""]
+""",
+]
 
 [final_messages_weekly_streak]
 variables = ["pr_author_username"]
