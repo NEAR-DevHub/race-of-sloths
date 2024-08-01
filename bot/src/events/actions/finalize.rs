@@ -1,10 +1,10 @@
 use tracing::{instrument, warn};
 
-use shared::{github::PrMetadata, Event, PRInfo};
+use shared::{github::PrMetadata, Event, PRInfo, Score};
 
 use crate::events::Context;
 
-use super::EventResult;
+use super::{commands::score, EventResult};
 
 #[derive(Debug, Clone)]
 pub struct PullRequestFinalize {}
@@ -42,7 +42,8 @@ impl PullRequestFinalize {
             return Ok(EventResult::success(false));
         }
 
-        self.reply_depends_on_events(pr, context, events).await?;
+        self.reply_depends_on_events(pr, context, events, info)
+            .await?;
 
         Ok(EventResult::success(true))
     }
@@ -52,6 +53,7 @@ impl PullRequestFinalize {
         pr: &PrMetadata,
         context: Context,
         events: Vec<Event>,
+        info: &mut PRInfo,
     ) -> anyhow::Result<()> {
         let mut lifetime_reward = 0;
         let mut weekly_bonus = 0;
@@ -59,7 +61,7 @@ impl PullRequestFinalize {
         let mut total_rating = 0;
         let mut total_lifetime_bonus = 0;
         let mut pr_this_week = 0;
-        let mut pr_scored = 0;
+        let mut pr_scored = info.average_score();
 
         for e in events {
             match e {
@@ -78,7 +80,6 @@ impl PullRequestFinalize {
                     }
                 }
                 Event::ExecutedWithRating {
-                    score,
                     rating,
                     applied_multiplier,
                     pr_number_this_week,
@@ -86,7 +87,13 @@ impl PullRequestFinalize {
                     total_rating = rating;
                     total_lifetime_bonus = applied_multiplier;
                     pr_this_week = pr_number_this_week;
+                }
+                Event::Autoscored { score } => {
                     pr_scored = score;
+                    info.votes.push(Score {
+                        user: context.github.user_handle.clone(),
+                        score,
+                    });
                 }
                 Event::NewSloth { .. } => {}
             }
