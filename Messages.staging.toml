@@ -108,8 +108,7 @@ As an alternative option auto-scoring [1, 2] will be applied to this PR!""",
 
 [rating_messages_common]
 variables = ["rating", "score"]
-message = ["""### ✅ PR is finalized! 
-Your contribution is much appreciated with a score of {score}!
+message = ["""Your contribution is much appreciated with a score of {score}!
 You have received {rating} Sloth points for this contribution
 """]
 
