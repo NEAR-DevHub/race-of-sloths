@@ -4,9 +4,10 @@ use futures::future::join_all;
 use octocrab::models::{
     activity::Notification,
     issues::Comment,
-    pulls::{PullRequest, Review},
+    pulls::{PullRequest, Review, ReviewState},
     AuthorAssociation, CommentId, NotificationId, RateLimit,
 };
+use shared::GithubHandle;
 use tracing::{error, info, instrument};
 
 use crate::events::{actions::Action, commands::Command, Event, EventType};
@@ -123,7 +124,8 @@ impl GithubClient {
                 }
             };
 
-            let pr_metadata = match PrMetadata::try_from(pr.clone()) {
+            let merged_by = pr.merged_by.clone();
+            let pr_metadata = match PrMetadata::try_from(pr) {
                 Ok(pr) => pr,
                 Err(e) => {
                     error!("Failed to convert PR: {:?}", e);
@@ -249,14 +251,15 @@ impl GithubClient {
             results.reverse();
 
             if pr_metadata.merged.is_some() {
-                let reviewers = pr
-                    .requested_reviewers
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|e| e.login)
-                    .collect();
-                let merged_by = pr
-                    .merged_by
+                let reviewers = self
+                    .get_positive_or_pending_review(
+                        &pr_metadata.owner,
+                        &pr_metadata.repo,
+                        pr_metadata.number,
+                    )
+                    .await
+                    .unwrap_or_default();
+                let merged_by = merged_by
                     .map(|e| e.login)
                     .unwrap_or_else(|| pr_metadata.author.login.clone());
 
@@ -278,6 +281,28 @@ impl GithubClient {
             .flatten()
             .collect();
         Ok(results)
+    }
+
+    pub async fn get_positive_or_pending_review(
+        &self,
+        owner: &str,
+        repo: &str,
+        number: u64,
+    ) -> anyhow::Result<Vec<GithubHandle>> {
+        Ok(self
+            .octocrab
+            .pulls(owner, repo)
+            .list_reviews(number)
+            .per_page(10)
+            .send()
+            .await?
+            .take_items()
+            .into_iter()
+            .flat_map(|e| match e.state {
+                Some(ReviewState::Pending) | Some(ReviewState::Approved) => e.user.map(|u| u.login),
+                _ => None,
+            })
+            .collect())
     }
 
     #[instrument(skip(self), fields(notification = notification.id.0))]
