@@ -483,7 +483,7 @@ fn active_non_scored_pr_gets_autoscored() {
     testing_env!(contract.context.clone());
     contract
         .contract
-        .sloth_finalize(pr_id_str(0), Some(true), None);
+        .sloth_finalize(pr_id_str(0), Some((true, "admin".to_string())), None);
 
     let pr = contract
         .contract

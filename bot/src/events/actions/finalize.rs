@@ -31,6 +31,7 @@ impl PullRequestFinalize {
                 .is_active_pr(&pr.owner, &pr.repo, &pr.author.login, pr.number)
                 .await
                 .ok()
+                .map(|active| (active, context.github.user_handle.clone()))
         };
         let events = context
             .near

@@ -269,7 +269,7 @@ impl NearClient {
     pub async fn send_finalize(
         &self,
         pr_id: &str,
-        active_pr: Option<bool>,
+        active_pr: Option<(bool, GithubHandle)>,
     ) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract

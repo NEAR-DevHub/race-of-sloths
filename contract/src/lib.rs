@@ -308,7 +308,7 @@ impl Contract {
     pub fn sloth_finalize(
         &mut self,
         pr_id: String,
-        active_pr: Option<bool>,
+        active_pr: Option<(bool, GithubHandle)>,
         timestamp: Option<Timestamp>,
     ) {
         self.assert_sloth();
@@ -327,8 +327,9 @@ impl Contract {
         let (user_id, _) = self.get_or_create_account(&pr.author);
 
         if pr.score().is_none() {
-            let autoscore = active_pr.map(|pr| if pr { 2 } else { 1 }).unwrap_or(1);
-            pr.add_score("race-of-sloths".to_string(), autoscore);
+            let (is_active, autoscore_user) = active_pr.unwrap_or_default();
+            let autoscore = if is_active { 2 } else { 1 };
+            pr.add_score(autoscore_user, autoscore);
             events::log_event(Event::Autoscored { score: autoscore });
         }
         let score = pr.score().unwrap_or_default();
