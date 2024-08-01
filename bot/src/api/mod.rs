@@ -235,7 +235,7 @@ impl GithubClient {
                         },
                         pr: pr_metadata.clone(),
                         comment: first_bot_comment.clone(),
-                        event_time: pr_metadata.started,
+                        event_time: pr_metadata.created,
                     });
                 }
             }

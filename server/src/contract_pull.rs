@@ -84,7 +84,9 @@ async fn fetch_and_store_prs(
                 repo_id,
                 pr.number as i32,
                 author_id,
-                DateTime::from_timestamp_nanos(pr.created_at as i64).naive_utc(),
+                DateTime::from_timestamp_nanos(pr.included_at as i64).naive_utc(),
+                DateTime::from_timestamp_nanos(pr.created_at.unwrap_or_default() as i64)
+                    .naive_utc(),
                 pr.merged_at
                     .map(|t| DateTime::from_timestamp_nanos(t as i64).naive_utc()),
                 pr.score(),

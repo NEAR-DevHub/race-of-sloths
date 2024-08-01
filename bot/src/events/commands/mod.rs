@@ -210,7 +210,7 @@ pub mod tests {
                 "a-u".to_string(),
                 octocrab::models::AuthorAssociation::Contributor,
             ),
-            started: chrono::Utc::now(),
+            created: chrono::Utc::now(),
             merged: None,
             updated_at: chrono::Utc::now(),
             full_id: "a/b/1".to_string(),

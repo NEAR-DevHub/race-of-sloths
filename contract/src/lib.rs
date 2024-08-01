@@ -9,8 +9,8 @@ use near_sdk::{
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
     AccountWithPermanentPercentageBonus, AllowedRepos, Event, GithubHandle, IntoEnumIterator, PRId,
-    PRWithRating, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod,
-    TimePeriodString, UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
+    PRv2, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod, TimePeriodString,
+    UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
 use types::{Repository, VersionedRepository};
@@ -161,7 +161,7 @@ impl Contract {
         repo: String,
         user: String,
         pr_number: u64,
-        started_at: Timestamp,
+        created_at: Timestamp,
         override_exclude: bool,
     ) {
         self.assert_sloth();
@@ -183,28 +183,29 @@ impl Contract {
             env::panic_str("PR already exists: {pr_id}")
         }
 
-        let pr = PRWithRating::new(organization, repo, pr_number, user, started_at);
+        let timestamp = env::block_timestamp();
+        let pr = PRv2::new(organization, repo, pr_number, user, timestamp, created_at);
 
-        self.apply_to_periods(started_at, user_id, |data| data.pr_opened());
-        self.prs.insert(pr_id, VersionedPR::V1(pr));
+        self.apply_to_periods(timestamp, user_id, |data| data.pr_opened());
+        self.prs.insert(pr_id, VersionedPR::V2(pr));
     }
 
     pub fn sloth_scored(&mut self, pr_id: String, user: String, score: u32) {
         self.assert_sloth();
 
-        let mut pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
+        let mut pr: PRv2 = match self.prs.get(&pr_id).cloned() {
             Some(x) => x.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
 
         pr.add_score(user, score);
-        self.prs.insert(pr_id.clone(), VersionedPR::V1(pr));
+        self.prs.insert(pr_id.clone(), VersionedPR::V2(pr));
     }
 
     pub fn sloth_merged(&mut self, pr_id: String, merged_at: Timestamp) {
         self.assert_sloth();
 
-        let mut pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
+        let mut pr: PRv2 = match self.prs.get(&pr_id).cloned() {
             Some(pr) => pr.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
@@ -212,12 +213,12 @@ impl Contract {
         let (user_id, _) = self.get_or_create_account(&pr.author);
 
         self.apply_to_periods(merged_at, user_id, |data| data.pr_merged());
-        self.prs.insert(pr_id, VersionedPR::V1(pr));
+        self.prs.insert(pr_id, VersionedPR::V2(pr));
     }
 
     pub fn sloth_exclude(&mut self, pr_id: String) {
         self.assert_sloth();
-        let pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
+        let pr: PRv2 = match self.prs.get(&pr_id).cloned() {
             Some(pr) => pr.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
@@ -226,7 +227,7 @@ impl Contract {
         }
         let (user_id, _) = self.get_or_create_account(&pr.author);
 
-        self.apply_to_periods(pr.created_at, user_id, |data| {
+        self.apply_to_periods(pr.included_at, user_id, |data| {
             data.pr_closed();
         });
 
@@ -295,13 +296,13 @@ impl Contract {
     pub fn sloth_stale(&mut self, pr_id: String) {
         self.assert_sloth();
 
-        let pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
+        let pr: PRv2 = match self.prs.get(&pr_id).cloned() {
             Some(pr) => pr.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
         require!(pr.merged_at.is_none(), "Merged PR cannot be stale");
         let (user_id, _) = self.get_or_create_account(&pr.author);
-        self.apply_to_periods(pr.created_at, user_id, |data| data.pr_closed());
+        self.apply_to_periods(pr.included_at, user_id, |data| data.pr_closed());
         self.prs.remove(&pr_id);
     }
 
@@ -315,7 +316,7 @@ impl Contract {
 
         let timestamp = timestamp.unwrap_or_else(env::block_timestamp);
 
-        let mut pr: PRWithRating = match self.prs.get(&pr_id).cloned() {
+        let mut pr: PRv2 = match self.prs.get(&pr_id).cloned() {
             Some(pr) => pr.into(),
             None => env::panic_str("PR is not started or already executed"),
         };
@@ -392,7 +393,7 @@ impl Contract {
         });
 
         self.prs.remove(&full_id);
-        self.executed_prs.insert(full_id, VersionedPR::V1(pr));
+        self.executed_prs.insert(full_id, VersionedPR::V2(pr));
     }
 }
 

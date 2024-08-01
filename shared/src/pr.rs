@@ -40,31 +40,62 @@ impl PRInfo {
     }
 }
 
+#[derive(
+    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+)]
+#[serde(crate = "near_sdk::serde")]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct PRv2 {
+    pub organization: String,
+    pub repo: String,
+    pub number: u64,
+    pub author: GithubHandle,
+    pub score: Vec<Score>,
+    pub included_at: Timestamp,
+    pub created_at: Option<Timestamp>,
+    pub merged_at: Option<Timestamp>,
+    pub streak_bonus_rating: u32,
+    pub percentage_multiplier: u32,
+}
+
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema)]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
 pub enum VersionedPR {
     V1(PRWithRating),
+    V2(PRv2),
 }
 
 impl VersionedPR {
     pub fn is_merged(&self) -> bool {
-        let data: PRWithRating = self.clone().into();
+        let data: PRv2 = self.clone().into();
 
         data.merged_at.is_some()
     }
 
     pub fn is_ready_to_move(&self, timestamp: Timestamp) -> bool {
-        let data: PRWithRating = self.clone().into();
+        let data: PRv2 = self.clone().into();
 
         data.is_ready_to_move(timestamp)
     }
 }
 
-impl From<VersionedPR> for PRWithRating {
+impl From<VersionedPR> for PRv2 {
     fn from(message: VersionedPR) -> Self {
         match message {
-            VersionedPR::V1(x) => x,
+            VersionedPR::V1(x) => PRv2 {
+                organization: x.organization,
+                repo: x.repo,
+                number: x.number,
+                author: x.author,
+                score: x.score,
+                included_at: x.created_at,
+                created_at: None,
+                merged_at: x.merged_at,
+                streak_bonus_rating: x.streak_bonus_rating,
+                percentage_multiplier: x.percentage_multiplier,
+            },
+            VersionedPR::V2(x) => x,
         }
     }
 }
@@ -86,12 +117,13 @@ pub struct PRWithRating {
     pub percentage_multiplier: u32,
 }
 
-impl PRWithRating {
+impl PRv2 {
     pub fn new(
         organization: String,
         repo: String,
         number: u64,
         author: GithubHandle,
+        included_at: Timestamp,
         created_at: Timestamp,
     ) -> Self {
         Self {
@@ -99,7 +131,8 @@ impl PRWithRating {
             repo,
             number,
             author,
-            created_at,
+            included_at,
+            created_at: Some(created_at),
 
             score: vec![],
             merged_at: None,

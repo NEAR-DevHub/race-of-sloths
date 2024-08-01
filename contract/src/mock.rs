@@ -51,16 +51,16 @@ impl Contract {
         pr_id: &str,
         timestamp: Timestamp,
     ) {
-        let pr_with_rating = PRWithRating::new(
+        let pr = PRv2::new(
             "race-of-sloths".to_owned(),
             "mock".to_owned(),
             pr_number,
             name.to_string(),
             timestamp,
+            timestamp,
         );
         // Simulate PR opening
-        self.prs
-            .insert(pr_id.to_string(), VersionedPR::V1(pr_with_rating));
+        self.prs.insert(pr_id.to_string(), VersionedPR::V2(pr));
         self.apply_to_periods(timestamp, user_id, |data: &mut VersionedUserPeriodData| {
             data.pr_opened()
         });

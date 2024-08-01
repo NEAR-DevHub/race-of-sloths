@@ -1,5 +1,5 @@
 use near_sdk::{test_utils::VMContextBuilder, testing_env, AccountId, VMContext};
-use shared::{PRWithRating, SCORE_TIMEOUT_IN_NANOSECONDS};
+use shared::{PRv2, SCORE_TIMEOUT_IN_NANOSECONDS};
 
 use super::*;
 
@@ -117,7 +117,7 @@ fn success_streak_flow() {
         .get(&pr_id_str(0))
         .unwrap()
         .clone();
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.score(), Some(10));
     assert_eq!(pr.rating(), 100 + 10 + 10);
@@ -136,7 +136,7 @@ fn success_streak_flow() {
         .get(&pr_id_str(1))
         .unwrap()
         .clone();
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.score(), Some(10));
     assert_eq!(pr.rating(), 100);
@@ -358,7 +358,7 @@ fn cannot_double_streak_reward() {
         .get(&pr_id_str(2))
         .unwrap()
         .clone();
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.streak_bonus_rating, 10);
     assert_eq!(pr.rating(), 50 + 10);
@@ -409,7 +409,7 @@ fn cannot_double_percent_reward() {
         .unwrap()
         .clone();
 
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.rating(), 53);
 
@@ -444,7 +444,7 @@ fn monthly_streak_awarded_imediatly() {
         .unwrap()
         .clone();
 
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.streak_bonus_rating, 10 + 10);
 }
@@ -467,7 +467,7 @@ fn non_scored_pr_gets_autoscored() {
         .unwrap()
         .clone();
 
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.score(), Some(1));
 }
@@ -492,7 +492,7 @@ fn active_non_scored_pr_gets_autoscored() {
         .unwrap()
         .clone();
 
-    let pr: PRWithRating = pr.into();
+    let pr: PRv2 = pr.into();
 
     assert_eq!(pr.score(), Some(2));
 }

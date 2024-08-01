@@ -603,7 +603,7 @@ mod tests {
                 "a".to_string(),
                 octocrab::models::AuthorAssociation::Contributor,
             ),
-            started: chrono::Utc::now(),
+            created: chrono::Utc::now(),
             merged: None,
             number: 0,
             updated_at: chrono::Utc::now(),

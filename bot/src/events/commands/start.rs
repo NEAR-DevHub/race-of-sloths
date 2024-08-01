@@ -37,11 +37,9 @@ impl BotIncluded {
             return Ok(EventResult::success(true));
         }
 
-        let timestamp = match (pr.merged, pr.closed) {
-            (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(1) => {
-                merged_at
-            }
-            (_, false) => self.timestamp,
+        match (pr.merged, pr.closed) {
+            (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(1) => {}
+            (_, false) => {}
             _ => {
                 debug!("PR {} is already merged. Skipping", pr.full_id,);
                 context
@@ -73,10 +71,7 @@ impl BotIncluded {
         }
 
         debug!("Starting PR {}", pr.full_id);
-        context
-            .near
-            .send_start(pr, timestamp, sender.is_maintainer())
-            .await?;
+        context.near.send_start(pr, sender.is_maintainer()).await?;
         info.exist = true;
         info.excluded = false;
 

@@ -166,6 +166,7 @@ impl DB {
         repo_id: i32,
         number: i32,
         author_id: i32,
+        included_at: chrono::NaiveDateTime,
         created_at: chrono::NaiveDateTime,
         merged_at: Option<chrono::NaiveDateTime>,
         score: Option<u32>,
@@ -178,7 +179,7 @@ impl DB {
         let rec = sqlx::query!(
             r#"
             UPDATE pull_requests
-            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8
+            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8, included_at = $9
             WHERE repo_id = $1 AND number = $2
             RETURNING id
             "#,
@@ -190,6 +191,7 @@ impl DB {
             rating as i32,
             permanent_bonus as i32,
             streak_bonus as i32,
+            included_at
         )
         .fetch_optional(&self.0)
         .await?;
@@ -200,15 +202,16 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO pull_requests (repo_id, number, author_id, created_at, merged_at, executed, score, rating, permanent_bonus, streak_bonus)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                INSERT INTO pull_requests (repo_id, number, author_id, included_at, created_at, merged_at, executed, score, rating, permanent_bonus, streak_bonus)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                 ON CONFLICT (repo_id, number) DO NOTHING
                 RETURNING id
                 "#,
                 repo_id,
                 number,
                 author_id,
-                Some(created_at),
+                included_at,
+                created_at,
                 merged_at,
                 executed,
                 score.map(|s| s as i32),

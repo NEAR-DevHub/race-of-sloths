@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::near_bindgen;
-use shared::{PRInfo, PRWithRating, User, UserId, UserPeriodData};
+use shared::{PRInfo, User, UserId, UserPeriodData};
 
 use super::*;
 
@@ -10,8 +10,8 @@ impl Contract {
     pub fn check_info(&self, organization: String, repo: String, issue_id: u64) -> PRInfo {
         let pr_id = format!("{}/{}/{}", organization, repo, issue_id);
         let executed_pr = self.executed_prs.get(&pr_id);
-        let pr = self.prs.get(&pr_id).or(executed_pr);
-        let pr: Option<PRWithRating> = pr.cloned().map(|pr| pr.into());
+        let pr: Option<&VersionedPR> = self.prs.get(&pr_id).or(executed_pr);
+        let pr: Option<PRv2> = pr.cloned().map(|pr| pr.into());
         let repo_allowed = self.repos.get(&(organization, repo));
 
         PRInfo {
@@ -31,7 +31,7 @@ impl Contract {
     }
 
     /// Returns a list of PRs with the execution status
-    pub fn prs(&self, limit: u64, page: u64) -> Vec<(PRWithRating, bool)> {
+    pub fn prs(&self, limit: u64, page: u64) -> Vec<(PRv2, bool)> {
         self.prs
             .into_iter()
             .chain(self.executed_prs.iter())
@@ -41,7 +41,7 @@ impl Contract {
             .collect()
     }
 
-    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PRWithRating> {
+    pub fn unmerged_prs(&self, page: u64, limit: u64) -> Vec<PRv2> {
         self.prs
             .values()
             .filter(|pr| !pr.is_merged())
@@ -52,7 +52,7 @@ impl Contract {
             .collect()
     }
 
-    pub fn unfinalized_prs(&self, page: u64, limit: u64) -> Vec<PRWithRating> {
+    pub fn unfinalized_prs(&self, page: u64, limit: u64) -> Vec<PRv2> {
         let timestamp = env::block_timestamp();
         self.prs
             .values()

@@ -42,7 +42,6 @@ impl NearClient {
     pub async fn send_start(
         &self,
         pr: &PrMetadata,
-        timestamp: chrono::DateTime<chrono::Utc>,
         is_maintainer: bool,
     ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
@@ -50,7 +49,7 @@ impl NearClient {
             "repo": pr.repo,
             "pr_number": pr.number,
             "user": pr.author.login,
-            "started_at": timestamp.timestamp_nanos_opt().unwrap_or(0),
+            "created_at": pr.created.timestamp_nanos_opt().unwrap_or(0),
             "override_exclude": is_maintainer,
         });
 
@@ -162,7 +161,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRWithRating>> {
+    pub async fn unmerged_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRv2>> {
         let args = json!({
             "page": page,
             "limit": limit,
@@ -180,7 +179,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PRWithRating>> {
+    pub async fn unmerged_prs_all(&self) -> anyhow::Result<Vec<PRv2>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];
@@ -196,11 +195,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unfinalized_prs(
-        &self,
-        page: u64,
-        limit: u64,
-    ) -> anyhow::Result<Vec<PRWithRating>> {
+    pub async fn unfinalized_prs(&self, page: u64, limit: u64) -> anyhow::Result<Vec<PRv2>> {
         let args = json!({
             "page": page,
             "limit": limit,
@@ -218,7 +213,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn unfinalized_prs_all(&self) -> anyhow::Result<Vec<PRWithRating>> {
+    pub async fn unfinalized_prs_all(&self) -> anyhow::Result<Vec<PRv2>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];
@@ -340,11 +335,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn prs_paged(
-        &self,
-        page: u64,
-        limit: u64,
-    ) -> anyhow::Result<Vec<(PRWithRating, bool)>> {
+    pub async fn prs_paged(&self, page: u64, limit: u64) -> anyhow::Result<Vec<(PRv2, bool)>> {
         let res = self
             .contract
             .view("prs")
@@ -359,7 +350,7 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn prs(&self) -> anyhow::Result<Vec<(PRWithRating, bool)>> {
+    pub async fn prs(&self) -> anyhow::Result<Vec<(PRv2, bool)>> {
         let mut page = 0;
         const LIMIT: u64 = 100;
         let mut res = vec![];

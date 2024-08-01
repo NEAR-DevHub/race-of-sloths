@@ -1,4 +1,4 @@
-use crate::PRWithRating;
+use crate::PRv2;
 use octocrab::models::AuthorAssociation;
 
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ pub struct PrMetadata {
     pub repo: String,
     pub number: u64,
     pub author: User,
-    pub started: chrono::DateTime<chrono::Utc>,
+    pub created: chrono::DateTime<chrono::Utc>,
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
     pub full_id: String,
@@ -45,8 +45,8 @@ pub struct PrMetadata {
     pub closed: bool,
 }
 
-impl From<PRWithRating> for PrMetadata {
-    fn from(pr: PRWithRating) -> Self {
+impl From<PRv2> for PrMetadata {
+    fn from(pr: PRv2) -> Self {
         let full_id = format!("{}/{}/{}", pr.organization, pr.repo, pr.number);
         Self {
             owner: pr.organization,
@@ -54,12 +54,14 @@ impl From<PRWithRating> for PrMetadata {
             number: pr.number,
             author: User::new(pr.author, AuthorAssociation::None),
             body: Default::default(),
-            started: chrono::DateTime::from_timestamp_nanos(pr.created_at as i64),
+            created: chrono::DateTime::from_timestamp_nanos(
+                pr.created_at.unwrap_or_default() as i64
+            ),
             merged: pr
                 .merged_at
                 .map(|e| chrono::DateTime::from_timestamp_nanos(e as i64)),
             updated_at: chrono::DateTime::from_timestamp_nanos(
-                pr.merged_at.unwrap_or(pr.created_at) as i64,
+                pr.merged_at.or(pr.created_at).unwrap_or(pr.included_at) as i64,
             ),
             full_id,
             closed: false,
@@ -98,7 +100,7 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
                 body,
                 number: pr.number,
                 author: User::new(user.login, author_association),
-                started: created_at,
+                created: created_at,
                 merged: pr.merged_at,
                 updated_at,
                 full_id,
