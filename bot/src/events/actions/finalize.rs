@@ -4,7 +4,7 @@ use shared::{github::PrMetadata, Event, PRInfo, Score};
 
 use crate::events::Context;
 
-use super::{commands::score, EventResult};
+use super::EventResult;
 
 #[derive(Debug, Clone)]
 pub struct PullRequestFinalize {}

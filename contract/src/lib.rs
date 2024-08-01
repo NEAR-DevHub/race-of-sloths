@@ -329,6 +329,7 @@ impl Contract {
         if pr.score().is_none() {
             let autoscore = active_pr.map(|pr| if pr { 2 } else { 1 }).unwrap_or(1);
             pr.add_score("race-of-sloths".to_string(), autoscore);
+            events::log_event(Event::Autoscored { score: autoscore });
         }
         let score = pr.score().unwrap_or_default();
 
@@ -379,7 +380,6 @@ impl Contract {
             })
             .unwrap_or_default();
         events::log_event(Event::ExecutedWithRating {
-            score,
             rating,
             applied_multiplier: pr.percentage_multiplier,
             pr_number_this_week,
