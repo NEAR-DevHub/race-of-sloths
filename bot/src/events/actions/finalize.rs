@@ -42,8 +42,7 @@ impl PullRequestFinalize {
             return Ok(EventResult::success(false));
         }
 
-        self.reply_depends_on_events(pr, context, events, info.average_score())
-            .await?;
+        self.reply_depends_on_events(pr, context, events).await?;
 
         Ok(EventResult::success(true))
     }
@@ -53,7 +52,6 @@ impl PullRequestFinalize {
         pr: &PrMetadata,
         context: Context,
         events: Vec<Event>,
-        score: u32,
     ) -> anyhow::Result<()> {
         let mut lifetime_reward = 0;
         let mut weekly_bonus = 0;
@@ -61,6 +59,7 @@ impl PullRequestFinalize {
         let mut total_rating = 0;
         let mut total_lifetime_bonus = 0;
         let mut pr_this_week = 0;
+        let mut pr_scored = 0;
 
         for e in events {
             match e {
@@ -79,6 +78,7 @@ impl PullRequestFinalize {
                     }
                 }
                 Event::ExecutedWithRating {
+                    score,
                     rating,
                     applied_multiplier,
                     pr_number_this_week,
@@ -86,6 +86,7 @@ impl PullRequestFinalize {
                     total_rating = rating;
                     total_lifetime_bonus = applied_multiplier;
                     pr_this_week = pr_number_this_week;
+                    pr_scored = score;
                 }
                 Event::NewSloth { .. } => {}
             }
@@ -94,7 +95,7 @@ impl PullRequestFinalize {
         let message = context.messages.final_message(
             &pr.author.login,
             total_rating,
-            score,
+            pr_scored,
             weekly_bonus,
             monthly_bonus,
             lifetime_reward,

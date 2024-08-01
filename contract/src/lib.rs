@@ -379,6 +379,7 @@ impl Contract {
             })
             .unwrap_or_default();
         events::log_event(Event::ExecutedWithRating {
+            score,
             rating,
             applied_multiplier: pr.percentage_multiplier,
             pr_number_this_week,

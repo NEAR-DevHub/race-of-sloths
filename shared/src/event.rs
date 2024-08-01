@@ -18,6 +18,7 @@ pub enum Event {
         reward: u32,
     },
     ExecutedWithRating {
+        score: u32,
         rating: u32,
         applied_multiplier: u32,
         pr_number_this_week: u32,
