@@ -438,4 +438,30 @@ impl GithubClient {
     pub async fn get_rate_limits(&self) -> anyhow::Result<RateLimit> {
         Ok(self.octocrab.ratelimit().get().await?)
     }
+
+    /// Active PR is the PR where there are >2 messages from other users (exculding us and the author)
+    pub async fn is_active_pr(
+        &self,
+        owner: &str,
+        repo: &str,
+        author: &str,
+        number: u64,
+    ) -> anyhow::Result<bool> {
+        let comments = self
+            .octocrab
+            .issues(owner, repo)
+            .list_comments(number)
+            .per_page(100)
+            .send()
+            .await?;
+
+        let comments = self.octocrab.all_pages(comments).await?;
+
+        let active = comments
+            .iter()
+            .filter(|c| c.user.login != self.user_handle && c.user.login != author)
+            .count();
+
+        Ok(active > 2)
+    }
 }

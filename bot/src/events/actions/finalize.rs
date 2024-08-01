@@ -22,7 +22,20 @@ impl PullRequestFinalize {
             return Ok(EventResult::Skipped);
         }
 
-        let events = context.near.send_finalize(&pr.full_id).await?;
+        let is_active_pr = if !info.votes.is_empty() {
+            // We don't need to check if PR is active if we have votes
+            None
+        } else {
+            context
+                .github
+                .is_active_pr(&pr.owner, &pr.repo, &pr.author.login, pr.number)
+                .await
+                .ok()
+        };
+        let events = context
+            .near
+            .send_finalize(&pr.full_id, is_active_pr)
+            .await?;
         info.executed = true;
 
         if !info.allowed_repo || info.paused {

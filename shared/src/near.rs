@@ -266,12 +266,17 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn send_finalize(&self, pr_id: &str) -> anyhow::Result<Vec<Event>> {
+    pub async fn send_finalize(
+        &self,
+        pr_id: &str,
+        active_pr: Option<bool>,
+    ) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
             .call("sloth_finalize")
             .args_json(json!({
                 "pr_id": pr_id,
+                "active_pr": active_pr
             }))
             .transact()
             .await

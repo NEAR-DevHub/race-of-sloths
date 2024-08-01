@@ -75,6 +75,7 @@ impl Contract {
 
         self.sloth_finalize(
             pr_id.to_string(),
+            None,
             Some(merged_at + SCORE_TIMEOUT_IN_NANOSECONDS + 1),
         );
     }

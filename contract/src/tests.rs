@@ -69,7 +69,7 @@ impl ContractExt {
     }
 
     pub fn finalize(&mut self, pr_id: u64) {
-        self.contract.sloth_finalize(pr_id_str(pr_id), None)
+        self.contract.sloth_finalize(pr_id_str(pr_id), None, None)
     }
 }
 
@@ -209,7 +209,8 @@ fn streak_in_a_nutshell() {
         .contract
         .user(&github_handle(0), vec!["all-time".to_string()])
         .unwrap();
-    assert_eq!(user.period_data[0].1.total_rating, 10);
+    assert_eq!(user.period_data[0].1.total_score, 1);
+    assert_eq!(user.period_data[0].1.total_rating, 10 + 10);
 }
 
 #[test]
@@ -418,7 +419,8 @@ fn cannot_double_percent_reward() {
         .unwrap();
 
     let weekly_streaks = 10 + 15 + 20 + 25;
-    let total_rating = weekly_streaks + 53;
+    let autoscore = 10 + 10 + 10 + 10;
+    let total_rating = weekly_streaks + autoscore + 53;
 
     assert_eq!(total_user.period_data[0].1.total_rating, total_rating)
 }
@@ -445,4 +447,52 @@ fn monthly_streak_awarded_imediatly() {
     let pr: PRWithRating = pr.into();
 
     assert_eq!(pr.streak_bonus_rating, 10 + 10);
+}
+
+#[test]
+fn non_scored_pr_gets_autoscored() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    contract.merge(0, 1);
+
+    contract.context.block_timestamp = SCORE_TIMEOUT_IN_NANOSECONDS + 2;
+    testing_env!(contract.context.clone());
+    contract.finalize(0);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(0))
+        .unwrap()
+        .clone();
+
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.score(), Some(1));
+}
+
+#[test]
+fn active_non_scored_pr_gets_autoscored() {
+    let mut contract = ContractExt::new();
+
+    contract.include_sloth_common_repo(0, 0, 0);
+    contract.merge(0, 1);
+
+    contract.context.block_timestamp = SCORE_TIMEOUT_IN_NANOSECONDS + 2;
+    testing_env!(contract.context.clone());
+    contract
+        .contract
+        .sloth_finalize(pr_id_str(0), Some(true), None);
+
+    let pr = contract
+        .contract
+        .executed_prs
+        .get(&pr_id_str(0))
+        .unwrap()
+        .clone();
+
+    let pr: PRWithRating = pr.into();
+
+    assert_eq!(pr.score(), Some(2));
 }
