@@ -112,7 +112,7 @@ pub struct UserContributionRecord {
     pub percentage_multiplier: i32,
     pub streak_bonus_rating: i32,
     pub executed: bool,
-    pub created_at: chrono::NaiveDateTime,
+    pub included_at: chrono::NaiveDateTime,
     pub merged_at: Option<chrono::NaiveDateTime>,
 }
 

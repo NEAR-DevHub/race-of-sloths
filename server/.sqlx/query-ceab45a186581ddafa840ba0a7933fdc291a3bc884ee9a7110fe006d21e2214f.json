@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE pull_requests\n            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8, included_at = $9\n            WHERE repo_id = $1 AND number = $2\n            RETURNING id\n            ",
+  "query": "\n            UPDATE pull_requests\n            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8, created_at = $9, included_at = $10\n            WHERE repo_id = $1 AND number = $2\n            RETURNING id\n            ",
   "describe": {
     "columns": [
       {
@@ -19,6 +19,7 @@
         "Int4",
         "Int4",
         "Int4",
+        "Timestamp",
         "Timestamp"
       ]
     },
@@ -26,5 +27,5 @@
       false
     ]
   },
-  "hash": "2568152665037453c4b09a8571842ad3dcac8305ac70f95e66ad95bd82023ae4"
+  "hash": "ceab45a186581ddafa840ba0a7933fdc291a3bc884ee9a7110fe006d21e2214f"
 }

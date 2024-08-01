@@ -3,7 +3,7 @@ SELECT
     o.full_name as organization_full_name,
     r.name as repo,
     pr.number as number,
-    pr.created_at as created_at,
+    pr.included_at as included_at,
     pr.merged_at as merged_at,
     pr.score as score,
     pr.executed as executed,
@@ -22,7 +22,7 @@ GROUP BY
     o.full_name,
     r.name,
     pr.number,
-    pr.created_at,
+    pr.included_at,
     pr.merged_at,
     pr.score,
     pr.executed,
@@ -30,6 +30,6 @@ GROUP BY
     pr.streak_bonus,
     pr.rating
 ORDER BY
-    pr.created_at DESC
+    pr.included_at DESC
 LIMIT
     $2 OFFSET $3

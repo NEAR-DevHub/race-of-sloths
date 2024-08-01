@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    o.login as organization_login,\n    o.full_name as organization_full_name,\n    r.name as repo,\n    pr.number as number,\n    pr.created_at as created_at,\n    pr.merged_at as merged_at,\n    pr.score as score,\n    pr.executed as executed,\n    pr.permanent_bonus as percentage_multiplier,\n    pr.streak_bonus as streak_bonus_rating,\n    pr.rating as rating\nFROM\n    users\n    JOIN pull_requests pr ON pr.author_id = users.id\n    JOIN repos r ON pr.repo_id = r.id\n    JOIN organizations o ON r.organization_id = o.id\nWHERE\n    users.login = $1\nGROUP BY\n    o.login,\n    o.full_name,\n    r.name,\n    pr.number,\n    pr.created_at,\n    pr.merged_at,\n    pr.score,\n    pr.executed,\n    pr.permanent_bonus,\n    pr.streak_bonus,\n    pr.rating\nORDER BY\n    pr.created_at DESC\nLIMIT\n    $2 OFFSET $3\n",
+  "query": "SELECT\n    o.login as organization_login,\n    o.full_name as organization_full_name,\n    r.name as repo,\n    pr.number as number,\n    pr.included_at as included_at,\n    pr.merged_at as merged_at,\n    pr.score as score,\n    pr.executed as executed,\n    pr.permanent_bonus as percentage_multiplier,\n    pr.streak_bonus as streak_bonus_rating,\n    pr.rating as rating\nFROM\n    users\n    JOIN pull_requests pr ON pr.author_id = users.id\n    JOIN repos r ON pr.repo_id = r.id\n    JOIN organizations o ON r.organization_id = o.id\nWHERE\n    users.login = $1\nGROUP BY\n    o.login,\n    o.full_name,\n    r.name,\n    pr.number,\n    pr.included_at,\n    pr.merged_at,\n    pr.score,\n    pr.executed,\n    pr.permanent_bonus,\n    pr.streak_bonus,\n    pr.rating\nORDER BY\n    pr.included_at DESC\nLIMIT\n    $2 OFFSET $3\n",
   "describe": {
     "columns": [
       {
@@ -25,7 +25,7 @@
       },
       {
         "ordinal": 4,
-        "name": "created_at",
+        "name": "included_at",
         "type_info": "Timestamp"
       },
       {
@@ -80,5 +80,5 @@
       false
     ]
   },
-  "hash": "d1e176a1263f3e90e5a92608643017036cfbca2de09f1105dbd55647268c89c2"
+  "hash": "f89972b27e7a62751f03ccb43e139c89b5712543554f5dec33cea4c91b9d2c92"
 }

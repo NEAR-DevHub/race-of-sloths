@@ -179,7 +179,7 @@ impl DB {
         let rec = sqlx::query!(
             r#"
             UPDATE pull_requests
-            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8, included_at = $9
+            SET merged_at = $3, executed = $4, score = $5, rating = $6, permanent_bonus = $7, streak_bonus = $8, created_at = $9, included_at = $10
             WHERE repo_id = $1 AND number = $2
             RETURNING id
             "#,
@@ -191,6 +191,7 @@ impl DB {
             rating as i32,
             permanent_bonus as i32,
             streak_bonus as i32,
+            created_at,
             included_at
         )
         .fetch_optional(&self.0)
@@ -389,10 +390,10 @@ impl DB {
 
         let first_contribution = sqlx::query!(
             r#"
-            SELECT created_at
+            SELECT included_at
             FROM pull_requests
             WHERE author_id = $1
-            ORDER BY created_at ASC
+            ORDER BY included_at ASC
             LIMIT 1
             "#,
             user_rec
@@ -403,7 +404,7 @@ impl DB {
         let user = UserRecord {
             id: user_rec,
             first_contribution: first_contribution
-                .map(|x| x.created_at)
+                .map(|x| x.included_at)
                 .unwrap_or_else(|| chrono::Utc::now().naive_utc()),
             login: login.to_string(),
             name: full_name,
@@ -536,7 +537,7 @@ impl DB {
         JOIN repos r ON r.organization_id = o.id
         JOIN pull_requests pr ON pr.repo_id = r.id
         JOIN users ON pr.author_id = users.id
-        WHERE pr.created_at >= (now() - INTERVAL '1 MONTH')
+        WHERE pr.included_at >= (now() - INTERVAL '1 MONTH')
         AND r.name = $1
         AND o.login = $2
         GROUP BY users.login

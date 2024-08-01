@@ -267,7 +267,7 @@ impl From<UserContributionRecord> for UserContributionResponse {
             organization: GithubMeta::new(record.organization_login, record.organization_full_name),
             status: status.to_string(),
             score: record.score,
-            created_at: record.created_at,
+            created_at: record.included_at,
             merged_at: record.merged_at,
             total_rating: record.rating,
             percentage_multiplier: record.percentage_multiplier,
