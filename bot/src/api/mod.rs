@@ -454,14 +454,28 @@ impl GithubClient {
             .per_page(100)
             .send()
             .await?;
-
         let comments = self.octocrab.all_pages(comments).await?;
+
+        let reviews = self
+            .octocrab
+            .pulls(owner, repo)
+            .list_reviews(number)
+            .per_page(100)
+            .send()
+            .await?
+            .take_items();
+
+        let comments = comments
+            .into_iter()
+            .map(CommentRepr::from)
+            .chain(reviews.into_iter().flat_map(CommentRepr::try_from))
+            .collect::<Vec<_>>();
 
         let active = comments
             .iter()
             .filter(|c| c.user.login != self.user_handle && c.user.login != author)
             .count();
 
-        Ok(active > 2)
+        Ok(active >= 2)
     }
 }
