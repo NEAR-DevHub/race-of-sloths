@@ -19,7 +19,8 @@ pub enum MsgCategory {
     ExcludeMessages,
     PauseMessage,
     UnpauseMessage,
-    MergeWithoutScoreMessage,
+    MergeWithoutScoreMessageByOtherParty,
+    MergeWithoutScoreMessageByAuthorWithoutReviewers,
     FinalMessageCommon,
     FinalMessagesWeeklyStreak,
     FinalMessagesMonthlyStreak,
@@ -65,7 +66,7 @@ impl Messages {
         Self { message, variables }
     }
 
-    pub fn format(&self, values: HashMap<String, String>) -> anyhow::Result<String> {
+    pub fn format(&self, values: HashMap<&'static str, String>) -> anyhow::Result<String> {
         let mut formatted_message = self
             .message
             .choose(&mut thread_rng())
@@ -84,11 +85,11 @@ impl Messages {
         Ok(formatted_message)
     }
 
-    fn partial_format(&mut self, values: &HashMap<String, String>) {
+    fn partial_format(&mut self, values: &HashMap<&'static str, String>) {
         for message in self.message.iter_mut() {
             for (key, value) in values {
                 *message = message.replace(&format!("{{{key}}}"), value);
-                self.variables.remove(key);
+                self.variables.remove(key.to_owned());
             }
         }
     }
@@ -110,7 +111,8 @@ pub struct MessageLoader {
     pub exclude_messages: Messages,
     pub pause_messages: Messages,
     pub unpause_messages: Messages,
-    pub merge_without_score_messages: Messages,
+    pub merge_without_score_by_other_party: Messages,
+    pub merge_without_score_by_author_without_reviewers: Messages,
     pub final_messages_common: Messages,
     pub final_messages_weekly_streak: Messages,
     pub final_messages_monthly_streak: Messages,
@@ -153,17 +155,11 @@ impl MessageLoader {
 
     fn postprocess_messages_with_link(&mut self, bot_name: &str) {
         let values = vec![
-            ("link".to_string(), self.link.clone()),
-            (
-                "leaderboard_link".to_string(),
-                self.leaderboard_link.clone(),
-            ),
-            ("bot_name".to_string(), bot_name.to_string()),
-            ("form".to_string(), self.form.clone()),
-            (
-                "picture_api_link".to_string(),
-                self.picture_api_link.clone(),
-            ),
+            ("link", self.link.clone()),
+            ("leaderboard_link", self.leaderboard_link.clone()),
+            ("bot_name", bot_name.to_string()),
+            ("form", self.form.clone()),
+            ("picture_api_link", self.picture_api_link.clone()),
         ]
         .into_iter()
         .collect::<HashMap<_, _>>();
@@ -177,7 +173,8 @@ impl MessageLoader {
             &mut self.exclude_messages,
             &mut self.pause_messages,
             &mut self.unpause_messages,
-            &mut self.merge_without_score_messages,
+            &mut self.merge_without_score_by_other_party,
+            &mut self.merge_without_score_by_author_without_reviewers,
             &mut self.final_messages_common,
             &mut self.final_messages_first_lifetime_bonus,
             &mut self.final_messages_lifetime_bonus,
@@ -219,7 +216,12 @@ impl MessageLoader {
             MsgCategory::ExcludeMessages => &self.exclude_messages,
             MsgCategory::PauseMessage => &self.pause_messages,
             MsgCategory::UnpauseMessage => &self.unpause_messages,
-            MsgCategory::MergeWithoutScoreMessage => &self.merge_without_score_messages,
+            MsgCategory::MergeWithoutScoreMessageByOtherParty => {
+                &self.merge_without_score_by_other_party
+            }
+            MsgCategory::MergeWithoutScoreMessageByAuthorWithoutReviewers => {
+                &self.merge_without_score_by_author_without_reviewers
+            }
             MsgCategory::FinalMessageCommon => &self.final_messages_common,
             MsgCategory::FinalMessagesWeeklyStreak => &self.final_messages_weekly_streak,
             MsgCategory::FinalMessagesMonthlyStreak => &self.final_messages_monthly_streak,
@@ -285,8 +287,8 @@ impl MessageLoader {
             .get_message(MsgCategory::IncludeBasicMessage)
             .format(
                 [
-                    ("pr_author_username".to_string(), user.name.clone()),
-                    ("user_specific_message".to_string(), user_specific_message),
+                    ("pr_author_username", user.name.clone()),
+                    ("user_specific_message", user_specific_message),
                 ]
                 .into_iter()
                 .collect(),
@@ -296,7 +298,7 @@ impl MessageLoader {
         let common = self
             .get_message(MsgCategory::IncludeCommonMessage)
             .format(
-                [("pr_author_username".to_string(), user.name.clone())]
+                [("pr_author_username", user.name.clone())]
                     .into_iter()
                     .collect(),
             )
@@ -399,7 +401,7 @@ impl MessageLoader {
             };
 
         match self.get_message(message_type).format(
-            [("pr_author_username".to_string(), user.name.clone())]
+            [("pr_author_username", user.name.clone())]
                 .into_iter()
                 .collect(),
         ) {
@@ -439,12 +441,9 @@ impl MessageLoader {
     ) -> anyhow::Result<String> {
         let rating = rating_breakthrough(total_rating, score, weekly, monthly, total_percent);
         let final_common = self.get_message(MsgCategory::FinalMessageCommon).format(
-            [
-                ("score".to_string(), score.to_string()),
-                ("rating".to_string(), rating),
-            ]
-            .into_iter()
-            .collect(),
+            [("score", score.to_string()), ("rating", rating)]
+                .into_iter()
+                .collect(),
         )?;
 
         let optional_message = if percent_reward > 0 && total_percent > 5 {
@@ -463,13 +462,10 @@ impl MessageLoader {
             self.get_message(MsgCategory::FinalMessagesLifetimeBonus)
                 .format(
                     [
-                        (
-                            "total_lifetime_percent".to_string(),
-                            total_percent.to_string(),
-                        ),
-                        ("lifetime_percent".to_string(), percent_reward.to_string()),
-                        ("pr_author_username".to_string(), user_name.to_string()),
-                        ("rank_name".to_string(), rank.to_string()),
+                        ("total_lifetime_percent", total_percent.to_string()),
+                        ("lifetime_percent", percent_reward.to_string()),
+                        ("pr_author_username", user_name.to_string()),
+                        ("rank_name", rank.to_string()),
                     ]
                     .into_iter()
                     .collect(),
@@ -477,21 +473,21 @@ impl MessageLoader {
         } else if percent_reward > 0 {
             self.get_message(MsgCategory::FinalMessagesFirstLifetimeBonus)
                 .format(
-                    [("pr_author_username".to_string(), user_name.to_string())]
+                    [("pr_author_username", user_name.to_string())]
                         .into_iter()
                         .collect(),
                 )?
         } else if monthly > 0 {
             self.get_message(MsgCategory::FinalMessagesMonthlyStreak)
                 .format(
-                    [("pr_author_username".to_string(), user_name.to_string())]
+                    [("pr_author_username", user_name.to_string())]
                         .into_iter()
                         .collect(),
                 )?
         } else if weekly > 0 {
             self.get_message(MsgCategory::FinalMessagesWeeklyStreak)
                 .format(
-                    [("pr_author_username".to_string(), user_name.to_string())]
+                    [("pr_author_username", user_name.to_string())]
                         .into_iter()
                         .collect(),
                 )?

@@ -6,6 +6,7 @@ use super::*;
 
 pub use finalize::*;
 pub use merge::*;
+use shared::GithubHandle;
 pub use stale::*;
 use tracing::error;
 
@@ -31,8 +32,8 @@ impl Action {
         Self::Finalize(PullRequestFinalize {})
     }
 
-    pub fn merge() -> Self {
-        Self::Merge(PullRequestMerge {})
+    pub fn merge(merger: GithubHandle, reviewers: Vec<GithubHandle>) -> Self {
+        Self::Merge(PullRequestMerge { merger, reviewers })
     }
 
     pub fn stale() -> Self {

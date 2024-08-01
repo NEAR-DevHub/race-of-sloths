@@ -105,12 +105,20 @@ message = ["""### ▶️ Repository unpaused!
 Feel free to tag us again to participate in the Race of Sloths!
 """]
 
-[merge_without_score_messages]
-variables = []
+[merge_without_score_by_other_party]
+variables = ["bot_name", "maintainer"]
 message = [
-    """### 🔄 The PR has been merged.
->[!IMPORTANT]
-This pull request is a part of the Race of Sloths and has not been scored yet. Scoring will close in 24 hours! 🕰️""",
+    """### 🔄 The PR has been merged
+@{maintainer}, please score the PR with `@{bot_name} score [1/2/3/5/8/13]`. The contributor deserved it
+As an alternative option auto-scoring [1, 2] will be applied to this PR!""",
+]
+
+[merge_without_score_by_author_without_reviewers]
+variables = ["bot_name", "pr_author_username"]
+message = [
+    """### 🔄 The PR has been merged
+@{pr_author_username}, please ask the other peer reviewer to score the PR using `@{bot_name} score [1/2/3/5/8/13]`.
+As an alternative option auto-scoring [1, 2] will be applied to this PR!""",
 ]
 
 [final_messages_common]

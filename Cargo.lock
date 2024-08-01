@@ -4062,8 +4062,8 @@ dependencies = [
 
 [[package]]
 name = "octocrab"
-version = "0.38.0"
-source = "git+https://github.com/XAMPPRocky/octocrab?rev=f10ab52f7142410c456277a83eae7f1e77f3ba76#f10ab52f7142410c456277a83eae7f1e77f3ba76"
+version = "0.39.0"
+source = "git+https://github.com/akorchyn/octocrab#aa29fce01f981d33e4a792bf199d6aae6ecc94fe"
 dependencies = [
  "arc-swap",
  "async-trait",

@@ -20,7 +20,7 @@ impl Context {
         pr_metadata: &PrMetadata,
         comment_id: Option<u64>,
         msg: MsgCategory,
-        args: Vec<(String, String)>,
+        args: Vec<(&'static str, String)>,
     ) -> anyhow::Result<Comment> {
         let text = self.messages.get_message(msg);
 
@@ -49,7 +49,7 @@ impl Context {
         pr_metadata: &PrMetadata,
         comment_id: Option<u64>,
         error: MsgCategory,
-        args: Vec<(String, String)>,
+        args: Vec<(&'static str, String)>,
     ) -> anyhow::Result<()> {
         self.reply(pr_metadata, comment_id, error, args).await?;
         Ok(())

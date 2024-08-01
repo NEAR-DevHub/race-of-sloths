@@ -90,7 +90,7 @@ impl Command {
                         pr,
                         None,
                         MsgCategory::ErrorOrgNotInAllowedListMessage,
-                        vec![("pr_author_username".to_string(), pr.author.login.clone())],
+                        vec![("pr_author_username", pr.author.login.clone())],
                     )
                     .await?;
                 return Ok(EventResult::RepliedWithError);
@@ -111,7 +111,7 @@ impl Command {
                         pr,
                         None,
                         MsgCategory::ErrorPausedMessage,
-                        vec![("user".to_string(), sender.login.clone())],
+                        vec![("user", sender.login.clone())],
                     )
                     .await?;
                 return Ok(EventResult::RepliedWithError);

@@ -123,7 +123,7 @@ impl GithubClient {
                 }
             };
 
-            let pr_metadata = match PrMetadata::try_from(pr) {
+            let pr_metadata = match PrMetadata::try_from(pr.clone()) {
                 Ok(pr) => pr,
                 Err(e) => {
                     error!("Failed to convert PR: {:?}", e);
@@ -249,8 +249,19 @@ impl GithubClient {
             results.reverse();
 
             if pr_metadata.merged.is_some() {
+                let reviewers = pr
+                    .requested_reviewers
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|e| e.login)
+                    .collect();
+                let merged_by = pr
+                    .merged_by
+                    .map(|e| e.login)
+                    .unwrap_or_else(|| pr_metadata.author.login.clone());
+
                 results.push(Event {
-                    event: EventType::Action(Action::merge()),
+                    event: EventType::Action(Action::merge(merged_by, reviewers)),
                     pr: pr_metadata.clone(),
                     comment: first_bot_comment,
                     event_time: pr_metadata.merged.unwrap(),

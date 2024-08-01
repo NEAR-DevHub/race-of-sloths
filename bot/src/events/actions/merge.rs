@@ -1,13 +1,16 @@
 use tracing::instrument;
 
-use shared::{github::PrMetadata, PRInfo};
+use shared::{github::PrMetadata, GithubHandle, PRInfo};
 
 use crate::{events::Context, messages::MsgCategory};
 
 use super::EventResult;
 
 #[derive(Debug, Clone)]
-pub struct PullRequestMerge {}
+pub struct PullRequestMerge {
+    pub merger: GithubHandle,
+    pub reviewers: Vec<GithubHandle>,
+}
 
 impl PullRequestMerge {
     #[instrument(skip(self, pr, context, info), fields(pr = pr.full_id))]
@@ -28,11 +31,39 @@ impl PullRequestMerge {
             return Ok(EventResult::success(false));
         }
 
-        if info.votes.is_empty() {
+        if !info.votes.is_empty() {
+            return Ok(EventResult::success(true));
+        }
+
+        if self.merger != pr.author.login {
             context
-                .reply(pr, None, MsgCategory::MergeWithoutScoreMessage, vec![])
+                .reply(
+                    pr,
+                    None,
+                    MsgCategory::MergeWithoutScoreMessageByOtherParty,
+                    vec![("maintainer", self.merger.clone())],
+                )
+                .await?;
+        } else if !self.reviewers.is_empty() {
+            context
+                .reply(
+                    pr,
+                    None,
+                    MsgCategory::MergeWithoutScoreMessageByOtherParty,
+                    vec![("maintainer", self.reviewers.join(" @"))],
+                )
+                .await?;
+        } else {
+            context
+                .reply(
+                    pr,
+                    None,
+                    MsgCategory::MergeWithoutScoreMessageByAuthorWithoutReviewers,
+                    vec![("pr_author_username", pr.author.login.clone())],
+                )
                 .await?;
         }
+
         Ok(EventResult::success(true))
     }
 }

@@ -258,6 +258,15 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             }
         };
 
+        let reviewers = pr
+            .requested_reviewers
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|e| e.login)
+            .collect();
+        let merged_by = pr.merged_by.clone();
+
         let pr_metadata = match PrMetadata::try_from(pr) {
             Ok(pr) => pr,
             Err(e) => {
@@ -283,8 +292,11 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
             continue;
         }
         trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
+        let merged_by = merged_by
+            .map(|e| e.login)
+            .unwrap_or_else(|| pr_metadata.author.login.clone());
         results.push(Event {
-            event: EventType::Action(Action::merge()),
+            event: EventType::Action(Action::merge(merged_by, reviewers)),
             event_time: pr_metadata.merged.unwrap(),
             pr: pr_metadata,
             comment: None,

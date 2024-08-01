@@ -96,18 +96,18 @@ impl BotScored {
             (num, true) => (
                 MsgCategory::CorrectableScoringMessage,
                 vec![
-                    ("reviewer".to_string(), sender.login.clone()),
-                    ("corrected_score".to_string(), num.to_string()),
-                    ("score".to_string(), self.score.clone()),
+                    ("reviewer", sender.login.clone()),
+                    ("corrected_score", num.to_string()),
+                    ("score", self.score.clone()),
                 ],
             ),
             (0, _) => (
                 MsgCategory::CorrectZeroScoringMessage,
-                vec![("pr_author_username".to_string(), pr.author.login.clone())],
+                vec![("pr_author_username", pr.author.login.clone())],
             ),
             (_, _) => (
                 MsgCategory::CorrectNonzeroScoringMessage,
-                vec![("reviewer".to_string(), sender.login.clone())],
+                vec![("reviewer", sender.login.clone())],
             ),
         };
 
