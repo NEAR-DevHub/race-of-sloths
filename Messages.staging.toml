@@ -93,7 +93,8 @@ Feel free to tag us again to participate in the Race of Sloths!
 [merge_without_score_by_other_party]
 variables = ["bot_name", "maintainer", "potential_score"]
 message = [
-    """### 🔄 The PR has been merged
+    """🥁  __Score it!__
+
 @{maintainer}, please score the PR with `@{bot_name} score [1/2/3/5/8/13]`. The contributor deserves it.
 If no scoring is provided within 24 hours, this PR will be scored as {potential_score} 🦥""",
 ]
@@ -101,7 +102,8 @@ If no scoring is provided within 24 hours, this PR will be scored as {potential_
 [merge_without_score_by_author_without_reviewers]
 variables = ["bot_name", "pr_author_username", "potential_score"]
 message = [
-    """### 🔄 The PR has been merged
+    """🥁  __Score it!__
+
 @{pr_author_username}, please ask your peers to score the PR using `@{bot_name} score [1/2/3/5/8/13]`.
 If no scoring is provided within 24 hours, this PR will be scored as {potential_score} 🦥
 """,
