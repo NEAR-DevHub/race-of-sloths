@@ -35,13 +35,23 @@ impl PullRequestMerge {
             return Ok(EventResult::success(true));
         }
 
+        let is_active = context
+            .github
+            .is_active_pr(&pr.owner, &pr.repo, &pr.author.login, pr.number)
+            .await
+            .unwrap_or_default();
+        let autoscore = if is_active { 2 } else { 1 }.to_string();
+
         if self.merger != pr.author.login {
             context
                 .reply(
                     pr,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByOtherParty,
-                    vec![("maintainer", self.merger.clone())],
+                    vec![
+                        ("maintainer", self.merger.clone()),
+                        ("potential_score", autoscore),
+                    ],
                 )
                 .await?;
         } else if !self.reviewers.is_empty() {
@@ -50,7 +60,10 @@ impl PullRequestMerge {
                     pr,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByOtherParty,
-                    vec![("maintainer", self.reviewers.join(" @"))],
+                    vec![
+                        ("maintainer", self.reviewers.join(" @")),
+                        ("potential_score", autoscore),
+                    ],
                 )
                 .await?;
         } else {
@@ -59,7 +72,10 @@ impl PullRequestMerge {
                     pr,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByAuthorWithoutReviewers,
-                    vec![("pr_author_username", pr.author.login.clone())],
+                    vec![
+                        ("pr_author_username", pr.author.login.clone()),
+                        ("potential_score", autoscore),
+                    ],
                 )
                 .await?;
         }
