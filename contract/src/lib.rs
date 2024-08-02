@@ -451,7 +451,9 @@ impl Contract {
 
             let older_streak = if streak_data.latest_time_string == prev_time_string {
                 streak_data.amount
-            } else if streak_data.latest_time_string == current_time_string {
+            } else if streak_data.latest_time_string == current_time_string
+                && streak_data.amount > 0
+            {
                 // Lost the streak
                 streak_data.amount - 1
             } else {
