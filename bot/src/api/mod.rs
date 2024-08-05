@@ -225,19 +225,17 @@ impl GithubClient {
                 }
             }
 
-            if first_bot_comment.is_none() {
-                if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
-                    results.push(Event {
-                        event: EventType::Command {
-                            command,
-                            notification_id: event.id,
-                            sender: pr_metadata.author.clone(),
-                        },
-                        pr: pr_metadata.clone(),
-                        comment: first_bot_comment.clone(),
-                        event_time: pr_metadata.created,
-                    });
-                }
+            if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
+                results.push(Event {
+                    event: EventType::Command {
+                        command,
+                        notification_id: event.id,
+                        sender: pr_metadata.author.clone(),
+                    },
+                    pr: pr_metadata.clone(),
+                    comment: first_bot_comment.clone(),
+                    event_time: pr_metadata.created,
+                });
             }
 
             if results.is_empty() {

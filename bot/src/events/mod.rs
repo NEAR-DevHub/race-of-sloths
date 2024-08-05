@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use octocrab::models::{issues::Comment, NotificationId};
+use octocrab::models::NotificationId;
 use tracing::{info, instrument, Level};
 
 use crate::{

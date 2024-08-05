@@ -13,6 +13,7 @@ use tracing::error;
 pub enum MsgCategory {
     IncludeBasicMessage,
     IncludeCommonMessage,
+    InviteMessage,
     CorrectableScoringMessage,
     ExcludeMessages,
     PauseMessage,
@@ -103,6 +104,7 @@ pub struct MessageLoader {
     // Messages
     pub include_basic_messages: Messages,
     pub include_common_messages: Messages,
+    pub invite_messages: Messages,
     pub correctable_scoring_messages: Messages,
     pub exclude_messages: Messages,
     pub pause_messages: Messages,
@@ -184,6 +186,7 @@ impl MessageLoader {
         let array_of_messages = vec![
             &mut self.include_basic_messages,
             &mut self.include_common_messages,
+            &mut self.invite_messages,
             &mut self.correctable_scoring_messages,
             &mut self.exclude_messages,
             &mut self.pause_messages,
@@ -225,6 +228,7 @@ impl MessageLoader {
         let elem = match category {
             MsgCategory::IncludeBasicMessage => &self.include_basic_messages,
             MsgCategory::IncludeCommonMessage => &self.include_common_messages,
+            MsgCategory::InviteMessage => &self.invite_messages,
             MsgCategory::CorrectableScoringMessage => &self.correctable_scoring_messages,
             MsgCategory::ExcludeMessages => &self.exclude_messages,
             MsgCategory::PauseMessage => &self.pause_messages,
@@ -530,6 +534,24 @@ impl MessageLoader {
         };
 
         Ok(format!("{}\n\n{}", final_common, optional_message))
+    }
+
+    pub fn invite_message(&self, pr_author: &str, sender: &str) -> anyhow::Result<String> {
+        let include_common_message = self.get_message(MsgCategory::IncludeCommonMessage).format(
+            [("pr_author_username", pr_author.to_string())]
+                .into_iter()
+                .collect(),
+        )?;
+
+        self.get_message(MsgCategory::InviteMessage).format(
+            [
+                ("include_common_message", include_common_message),
+                ("pr_author_username", pr_author.to_string()),
+                ("sender", sender.to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        )
     }
 }
 

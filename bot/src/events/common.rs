@@ -15,17 +15,12 @@ impl Context {
             .await
     }
 
-    pub async fn reply(
+    pub async fn reply_with_text(
         &self,
         pr_metadata: &PrMetadata,
         comment_id: Option<u64>,
-        msg: MsgCategory,
-        args: Vec<(&'static str, String)>,
-    ) -> anyhow::Result<Comment> {
-        let text = self.messages.get_message(msg);
-
-        let text = text.format(args.into_iter().collect::<HashMap<_, _>>())?;
-
+        text: &str,
+    ) -> anyhow::Result<CommentRepr> {
         if let Some(comment_id) = comment_id {
             self.github
                 .like_comment(&pr_metadata.owner, &pr_metadata.repo, comment_id)
@@ -37,9 +32,24 @@ impl Context {
                 &pr_metadata.owner,
                 &pr_metadata.repo,
                 pr_metadata.number,
-                &text,
+                text,
             )
             .await
+            .map(Into::into)
+    }
+
+    pub async fn reply(
+        &self,
+        pr_metadata: &PrMetadata,
+        comment_id: Option<u64>,
+        msg: MsgCategory,
+        args: Vec<(&'static str, String)>,
+    ) -> anyhow::Result<CommentRepr> {
+        let text = self.messages.get_message(msg);
+
+        let text = text.format(args.into_iter().collect::<HashMap<_, _>>())?;
+
+        self.reply_with_text(pr_metadata, comment_id, &text).await
     }
 
     // It does the same, but maybe later we will add some additional logic

@@ -60,6 +60,17 @@ Feel free to check [our website]({link}) for additional details!
 """,
 ]
 
+[invite_messages]
+variables = ["include_common_message", "sender", "pr_author_username"]
+message = [
+    """@{sender} Thank you for calling!
+    
+@{pr_author_username} Thank you for the contribution! Join [Race of Sloths](https://race-of-sloths.com) by simply mentioning me in your comment/PRs description and start collecting Sloth Points through contributions to open source projects.
+
+{include_common_message}
+""",
+]
+
 [correctable_scoring_messages]
 variables = ["score", "corrected_score", "reviewer"]
 message = [

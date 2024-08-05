@@ -57,11 +57,23 @@ impl BotScored {
         info: &mut PRInfo,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
-        if !info.exist || info.executed {
+        if info.executed {
             debug!(
                 "Sloth is not included before or PR is already executed in: {}. Skipping.",
                 pr.full_id,
             );
+            return Ok(EventResult::Skipped);
+        }
+
+        if !info.exist {
+            BotIncluded::new(self.timestamp, self.comment_id)
+                .execute(pr, context.clone(), info, sender)
+                .await?;
+        }
+
+        // Info is updated in the previous call
+        if !info.exist {
+            debug!("Sloth is not included in {}. Skipping.", pr.full_id);
             return Ok(EventResult::Skipped);
         }
 

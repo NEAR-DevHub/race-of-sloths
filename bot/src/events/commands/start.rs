@@ -33,8 +33,7 @@ impl BotIncluded {
     ) -> anyhow::Result<EventResult> {
         if info.exist {
             debug!("Sloth is already included in {}. Skipping", pr.full_id,);
-            // Let's update the status message just in case
-            return Ok(EventResult::success(true));
+            return Ok(EventResult::Skipped);
         }
 
         match (pr.merged, pr.closed) {
@@ -68,6 +67,25 @@ impl BotIncluded {
                 )
                 .await?;
             return Ok(EventResult::RepliedWithError);
+        }
+
+        if sender.login != pr.author.login {
+            let user_info = context.near.user_info(&pr.author.login, vec![]).await?;
+            if user_info.is_none() {
+                debug!(
+                    "Author of PR {} is not registered in Race-of-Sloths. Inviting instead of including. Skipping",
+                    pr.full_id
+                );
+                let invite_txt = context
+                    .messages
+                    .invite_message(&pr.author.login, &sender.login)?;
+                context
+                    .reply_with_text(pr, self.user_comment_id, &invite_txt)
+                    .await?;
+                return Ok(EventResult::Success {
+                    should_update: false,
+                });
+            }
         }
 
         debug!("Starting PR {}", pr.full_id);
