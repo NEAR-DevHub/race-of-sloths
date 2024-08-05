@@ -55,6 +55,7 @@ Feel free to check [our website]({link}) for additional details!
   - **Assign points:** `@{bot_name} score [1/2/3/5/8/13]` to award points based on your assessment.
   - **Reject this PR:** `@{bot_name} exclude` to send this PR back to the drawing board.
   - **Exclude repo:** `@{bot_name} pause` to stop bot activity in this repo until `@{bot_name} unpause` command is called
+
 </details>
 """,
 ]
