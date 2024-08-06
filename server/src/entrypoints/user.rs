@@ -8,7 +8,7 @@ use race_of_sloths_server::{
         DB,
     },
     github_pull::GithubClient,
-    svg::{generate_png_meta_badge, generate_svg_bot_badge, generate_svg_share_badge, Mode},
+    svg::{generate_png_meta_badge, generate_svg_badge, Mode},
 };
 use rocket::{
     http::{ContentType, Header, Status},
@@ -168,12 +168,12 @@ pub async fn get_badge<'a>(
                         return Badge::with_status(Status::InternalServerError);
                     }
                 };
-            construct_svg_badge_from_result(generate_svg_bot_badge(
+            construct_svg_badge_from_result(generate_svg_badge(
                 telegram,
-                user,
-                metadata,
                 font.inner().clone(),
+                user,
                 theme.unwrap_or(Mode::Dark),
+                Some(metadata),
             ))
         }
         "meta" => {
@@ -193,9 +193,13 @@ pub async fn get_badge<'a>(
                 Err(_) => Badge::with_status(Status::InternalServerError),
             }
         }
-        "share" => {
-            construct_svg_badge_from_result(generate_svg_share_badge(user, font.inner().clone()))
-        }
+        "share" => construct_svg_badge_from_result(generate_svg_badge(
+            telegram,
+            font.inner().clone(),
+            user,
+            theme.unwrap_or(Mode::Dark),
+            None,
+        )),
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
             Badge::with_status(Status::NotFound)

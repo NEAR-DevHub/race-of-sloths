@@ -13,12 +13,12 @@ pub enum Mode {
     Light,
 }
 
-pub fn generate_svg_bot_badge(
+pub fn generate_svg_badge(
     telegram: &Arc<TelegramSubscriber>,
-    user_record: UserRecord,
-    user_metadata: UserCachedMetadata,
     fontdb: Arc<fontdb::Database>,
+    user_record: UserRecord,
     mode: Mode,
+    user_metadata: Option<UserCachedMetadata>,
 ) -> anyhow::Result<String> {
     let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record.get_total_period().cloned().unwrap_or_default();
@@ -53,25 +53,32 @@ pub fn generate_svg_bot_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = match mode {
-        Mode::Light => std::fs::read_to_string("./public/badge_bot_template_white.svg")?,
-        Mode::Dark => std::fs::read_to_string("./public/badge_bot_template_dark.svg")?,
+    let svg_icon = match (&user_metadata, mode) {
+        (Some(_), Mode::Light) => std::fs::read_to_string("./public/badge_bot_template_white.svg")?,
+        (Some(_), Mode::Dark) => std::fs::read_to_string("./public/badge_bot_template_dark.svg")?,
+        (None, Mode::Light) => std::fs::read_to_string("./public/badge_share_template_white.svg")?,
+        (None, Mode::Dark) => std::fs::read_to_string("./public/badge_share_template_dark.svg")?,
     };
-    let svg_icon = image_processing(
-        telegram,
-        svg_icon,
-        &user_metadata.image_base64,
-        &user_record.login,
-    );
-    let sloth_id = if user_record.id == i32::MAX {
-        "Newcomer".to_string()
+
+    let svg_icon = if let Some(user_metadata) = user_metadata {
+        let sloth_id = if user_record.id == i32::MAX {
+            "Newcomer".to_string()
+        } else {
+            format!("Sloth#{:04}", user_record.id)
+        };
+        image_processing(
+            telegram,
+            svg_icon,
+            &user_metadata.image_base64,
+            &user_record.login,
+        )
+        .replace("{login}", &user_record.login)
+        .replace("{sloth-id}", &sloth_id)
     } else {
-        format!("Sloth#{:04}", user_record.id)
+        svg_icon
     };
 
     let svg_icon = svg_icon
-        .replace("{login}", &user_record.login)
-        .replace("{sloth-id}", &sloth_id)
         .replace(
             "{total-contributions}",
             &total_period.prs_opened.to_string(),
@@ -86,68 +93,6 @@ pub fn generate_svg_bot_badge(
         );
 
     let svg_icon = process_rank(svg_icon, &user_record);
-
-    postprocess_svg(svg_icon, fontdb)
-}
-
-pub fn generate_svg_share_badge(
-    user_record: UserRecord,
-    fontdb: Arc<fontdb::Database>,
-) -> anyhow::Result<String> {
-    let all_time = TimePeriod::AllTime.time_string(0);
-    let total_period = user_record
-        .period_data
-        .iter()
-        .find(|p| p.period_type == all_time)
-        .cloned()
-        .unwrap_or_default();
-    let week_streak = user_record
-        .streaks
-        .iter()
-        .find(|e| e.streak_type == "Weekly")
-        .cloned()
-        .unwrap_or_default()
-        .best;
-    let month_streak = user_record
-        .streaks
-        .iter()
-        .find(|e| e.streak_type == "Monthly")
-        .cloned()
-        .unwrap_or_default()
-        .best;
-
-    let (place_type, place) = user_record
-        .leaderboard_places
-        .iter()
-        .min_by(|(_, a), (_, b)| a.cmp(b))
-        .map(|(a, place)| {
-            (
-                if a == &all_time {
-                    "Global".to_string()
-                } else {
-                    "Monthly".to_string()
-                },
-                place.to_string(),
-            )
-        })
-        .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
-
-    let svg_icon = std::fs::read_to_string("./public/badge_share_template.svg")?;
-
-    let svg_icon = svg_icon.replace(
-        "{total-contributions}",
-        &total_period.prs_opened.to_string(),
-    );
-    let svg_icon = process_rank(svg_icon, &user_record);
-
-    let svg_icon = svg_icon.replace(
-        "{total-rating}",
-        &total_period.total_rating.to_formatted_string(&Locale::en),
-    );
-    let svg_icon = svg_icon.replace("{max-week-streak}", &week_streak.to_string());
-    let svg_icon = svg_icon.replace("{max-month-streak}", &month_streak.to_string());
-    let svg_icon = svg_icon.replace("{place}", &place);
-    let svg_icon = svg_icon.replace("{place-type}", &place_type);
 
     postprocess_svg(svg_icon, fontdb)
 }
