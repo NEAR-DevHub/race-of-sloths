@@ -39,7 +39,7 @@ impl Command {
             "pause" | "block" => BotPaused::construct(comment),
             "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment),
             "exclude" | "leave" => BotExcluded::construct(comment),
-            "include" | "in" | "start" | "join | invite" => BotIncluded::construct(comment),
+            "include" | "in" | "start" | "join" | "invite" => BotIncluded::construct(comment),
             "update" => BotUpdated::construct(comment),
             _ if command.chars().all(char::is_numeric) && !command.is_empty() => {
                 BotScored::construct(comment, command)
