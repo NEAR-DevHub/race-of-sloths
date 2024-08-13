@@ -413,7 +413,8 @@ impl Contract {
 }
 
 impl Contract {
-    pub fn calculate_streak(&mut self, user_id: UserId, current_time: Timestamp) {
+    pub fn calculate_streak(&mut self, user_id: UserId) {
+        let current_time = env::block_timestamp();
         for streak in self.streaks.into_iter().cloned().collect::<Vec<_>>() {
             let streak: Streak = streak.into();
 
@@ -446,7 +447,7 @@ impl Contract {
             let prev_time_string = streak
                 .time_period
                 .previous_period(current_time)
-                .map(|a| streak.time_period.time_string(a))
+                .map(|a: u64| streak.time_period.time_string(a))
                 .unwrap_or_default();
 
             let older_streak = if streak_data.latest_time_string == prev_time_string {
@@ -513,7 +514,7 @@ impl Contract {
             func(entry);
         }
 
-        self.calculate_streak(user_id, timestamp);
+        self.calculate_streak(user_id);
     }
 
     pub fn get_or_create_account(

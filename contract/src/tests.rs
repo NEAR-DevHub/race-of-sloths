@@ -68,6 +68,10 @@ impl ContractExt {
         self.contract.sloth_exclude(pr_id_str(pr_id));
     }
 
+    pub fn stale(&mut self, pr_id: u64) {
+        self.contract.sloth_stale(pr_id_str(pr_id));
+    }
+
     pub fn finalize(&mut self, pr_id: u64) {
         self.contract.sloth_finalize(pr_id_str(pr_id), None, None)
     }
@@ -180,6 +184,55 @@ fn streak_calculation() {
 
     assert_eq!(user.period_data[0].1.total_score, 12 * 10);
     assert_eq!(user.period_data[0].1.executed_prs, 12);
+}
+
+#[test]
+fn streak_is_not_lost_by_stale() {
+    let (mut contract, time) = {
+        //Setup
+        let mut contract = ContractExt::new();
+
+        let mut current_time = 0;
+        for i in 0..12 {
+            contract.context.block_timestamp = current_time;
+            testing_env!(contract.context.clone());
+            contract.include_sloth_common_repo(0, i, current_time);
+            contract.score(i, 1, 10);
+            contract.merge(i, current_time + 1);
+            current_time += SCORE_TIMEOUT_IN_NANOSECONDS * 7 + 1;
+            contract.context.block_timestamp = current_time;
+            testing_env!(contract.context.clone());
+            contract.finalize(i);
+        }
+
+        let user = contract
+            .contract
+            .user(&github_handle(0), vec!["all-time".to_string()])
+            .unwrap();
+        // 12 weeks streak with opened PR
+        assert_eq!(user.streaks[0].1.amount, 12);
+        // 3 months streak with 8+ scopre
+        assert_eq!(user.streaks[1].1.amount, 3);
+        (contract, current_time)
+    };
+
+    // Add PR - > Remove PR -> Add Pr -> Remove PR
+    for i in 13..17 {
+        testing_env!(contract.context.clone());
+        contract.include_sloth_common_repo(0, i, time);
+
+        let user = contract.contract.user(&github_handle(0), vec![]).unwrap();
+        assert_eq!(user.streaks[0].1.amount, 13);
+
+        contract.score(i, 1, 10);
+        let user = contract.contract.user(&github_handle(0), vec![]).unwrap();
+        assert_eq!(user.streaks[0].1.amount, 13);
+
+        contract.stale(i);
+
+        let user = contract.contract.user(&github_handle(0), vec![]).unwrap();
+        assert_eq!(user.streaks[0].1.amount, 12);
+    }
 }
 
 #[test]
