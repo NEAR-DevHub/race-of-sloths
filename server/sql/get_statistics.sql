@@ -63,6 +63,13 @@ highest_rating AS (
         pr.merged_at - pr.created_at ASC
     LIMIT
         1
+), hall_of_fame AS (
+    SELECT
+        STRING_AGG(u.login, ',') AS fame_logins
+    FROM
+        users AS u
+    WHERE
+        u.permanent_bonus > 0
 )
 SELECT
     ss.number_of_sloths,
@@ -78,8 +85,10 @@ SELECT
     fm.full_name AS fastest_org_full_name,
     fm.created_at as fastest_included,
     fm.merged_at as fastest_merged,
-    fm.number AS fastest_pr_number
+    fm.number AS fastest_pr_number,
+    hof.fame_logins as hall_of_fame
 FROM
     sloth_stats ss,
     highest_rating hr,
-    fastest_merge fm;
+    fastest_merge fm,
+    hall_of_fame hof;
