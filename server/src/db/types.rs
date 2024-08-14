@@ -146,4 +146,7 @@ pub struct Statistics {
     pub fastest_pr_number: Option<i32>,
     pub fastest_included: Option<chrono::NaiveDateTime>,
     pub fastest_merged: Option<chrono::NaiveDateTime>,
+
+    // CSV
+    pub hall_of_fame: Option<String>,
 }

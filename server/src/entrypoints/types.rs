@@ -287,15 +287,25 @@ pub struct Statistics {
     pub total_rating: u32,
     pub highest_sloth_rating: (GithubMeta, u32),
     pub shortest_merge_time: (String, String),
+    pub number_of_famed_sloths: u32,
+    pub hall_of_fame: Vec<GithubMeta>,
 }
 
 impl From<crate::db::types::Statistics> for Statistics {
     fn from(value: crate::db::types::Statistics) -> Self {
-        dbg!(&value);
         let duration = value
             .fastest_merged
             .map(|x| x - value.fastest_included.unwrap_or_default())
             .unwrap_or_default();
+        let hall_of_fame = if let Some(hall_of_fame) = value.hall_of_fame {
+            hall_of_fame
+                .split(',')
+                .map(|x| GithubMeta::new(x.to_string(), None))
+                .collect()
+        } else {
+            vec![]
+        };
+
         Self {
             number_of_sloths: value.number_of_sloths.unwrap_or_default() as u32,
             number_of_repos: value.number_of_repos.unwrap_or_default() as u32,
@@ -315,6 +325,8 @@ impl From<crate::db::types::Statistics> for Statistics {
                 ),
                 duration.to_string(),
             ),
+            number_of_famed_sloths: hall_of_fame.len() as u32,
+            hall_of_fame,
         }
     }
 }
