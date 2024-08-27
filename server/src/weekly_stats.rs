@@ -3,33 +3,44 @@ use std::{
     time::Duration,
 };
 
-use rocket::{fairing::AdHoc, futures::future::join_all};
+use chrono::NaiveDate;
+use itertools::Itertools;
+use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
-use shared::telegram::TelegramSubscriber;
+use shared::{telegram::TelegramSubscriber, GithubHandle};
 use tracing::Level;
 
 use crate::{db::DB, github_pull::GithubClient};
 
-async fn calculate_weekly_pr_stats(
+async fn calculate_pr_stats(
     db: &DB,
     github: &GithubClient,
     telegram: &TelegramSubscriber,
+    period_string: &str,
+    start_period: NaiveDate,
 ) -> anyhow::Result<()> {
     let projects = db.get_projects().await?;
     let mut project_stats = Vec::with_capacity(projects.len());
+    let mut user_stats = std::collections::HashMap::<GithubHandle, (u32, u32)>::new();
     for (org, repo) in projects {
-        let period = (chrono::Utc::now() - chrono::Duration::days(7)).date_naive();
-        let prs = github.pull_requests_for_period(&org, &repo, period).await?;
-        let result = join_all(
-            prs.iter()
-                .map(|pr| db.is_pr_available(&org, &repo, pr.number as i32)),
-        )
-        .await
-        .into_iter()
-        .filter(|r| matches!(r, Ok(true)))
-        .count();
+        let prs = github
+            .pull_requests_for_period(&org, &repo, start_period)
+            .await?;
+        let mut sloths_prs = 0;
+        let total_prs = prs.len();
 
-        project_stats.push((org, repo, prs.len(), result));
+        for pr in prs {
+            let user = pr.user.map(|u| u.login).unwrap_or_default();
+            let (total_prs, user_sloths_pr) = user_stats.entry(user).or_default();
+            *total_prs += 1;
+
+            if let Ok(true) = db.is_pr_available(&org, &repo, pr.number as i32).await {
+                sloths_prs += 1;
+                *user_sloths_pr += 1;
+            }
+        }
+
+        project_stats.push((org, repo, total_prs, sloths_prs));
     }
 
     project_stats.sort_by(|(_, _, prs1, with_sloth1), (_, _, prs2, with_sloth2)| {
@@ -38,21 +49,43 @@ async fn calculate_weekly_pr_stats(
         diff2.cmp(&diff1)
     });
 
-    let mut message = String::from("Weekly PR stats:\n");
-    for (org, repo, prs, prs_with_sloth) in project_stats.into_iter().take(10) {
-        message.push_str(&format!(
-            "- [{org}/{repo}](https://github.com/{org}/{repo}) - {prs} PRs, {prs_with_sloth} PRs with sloth, {} Difference\n",
-            prs - prs_with_sloth
-        ));
-    }
+    let mut user_stats: Vec<(String, (u32, u32))> = user_stats.into_iter().collect();
+    user_stats.sort_by(|(_, (prs1, with_sloth1)), (_, (prs2, with_sloth2))| {
+        let diff1 = *prs1 - *with_sloth1;
+        let diff2 = *prs2 - *with_sloth2;
+        diff2.cmp(&diff1)
+    });
+
+    let message = [format!("{period_string} PR stats:")].into_iter().chain(project_stats.into_iter().take(10).map(|(org, repo, prs, prs_with_sloth)| format!(
+        "- [{org}/{repo}](https://github.com/{org}/{repo}) - {prs} PRs, {prs_with_sloth} PRs with sloth, {} Difference\n",
+        prs - prs_with_sloth
+    ))).join("\n");
+
+    let user_message = [String::from("User;Total PRs;Sloth PRs;Difference")]
+        .into_iter()
+        .chain(
+            user_stats
+                .into_iter()
+                .map(|(user, (prs, prs_with_sloths))| {
+                    format!(
+                        "{};{};{};{}",
+                        user,
+                        prs,
+                        prs_with_sloths,
+                        prs - prs_with_sloths
+                    )
+                }),
+        )
+        .join("\n");
 
     telegram.send_to_telegram(&message, &Level::INFO);
+    telegram.send_csv_file_to_telegram(user_message.into_bytes(), "user-stats.csv".to_string());
 
     Ok(())
 }
 
 pub fn stage(sleep_duration: Duration, atomic_bool: Arc<AtomicBool>) -> AdHoc {
-    AdHoc::on_ignite("Weekly stats", move |rocket| async move {
+    AdHoc::on_ignite("Weekly/Monthly stats", move |rocket| async move {
         rocket.attach(AdHoc::on_liftoff(
             "Analyzes weekly statistics",
             move |rocket| {
@@ -72,10 +105,24 @@ pub fn stage(sleep_duration: Duration, atomic_bool: Arc<AtomicBool>) -> AdHoc {
                     rocket::tokio::spawn(async move {
                         let mut interval: rocket::tokio::time::Interval =
                             rocket::tokio::time::interval(sleep_duration);
+                        let mut count = 0;
                         while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                             interval.tick().await;
-                            if let Err(e) =
-                                calculate_weekly_pr_stats(&db, &github_client, &telegram).await
+
+                            let (period, start_period) = if count % 4 == 0 {
+                                ("Monthly", (chrono::Utc::now() - chrono::Duration::days(30)))
+                            } else {
+                                ("Weekly", (chrono::Utc::now() - chrono::Duration::days(7)))
+                            };
+
+                            if let Err(e) = calculate_pr_stats(
+                                &db,
+                                &github_client,
+                                &telegram,
+                                period,
+                                start_period.date_naive(),
+                            )
+                            .await
                             {
                                 telegram.send_to_telegram(
                                     &format!("Failed to calculate weekly stats: {:#?}", e),
@@ -84,6 +131,7 @@ pub fn stage(sleep_duration: Duration, atomic_bool: Arc<AtomicBool>) -> AdHoc {
 
                                 tracing::error!("Failed to calculate weekly stats: {:#?}", e);
                             }
+                            count += 1;
                         }
                     });
                 })
