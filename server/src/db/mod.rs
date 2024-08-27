@@ -4,7 +4,7 @@ use rocket::{
 };
 use rocket_db_pools::Database;
 use shared::{StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Database, Clone, Debug)]
 #[database("race-of-sloths")]
@@ -20,7 +20,12 @@ use self::types::{
 };
 
 impl DB {
-    pub async fn upsert_user(&self, user_id: u32, user: &str, percent: u32) -> anyhow::Result<i32> {
+    pub async fn upsert_user(
+        tx: &mut Transaction<'static, Postgres>,
+        user_id: u32,
+        user: &str,
+        percent: u32,
+    ) -> anyhow::Result<i32> {
         // First try to update the user
         let rec = sqlx::query!(
             r#"
@@ -32,7 +37,7 @@ impl DB {
             user_id as i32,
             percent as i32
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the user
@@ -50,14 +55,18 @@ impl DB {
                 user,
                 percent as i32
             )
-            .fetch_one(&self.0)
+            .fetch_one(tx.as_mut())
             .await?;
 
             Ok(rec.id)
         }
     }
 
-    pub async fn update_user_full_name(&self, user: &str, full_name: &str) -> anyhow::Result<()> {
+    pub async fn update_user_full_name(
+        tx: &mut Transaction<'static, Postgres>,
+        user: &str,
+        full_name: &str,
+    ) -> anyhow::Result<()> {
         sqlx::query!(
             r#"
             UPDATE users
@@ -67,13 +76,13 @@ impl DB {
             user,
             full_name
         )
-        .execute(&self.0)
+        .execute(tx.as_mut())
         .await?;
         Ok(())
     }
 
     pub async fn update_organization_full_name(
-        &self,
+        tx: &mut Transaction<'static, Postgres>,
         organization: &str,
         full_name: &str,
     ) -> anyhow::Result<()> {
@@ -86,12 +95,15 @@ impl DB {
             organization,
             full_name
         )
-        .execute(&self.0)
+        .execute(tx.as_mut())
         .await?;
         Ok(())
     }
 
-    pub async fn upsert_organization(&self, name: &str) -> anyhow::Result<i32> {
+    pub async fn upsert_organization(
+        tx: &mut Transaction<'static, Postgres>,
+        name: &str,
+    ) -> anyhow::Result<i32> {
         // First try to update the organization
         let rec = sqlx::query!(
             r#"
@@ -102,7 +114,7 @@ impl DB {
             "#,
             name
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the organization
@@ -118,14 +130,18 @@ impl DB {
                 "#,
                 name
             )
-            .fetch_one(&self.0)
+            .fetch_one(tx.as_mut())
             .await?;
 
             Ok(rec.id)
         }
     }
 
-    pub async fn upsert_repo(&self, organization_id: i32, name: &str) -> anyhow::Result<i32> {
+    pub async fn upsert_repo(
+        tx: &mut Transaction<'static, Postgres>,
+        organization_id: i32,
+        name: &str,
+    ) -> anyhow::Result<i32> {
         // First try to update the repo
         let rec = sqlx::query!(
             r#"
@@ -137,7 +153,7 @@ impl DB {
             organization_id,
             name
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the repo
@@ -154,7 +170,7 @@ impl DB {
                 organization_id,
                 name
             )
-            .fetch_one(&self.0)
+            .fetch_one(tx.as_mut())
             .await?;
 
             Ok(rec.id)
@@ -162,7 +178,7 @@ impl DB {
     }
 
     pub async fn upsert_pull_request(
-        &self,
+        tx: &mut Transaction<'static, Postgres>,
         repo_id: i32,
         number: i32,
         author_id: i32,
@@ -194,7 +210,7 @@ impl DB {
             created_at,
             included_at
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the pull request
@@ -220,7 +236,7 @@ impl DB {
                 permanent_bonus as i32,
                 streak_bonus as i32,
             )
-            .fetch_one(&self.0)
+            .fetch_one(tx.as_mut())
             .await?;
 
             Ok(rec.id)
@@ -228,7 +244,7 @@ impl DB {
     }
 
     pub async fn upsert_user_period_data(
-        &self,
+        tx: &mut Transaction<'static, Postgres>,
         period: TimePeriodString,
         data: &UserPeriodData,
         user_id: i32,
@@ -251,7 +267,7 @@ impl DB {
             data.total_rating as i32,
             data.largest_rating_per_pr as i32
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the user period data
@@ -272,14 +288,14 @@ impl DB {
                 data.total_rating as i32,
                 data.largest_rating_per_pr as i32
             )
-            .execute(&self.0)
+            .execute(tx.as_mut())
             .await?;
         }
         Ok(())
     }
 
     pub async fn upsert_streak_user_data(
-        &self,
+        tx: &mut Transaction<'static, Postgres>,
         data: &StreakUserData,
         streak_id: i32,
         user_id: i32,
@@ -298,7 +314,7 @@ impl DB {
             data.best as i32,
             data.latest_time_string
         )
-        .fetch_optional(&self.0)
+        .fetch_optional(tx.as_mut())
         .await?;
 
         // If the update did not find a matching row, insert the streak user data
@@ -315,14 +331,14 @@ impl DB {
                 data.best as i32,
                 data.latest_time_string
             )
-            .execute(&self.0)
+            .execute(tx.as_mut())
             .await?;
         }
         Ok(())
     }
 
     pub async fn update_repo_metadata(
-        &self,
+        tx: &mut Transaction<'static, Postgres>,
         repo_id: i32,
         stars: u32,
         forks: u32,
@@ -340,7 +356,7 @@ impl DB {
             primary_language,
             repo_id
         )
-        .execute(&self.0)
+        .execute(tx.as_mut())
         .await?;
         Ok(())
     }
@@ -556,35 +572,39 @@ impl DB {
             .collect())
     }
 
-    pub async fn get_repos(&self) -> anyhow::Result<Vec<RepoRecord>> {
+    pub async fn get_repos(
+        tx: &mut Transaction<'static, Postgres>,
+    ) -> anyhow::Result<Vec<RepoRecord>> {
         let rec = sqlx::query_file_as!(RepoRecord, "./sql/get_repos.sql")
-            .fetch_all(&self.0)
+            .fetch_all(tx.as_mut())
             .await?;
 
         Ok(rec)
     }
 
-    pub async fn get_users(&self) -> anyhow::Result<Vec<User>> {
+    pub async fn get_users(tx: &mut Transaction<'static, Postgres>) -> anyhow::Result<Vec<User>> {
         let rec = sqlx::query_as!(
             User,
             r#"
             SELECT login, full_name
             FROM users"#
         )
-        .fetch_all(&self.0)
+        .fetch_all(tx.as_mut())
         .await?;
 
         Ok(rec)
     }
 
-    pub async fn get_organizations(&self) -> anyhow::Result<Vec<User>> {
+    pub async fn get_organizations(
+        tx: &mut Transaction<'static, Postgres>,
+    ) -> anyhow::Result<Vec<User>> {
         let rec = sqlx::query_as!(
             User,
             r#"
             SELECT login, full_name
             FROM organizations"#
         )
-        .fetch_all(&self.0)
+        .fetch_all(tx.as_mut())
         .await?;
 
         Ok(rec)
@@ -628,14 +648,17 @@ impl DB {
         Ok(rec.is_some())
     }
 
-    pub async fn clear_prs(&self) -> anyhow::Result<()> {
+    pub async fn clear_prs(tx: &mut Transaction<'static, Postgres>) -> anyhow::Result<()> {
         sqlx::query!("DELETE FROM pull_requests")
-            .execute(&self.0)
+            .execute(tx.as_mut())
             .await?;
         Ok(())
     }
 
-    pub async fn get_user_id(&self, name: &str) -> anyhow::Result<i32> {
+    pub async fn get_user_id(
+        tx: &mut Transaction<'static, Postgres>,
+        name: &str,
+    ) -> anyhow::Result<i32> {
         let rec = sqlx::query!(
             r#"
             SELECT id
@@ -644,7 +667,7 @@ impl DB {
             "#,
             name
         )
-        .fetch_one(&self.0)
+        .fetch_one(tx.as_mut())
         .await?;
 
         Ok(rec.id)

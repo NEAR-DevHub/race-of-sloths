@@ -67,13 +67,7 @@ async fn calculate_pr_stats(
             user_stats
                 .into_iter()
                 .map(|(user, (prs, prs_with_sloths))| {
-                    format!(
-                        "{};{};{};{}",
-                        user,
-                        prs,
-                        prs_with_sloths,
-                        prs - prs_with_sloths
-                    )
+                    format!("{user};{prs};{prs_with_sloths};{}", prs - prs_with_sloths)
                 }),
         )
         .join("\n");

@@ -7,6 +7,7 @@ use octocrab::{models::pulls::PullRequest, Octocrab};
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
 use shared::telegram::TelegramSubscriber;
+use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
 use crate::db::DB;
@@ -93,13 +94,13 @@ impl GithubClient {
     }
 }
 
-#[instrument(skip(telegram, github, db))]
+#[instrument(skip(telegram, github, tx))]
 async fn fetch_repos_metadata(
     telegram: &Arc<TelegramSubscriber>,
     github: &GithubClient,
-    db: &DB,
+    tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let repos = db.get_repos().await?;
+    let repos = DB::get_repos(tx).await?;
     for repo in repos {
         let metadata = match github.repo_metadata(&repo.organization, &repo.repo).await {
             Ok(metadata) => metadata,
@@ -114,15 +115,15 @@ async fn fetch_repos_metadata(
                 continue;
             }
         };
-        if let Err(e) = db
-            .update_repo_metadata(
-                repo.repo_id,
-                metadata.stars,
-                metadata.forks,
-                metadata.open_issues,
-                metadata.primary_language,
-            )
-            .await
+        if let Err(e) = DB::update_repo_metadata(
+            tx,
+            repo.repo_id,
+            metadata.stars,
+            metadata.forks,
+            metadata.open_issues,
+            metadata.primary_language,
+        )
+        .await
         {
             crate::error(
                 telegram,
@@ -136,13 +137,13 @@ async fn fetch_repos_metadata(
     Ok(())
 }
 
-#[instrument(skip(telegram, github, db))]
+#[instrument(skip(telegram, github, tx))]
 async fn fetch_missing_user_organization_metadata(
     telegram: &Arc<TelegramSubscriber>,
     github: &GithubClient,
-    db: &DB,
+    tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let users = db.get_users().await?;
+    let users = DB::get_users(tx).await?;
     for user in users {
         if user.full_name.is_some() {
             // TODO: add user entry to sync cache
@@ -160,11 +161,11 @@ async fn fetch_missing_user_organization_metadata(
             }
         };
         if let Some(full_name) = &profile.name {
-            db.update_user_full_name(&user.login, full_name).await?;
+            DB::update_user_full_name(tx, &user.login, full_name).await?;
         }
     }
 
-    let orgs = db.get_organizations().await?;
+    let orgs = DB::get_organizations(tx).await?;
     for org in orgs {
         if org.full_name.is_some() {
             continue;
@@ -184,10 +185,24 @@ async fn fetch_missing_user_organization_metadata(
             }
         };
         if let Some(full_name) = &profile.name {
-            db.update_organization_full_name(&org.login, full_name)
-                .await?;
+            DB::update_organization_full_name(tx, &org.login, full_name).await?;
         }
     }
+    Ok(())
+}
+
+pub async fn fetch_github_data(
+    telegram: &Arc<TelegramSubscriber>,
+    github: &GithubClient,
+    db: &DB,
+) -> anyhow::Result<()> {
+    let mut tx = db.begin().await?;
+
+    fetch_repos_metadata(telegram, github, &mut tx).await?;
+    fetch_missing_user_organization_metadata(telegram, github, &mut tx).await?;
+
+    tx.commit().await?;
+
     Ok(())
 }
 
@@ -221,22 +236,8 @@ pub fn stage(
                             while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                                 interval.tick().await;
 
-                                // Execute a query of some kind
                                 if let Err(e) =
-                                    fetch_repos_metadata(&telegram, &github_client, &db).await
-                                {
-                                    rocket::error!(
-                                        "Failed to fetch and store github data: {:#?}",
-                                        e
-                                    );
-                                }
-
-                                if let Err(e) = fetch_missing_user_organization_metadata(
-                                    &telegram,
-                                    &github_client,
-                                    &db,
-                                )
-                                .await
+                                    fetch_github_data(&telegram, &github_client, &db).await
                                 {
                                     rocket::error!(
                                         "Failed to fetch and store github data: {:#?}",
