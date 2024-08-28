@@ -3,6 +3,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context;
 use octocrab::{models::pulls::PullRequest, Octocrab};
 use rocket::fairing::AdHoc;
 use rocket_db_pools::Database;
@@ -10,7 +11,7 @@ use shared::telegram::TelegramSubscriber;
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-use crate::db::DB;
+use crate::{db::DB, error};
 
 struct RepoMetadata {
     stars: u32,
@@ -100,7 +101,7 @@ async fn fetch_repos_metadata(
     github: &GithubClient,
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let repos = DB::get_repos(tx).await?;
+    let repos = DB::get_repos(tx).await.context("Failed to ger repops")?;
     for repo in repos {
         let metadata = match github.repo_metadata(&repo.organization, &repo.repo).await {
             Ok(metadata) => metadata,
@@ -115,7 +116,7 @@ async fn fetch_repos_metadata(
                 continue;
             }
         };
-        if let Err(e) = DB::update_repo_metadata(
+        DB::update_repo_metadata(
             tx,
             repo.repo_id,
             metadata.stars,
@@ -124,15 +125,7 @@ async fn fetch_repos_metadata(
             metadata.primary_language,
         )
         .await
-        {
-            crate::error(
-                telegram,
-                &format!(
-                    "Failed to update repo metadata for {}/{}: {:#?}",
-                    &repo.organization, &repo.repo, e
-                ),
-            );
-        }
+        .context("Failed to update repo metadata")?;
     }
     Ok(())
 }
@@ -143,7 +136,7 @@ async fn fetch_missing_user_organization_metadata(
     github: &GithubClient,
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let users = DB::get_users(tx).await?;
+    let users = DB::get_users(tx).await.unwrap_or_default();
     for user in users {
         if user.full_name.is_some() {
             // TODO: add user entry to sync cache
@@ -161,11 +154,13 @@ async fn fetch_missing_user_organization_metadata(
             }
         };
         if let Some(full_name) = &profile.name {
-            DB::update_user_full_name(tx, &user.login, full_name).await?;
+            DB::update_user_full_name(tx, &user.login, full_name)
+                .await
+                .context("Failed to update user full name")?;
         }
     }
 
-    let orgs = DB::get_organizations(tx).await?;
+    let orgs = DB::get_organizations(tx).await.unwrap_or_default();
     for org in orgs {
         if org.full_name.is_some() {
             continue;
@@ -185,7 +180,9 @@ async fn fetch_missing_user_organization_metadata(
             }
         };
         if let Some(full_name) = &profile.name {
-            DB::update_organization_full_name(tx, &org.login, full_name).await?;
+            DB::update_organization_full_name(tx, &org.login, full_name)
+                .await
+                .context("Failed to update organization full name")?;
         }
     }
     Ok(())
@@ -198,8 +195,12 @@ pub async fn fetch_github_data(
 ) -> anyhow::Result<()> {
     let mut tx = db.begin().await?;
 
-    fetch_repos_metadata(telegram, github, &mut tx).await?;
-    fetch_missing_user_organization_metadata(telegram, github, &mut tx).await?;
+    fetch_repos_metadata(telegram, github, &mut tx)
+        .await
+        .context("Failure on fetching and updating repos")?;
+    fetch_missing_user_organization_metadata(telegram, github, &mut tx)
+        .await
+        .context("Failed ton fetching and updating user/org metadata")?;
 
     tx.commit().await?;
 
@@ -239,10 +240,7 @@ pub fn stage(
                                 if let Err(e) =
                                     fetch_github_data(&telegram, &github_client, &db).await
                                 {
-                                    rocket::error!(
-                                        "Failed to fetch and store github data: {:#?}",
-                                        e
-                                    );
+                                    error(&telegram, &e.to_string());
                                 }
                             }
                         });
