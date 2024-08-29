@@ -121,13 +121,18 @@ async fn fetch_and_store_repos(
 // TODO: more efficient way to fetch only updated data
 async fn fetch_and_store_all_data(near_client: &NearClient, db: &DB) -> anyhow::Result<()> {
     let mut tx = db.begin().await?;
-
     fetch_and_store_users(near_client, &mut tx)
         .await
         .context("Failed to fetch and store users")?;
+    tx.commit().await?;
+
+    let mut tx = db.begin().await?;
     fetch_and_store_repos(near_client, &mut tx)
         .await
         .context("Failed to fetch and store repositories")?;
+    tx.commit().await?;
+
+    let mut tx = db.begin().await?;
     fetch_and_store_prs(near_client, &mut tx)
         .await
         .context("Failed to fetch and store pull requests")?;
@@ -156,7 +161,7 @@ pub fn stage(client: NearClient, sleep_duration: Duration, atomic_bool: Arc<Atom
 
                     // Execute a query of some kind
                     if let Err(e) = fetch_and_store_all_data(&near_client, &db).await {
-                        crate::error(&telegram, &e.to_string());
+                        crate::error(&telegram, &format!("{e:#}"));
                     }
                 }
             });

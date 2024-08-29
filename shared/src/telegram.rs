@@ -3,6 +3,7 @@ use std::fmt;
 use tokio::sync::mpsc;
 use tracing::{Event, Level, Subscriber};
 
+#[derive(Debug, Clone)]
 pub enum MessageType {
     CsvFile((String, Vec<u8>)),
     Message((String, Level)),
@@ -99,8 +100,9 @@ async fn sender_task(
             Ok(response) if response.status().is_success() => {}
             // We use eprintln! here because it doesn't make sense to send back a message to the chat
             Ok(response) => eprintln!(
-                "Failed to send message: Received HTTP {}:",
-                response.status()
+                "Failed to send message: Received HTTP {}:\n{:?}",
+                response.status(),
+                response.text().await,
             ),
             Err(e) => eprintln!("Failed to send message: {}", e),
         }
