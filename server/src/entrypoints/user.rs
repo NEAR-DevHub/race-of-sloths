@@ -112,7 +112,7 @@ async fn fetch_user_metadata_lazily(
 #[utoipa::path(context_path = "/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>/badge?<type>&<theme>")]
+#[get("/<username>/badge?<type>&<theme>&<pr>")]
 pub async fn get_badge<'a>(
     telegram: &State<Arc<telegram::TelegramSubscriber>>,
     username: &str,
@@ -121,6 +121,7 @@ pub async fn get_badge<'a>(
     github_client: &State<Arc<GithubClient>>,
     r#type: Option<String>,
     theme: Option<Mode>,
+    pr: Option<String>,
 ) -> Badge {
     let badge_type = r#type.unwrap_or_else(|| "share".to_string());
 
@@ -154,9 +155,56 @@ pub async fn get_badge<'a>(
         }
     };
 
+    let pr = pr.and_then(|pr| {
+        let mut split = pr.split('/');
+        let owner = split.next()?.to_string();
+        let repo = split.next()?.to_string();
+        let number: i32 = split.next()?.parse().ok()?;
+        Some((owner, repo, number))
+    });
+
     // TODO: spaghetti code, refactor
-    match badge_type.as_str() {
-        "bot" => {
+    eprintln!("{:?}", pr);
+    match (badge_type.as_str(), pr) {
+        ("bot", Some((owner, repo, number))) => {
+            eprintln!("owner: {owner}, repo: {repo}, number: {number}");
+            let metadata =
+                match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
+                    Ok(metadata) => metadata,
+                    Err(e) => {
+                        race_of_sloths_server::error(
+                            telegram,
+                            &format!("Failed to fetch user metadata: {e}"),
+                        );
+                        return Badge::with_status(Status::InternalServerError);
+                    }
+                };
+            let contribution = match db.get_contribution(&owner, &repo, number).await {
+                Ok(Some(contribution)) => contribution,
+                Ok(None) => {
+                    return Badge::with_status(Status::NotFound);
+                }
+                Err(e) => {
+                    race_of_sloths_server::error(
+                        telegram,
+                        &format!("Failed to fetch user contribution: {e}"),
+                    );
+                    return Badge::with_status(Status::InternalServerError);
+                }
+            };
+
+            eprintln!("contribution: {:?}", contribution);
+
+            construct_svg_badge_from_result(generate_svg_badge(
+                telegram,
+                font.inner().clone(),
+                user,
+                theme.unwrap_or(Mode::Dark),
+                Some(metadata),
+                Some(contribution),
+            ))
+        }
+        ("bot", None) => {
             let metadata =
                 match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
                     Ok(metadata) => metadata,
@@ -174,9 +222,10 @@ pub async fn get_badge<'a>(
                 user,
                 theme.unwrap_or(Mode::Dark),
                 Some(metadata),
+                None,
             ))
         }
-        "meta" => {
+        ("meta", _) => {
             let metadata =
                 match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
                     Ok(metadata) => metadata,
@@ -193,11 +242,12 @@ pub async fn get_badge<'a>(
                 Err(_) => Badge::with_status(Status::InternalServerError),
             }
         }
-        "share" => construct_svg_badge_from_result(generate_svg_badge(
+        ("share", _) => construct_svg_badge_from_result(generate_svg_badge(
             telegram,
             font.inner().clone(),
             user,
             theme.unwrap_or(Mode::Dark),
+            None,
             None,
         )),
         _ => {

@@ -101,7 +101,9 @@ async fn fetch_repos_metadata(
     github: &GithubClient,
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let repos = DB::get_repos(tx).await.context("Failed to ger repos")?;
+    let repos = DB::get_repos_for_update(tx)
+        .await
+        .context("Failed to ger repos")?;
     for repo in repos {
         let metadata = match github.repo_metadata(&repo.organization, &repo.repo).await {
             Ok(metadata) => metadata,
@@ -136,7 +138,7 @@ async fn fetch_missing_user_organization_metadata(
     github: &GithubClient,
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
-    let users = DB::get_users(tx).await.unwrap_or_default();
+    let users = DB::get_users_for_update(tx).await.unwrap_or_default();
     for user in users {
         if user.full_name.is_some() {
             // TODO: add user entry to sync cache
@@ -160,7 +162,9 @@ async fn fetch_missing_user_organization_metadata(
         }
     }
 
-    let orgs = DB::get_organizations(tx).await.unwrap_or_default();
+    let orgs = DB::get_organizations_for_update(tx)
+        .await
+        .unwrap_or_default();
     for org in orgs {
         if org.full_name.is_some() {
             continue;

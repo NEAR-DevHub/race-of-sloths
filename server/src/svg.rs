@@ -5,7 +5,10 @@ use rocket::FromFormField;
 use shared::{telegram::TelegramSubscriber, TimePeriod};
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
-use crate::db::types::{UserCachedMetadata, UserRecord};
+use crate::{
+    db::types::{StreakRecord, UserCachedMetadata, UserContributionRecord, UserRecord},
+    types::UserContributionResponse,
+};
 
 #[derive(Debug, Clone, Copy, FromFormField)]
 pub enum Mode {
@@ -19,6 +22,7 @@ pub fn generate_svg_badge(
     user_record: UserRecord,
     mode: Mode,
     user_metadata: Option<UserCachedMetadata>,
+    contribution: Option<UserContributionRecord>,
 ) -> anyhow::Result<String> {
     let all_time = TimePeriod::AllTime.time_string(0);
     let total_period = user_record.get_total_period().cloned().unwrap_or_default();
@@ -27,15 +31,13 @@ pub fn generate_svg_badge(
         .iter()
         .find(|e| e.streak_type == "Weekly")
         .cloned()
-        .unwrap_or_default()
-        .best;
+        .unwrap_or_default();
     let month_streak = user_record
         .streaks
         .iter()
         .find(|e| e.streak_type == "Monthly")
         .cloned()
-        .unwrap_or_default()
-        .best;
+        .unwrap_or_default();
 
     let (place_type, place) = user_record
         .leaderboard_places
@@ -53,27 +55,40 @@ pub fn generate_svg_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = match (&user_metadata, mode) {
-        (Some(_), Mode::Light) => std::fs::read_to_string("./public/badge_bot_template_white.svg")?,
-        (Some(_), Mode::Dark) => std::fs::read_to_string("./public/badge_bot_template_dark.svg")?,
-        (None, Mode::Light) => std::fs::read_to_string("./public/badge_share_template_white.svg")?,
-        (None, Mode::Dark) => std::fs::read_to_string("./public/badge_share_template_dark.svg")?,
+    let svg_icon = match (&contribution, &user_metadata, mode) {
+        (None, Some(_), Mode::Light) => {
+            std::fs::read_to_string("./public/templates/badge_bot_template_white.svg")?
+        }
+        (None, Some(_), Mode::Dark) => {
+            std::fs::read_to_string("./public/templates/badge_bot_template_dark.svg")?
+        }
+        (Some(_), Some(_), Mode::Dark) => {
+            std::fs::read_to_string("./public/templates/badge_bot_with_pr_info_dark.svg")?
+        }
+        (Some(_), Some(_), Mode::Light) => {
+            std::fs::read_to_string("./public/templates/badge_bot_with_pr_info_white.svg")?
+        }
+        (None, None, Mode::Light) => {
+            std::fs::read_to_string("./public/templates/badge_share_template_white.svg")?
+        }
+        (None, None, Mode::Dark) => {
+            std::fs::read_to_string("./public/templates/badge_share_template_dark.svg")?
+        }
+
+        (Some(_), None, _) => {
+            return Err(anyhow::anyhow!("PR info provided without user metadata"))
+        }
     };
 
     let svg_icon = if let Some(user_metadata) = user_metadata {
-        let sloth_id = if user_record.id == i32::MAX {
-            "Newcomer".to_string()
-        } else {
-            format!("Sloth#{:04}", user_record.id)
-        };
-        image_processing(
-            telegram,
-            svg_icon,
-            &user_metadata.image_base64,
-            &user_record.login,
-        )
-        .replace("{login}", &user_record.login)
-        .replace("{sloth-id}", &sloth_id)
+        process_user_metadata(telegram, svg_icon, &user_record, user_metadata)
+    } else {
+        svg_icon
+    };
+
+    let svg_icon = if let Some(contribution) = contribution {
+        let svg_icon = process_challenges(svg_icon, &week_streak, &month_streak)?;
+        process_contribution(svg_icon, contribution)?
     } else {
         svg_icon
     };
@@ -83,8 +98,8 @@ pub fn generate_svg_badge(
             "{total-contributions}",
             &total_period.prs_opened.to_string(),
         )
-        .replace("{max-week-streak}", &week_streak.to_string())
-        .replace("{max-month-streak}", &month_streak.to_string())
+        .replace("{max-week-streak}", &week_streak.best.to_string())
+        .replace("{max-month-streak}", &month_streak.best.to_string())
         .replace("{place}", &place)
         .replace("{place-type}", &place_type)
         .replace(
@@ -115,15 +130,13 @@ pub fn generate_png_meta_badge(
         .iter()
         .find(|e| e.streak_type == "Weekly")
         .cloned()
-        .unwrap_or_default()
-        .best;
+        .unwrap_or_default();
     let month_streak = user_record
         .streaks
         .iter()
         .find(|e| e.streak_type == "Monthly")
         .cloned()
-        .unwrap_or_default()
-        .best;
+        .unwrap_or_default();
 
     let (place_type, place) = user_record
         .leaderboard_places
@@ -141,7 +154,7 @@ pub fn generate_png_meta_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = std::fs::read_to_string("./public/badge_meta_template.svg")?;
+    let svg_icon = std::fs::read_to_string("./public/templates/badge_meta_template.svg")?;
     let github_handle = format!("@{}", user_record.login);
 
     let svg_icon = image_processing(
@@ -156,8 +169,8 @@ pub fn generate_png_meta_badge(
             "{total-rating}",
             &total_period.total_rating.to_formatted_string(&Locale::en),
         )
-        .replace("{max-week-streak}", &week_streak.to_string())
-        .replace("{max-month-streak}", &month_streak.to_string())
+        .replace("{max-week-streak}", &week_streak.best.to_string())
+        .replace("{max-month-streak}", &month_streak.best.to_string())
         .replace("{place}", &place)
         .replace("{place-type}", &place_type)
         .replace(
@@ -173,6 +186,110 @@ pub fn generate_png_meta_badge(
                 .unwrap_or_else(|| github_handle.clone()),
         );
     postprocess_svg_to_png(svg_icon, fontdb)
+}
+
+fn process_user_metadata(
+    telegram: &Arc<TelegramSubscriber>,
+    svg_icon: String,
+    user_record: &UserRecord,
+    user_metadata: UserCachedMetadata,
+) -> String {
+    let sloth_id = if user_record.id == i32::MAX {
+        "Newcomer".to_string()
+    } else {
+        format!("Sloth#{:04}", user_record.id)
+    };
+    image_processing(
+        telegram,
+        svg_icon,
+        &user_metadata.image_base64,
+        &user_record.login,
+    )
+    .replace("{login}", &user_record.login)
+    .replace("{sloth-id}", &sloth_id)
+}
+
+fn process_challenges(
+    svg_icon: String,
+    week_streak: &StreakRecord,
+    month_streak: &StreakRecord,
+) -> anyhow::Result<String> {
+    let week_streak = crate::types::Streak::new(
+        week_streak.name.clone(),
+        week_streak.amount as u32,
+        week_streak.best as u32,
+        week_streak.latest_time_string.clone(),
+        week_streak.streak_type.clone(),
+    );
+    let month_streak = crate::types::Streak::new(
+        month_streak.name.clone(),
+        month_streak.amount as u32,
+        month_streak.best as u32,
+        month_streak.latest_time_string.clone(),
+        month_streak.streak_type.clone(),
+    );
+
+    let (challenge_svg, challenge_title, challenge_subtitle) =
+        match (week_streak.achived, month_streak.achived) {
+            (true, true) => (
+                "public/streaks/streak_done.svg",
+                "Challenges completed".to_string(),
+                "Great job! Relax and take your time.. Or…",
+            ),
+            (true, false) => (
+                "public/streaks/streak_part_done.svg",
+                month_streak.name,
+                "Weekly completed! Monthly challenge is still missing",
+            ),
+            (false, true) => (
+                "public/streaks/streak_part_done.svg",
+                week_streak.name,
+                "Monthly completed! Weekly challenge is still missing",
+            ),
+            (false, false) => (
+                "public/streaks/streak_not_done.svg",
+                week_streak.name,
+                "Not completed yet… You can do it!",
+            ),
+        };
+
+    let challenge_svg = std::fs::read_to_string(challenge_svg)?;
+
+    Ok(svg_icon
+        .replace("{challenge-title}", &challenge_title)
+        .replace("{challenge-text}", challenge_subtitle)
+        .replace("{challenge-svg}", &challenge_svg))
+}
+
+fn process_contribution(
+    svg_icon: String,
+    contribution: UserContributionRecord,
+) -> anyhow::Result<String> {
+    let contribution = UserContributionResponse::from(contribution);
+
+    let svg = match contribution.executed {
+        true => "public/pr_state/finalized.svg",
+        false => "public/pr_state/in-progress.svg",
+    };
+    let svg = std::fs::read_to_string(svg)?;
+
+    let contribution_text = match (contribution.total_rating, contribution.executed) {
+        (rating, true) => {
+            format!("This is the way, sloth! You've got {rating} points!")
+        }
+        (rating, false) if rating > 0 => {
+            format!("Keep it up, sloth! You've got {rating} points!")
+        }
+        _ => "Stay calm and keep pushing, sloth!".to_string(),
+    };
+
+    Ok(svg_icon
+        .replace(
+            "{pr-status-title}",
+            &format!("Your PR status: {}", contribution.status),
+        )
+        .replace("{pr-status-text}", &contribution_text)
+        .replace("{pr-status-svg}", &svg))
 }
 
 fn postprocess_svg(svg: String, fontdb: Arc<fontdb::Database>) -> anyhow::Result<String> {
@@ -272,7 +389,7 @@ fn rank_data(user_record: &UserRecord) -> (String, String, String) {
     };
     (
         rank,
-        std::fs::read_to_string(format!("./public/{}", rank_svg_file)).unwrap_or_default(),
+        std::fs::read_to_string(format!("./public/ranks/{}", rank_svg_file)).unwrap_or_default(),
         title.to_string(),
     )
 }

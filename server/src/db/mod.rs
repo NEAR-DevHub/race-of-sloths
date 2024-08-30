@@ -511,6 +511,23 @@ impl DB {
         Ok((records, total_count.id.unwrap_or_default() as u64))
     }
 
+    pub async fn get_contribution(
+        &self,
+        org: &str,
+        repo: &str,
+        number: i32,
+    ) -> anyhow::Result<Option<UserContributionRecord>> {
+        Ok(sqlx::query_file_as!(
+            UserContributionRecord,
+            "./sql/get_contribution.sql",
+            org,
+            repo,
+            number
+        )
+        .fetch_optional(&self.0)
+        .await?)
+    }
+
     pub async fn get_user_contributions(
         &self,
         user: &str,
@@ -572,7 +589,7 @@ impl DB {
             .collect())
     }
 
-    pub async fn get_repos(
+    pub async fn get_repos_for_update(
         tx: &mut Transaction<'static, Postgres>,
     ) -> anyhow::Result<Vec<RepoRecord>> {
         let rec = sqlx::query_file_as!(RepoRecord, "./sql/get_repos.sql")
@@ -582,12 +599,15 @@ impl DB {
         Ok(rec)
     }
 
-    pub async fn get_users(tx: &mut Transaction<'static, Postgres>) -> anyhow::Result<Vec<User>> {
+    pub async fn get_users_for_update(
+        tx: &mut Transaction<'static, Postgres>,
+    ) -> anyhow::Result<Vec<User>> {
         let rec = sqlx::query_as!(
             User,
             r#"
             SELECT login, full_name
-            FROM users"#
+            FROM users
+            FOR UPDATE"#
         )
         .fetch_all(tx.as_mut())
         .await?;
@@ -595,14 +615,15 @@ impl DB {
         Ok(rec)
     }
 
-    pub async fn get_organizations(
+    pub async fn get_organizations_for_update(
         tx: &mut Transaction<'static, Postgres>,
     ) -> anyhow::Result<Vec<User>> {
         let rec = sqlx::query_as!(
             User,
             r#"
             SELECT login, full_name
-            FROM organizations"#
+            FROM organizations
+            FOR UPDATE"#
         )
         .fetch_all(tx.as_mut())
         .await?;

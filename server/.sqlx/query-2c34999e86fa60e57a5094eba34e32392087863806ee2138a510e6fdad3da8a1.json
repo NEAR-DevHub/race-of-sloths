@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT login, full_name\n            FROM organizations",
+  "query": "\n            SELECT login, full_name\n            FROM users\n            FOR UPDATE",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       true
     ]
   },
-  "hash": "4a8aa888147239609e339e96ecf098b1b51e391e93b63c5f73590007100f5349"
+  "hash": "2c34999e86fa60e57a5094eba34e32392087863806ee2138a510e6fdad3da8a1"
 }
