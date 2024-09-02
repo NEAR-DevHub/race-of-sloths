@@ -4,7 +4,7 @@ use base64::Engine;
 use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{
-        types::{UserCachedMetadata, UserRecord},
+        types::{UserCachedMetadata, UserContributionRecord, UserRecord},
         DB,
     },
     github_pull::GithubClient,
@@ -55,7 +55,7 @@ impl Badge {
 
 impl<'r> Responder<'r, 'static> for Badge {
     fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
-        let expiration = chrono::Utc::now().add(chrono::Duration::minutes(5));
+        let expiration = chrono::Utc::now().add(chrono::Duration::minutes(1));
         let mut response = response::Response::build();
         response
             .header(Header::new("Cache-Control", "no-cache"))
@@ -150,7 +150,7 @@ pub async fn get_badge<'a>(
     let construct_svg_badge_from_result = |badge| match badge {
         Ok(value) => Badge::new_svg(value),
         Err(e) => {
-            eprintln!("Failed to generate badge: {e}");
+            race_of_sloths_server::error(telegram, &format!("Failed to generate badge: {e}"));
             Badge::with_status(Status::InternalServerError)
         }
     };
@@ -164,10 +164,8 @@ pub async fn get_badge<'a>(
     });
 
     // TODO: spaghetti code, refactor
-    eprintln!("{:?}", pr);
     match (badge_type.as_str(), pr) {
         ("bot", Some((owner, repo, number))) => {
-            eprintln!("owner: {owner}, repo: {repo}, number: {number}");
             let metadata =
                 match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
                     Ok(metadata) => metadata,
@@ -182,7 +180,14 @@ pub async fn get_badge<'a>(
             let contribution = match db.get_contribution(&owner, &repo, number).await {
                 Ok(Some(contribution)) => contribution,
                 Ok(None) => {
-                    return Badge::with_status(Status::NotFound);
+                    // It means it's a new PR, so let's create a mock contribution
+                    UserContributionRecord {
+                        organization_login: owner,
+                        repo,
+                        number,
+                        included_at: chrono::Utc::now().naive_utc(),
+                        ..Default::default()
+                    }
                 }
                 Err(e) => {
                     race_of_sloths_server::error(
@@ -192,8 +197,6 @@ pub async fn get_badge<'a>(
                     return Badge::with_status(Status::InternalServerError);
                 }
             };
-
-            eprintln!("contribution: {:?}", contribution);
 
             construct_svg_badge_from_result(
                 generate_svg_badge(
