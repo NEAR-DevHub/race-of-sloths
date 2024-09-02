@@ -55,6 +55,7 @@ async fn fetch_and_store_users(
 }
 
 async fn fetch_and_store_prs(
+    telegram: &Arc<TelegramSubscriber>,
     near_client: &NearClient,
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
@@ -68,12 +69,19 @@ async fn fetch_and_store_prs(
         .context("Failed to clear existing PRs from the database")?;
 
     for (pr, executed) in prs {
-        let organization_id = DB::upsert_organization(tx, &pr.organization)
+        let Some((_, repo_id)) = DB::get_organization_repo_id(tx, &pr.organization, &pr.repo)
             .await
-            .context("Failed on upserting organization")?;
-        let repo_id = DB::upsert_repo(tx, organization_id, &pr.repo)
-            .await
-            .context("Failed on upserting repo")?;
+            .context("Failed on getting org/repo")?
+        else {
+            crate::error(
+                telegram,
+                &format!(
+                    "Pull request in repo({}) or organization({}) that does not exist, skipping.",
+                    pr.repo, pr.organization
+                ),
+            );
+            continue;
+        };
         let author_id = DB::get_user_id(tx, &pr.author)
             .await
             .context("Failed on getting user id")?;

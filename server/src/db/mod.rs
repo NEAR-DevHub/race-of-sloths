@@ -100,6 +100,26 @@ impl DB {
         Ok(())
     }
 
+    pub async fn get_organization_repo_id(
+        tx: &mut Transaction<'static, Postgres>,
+        organization: &str,
+        repo: &str,
+    ) -> anyhow::Result<Option<(i32, i32)>> {
+        Ok(sqlx::query!(
+            r#"
+                    SELECT org.id as org_id, r.id as repo_id
+                    FROM organizations org
+                    JOIN repos r ON r.organization_id = org.id
+                    WHERE org.login = $1 AND r.name = $2
+                    "#,
+            organization,
+            repo
+        )
+        .fetch_optional(tx.as_mut())
+        .await
+        .map(|rec| rec.map(|r| (r.org_id, r.repo_id)))?)
+    }
+
     pub async fn upsert_organization(
         tx: &mut Transaction<'static, Postgres>,
         name: &str,
