@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use num_format::{Locale, ToFormattedString};
-use rocket::FromFormField;
+use rocket::{tokio::fs::read_to_string, FromFormField};
 use shared::{telegram::TelegramSubscriber, TimePeriod};
 use usvg::{fontdb, Options, Tree, WriteOptions};
 
@@ -16,7 +16,7 @@ pub enum Mode {
     Light,
 }
 
-pub fn generate_svg_badge(
+pub async fn generate_svg_badge(
     telegram: &Arc<TelegramSubscriber>,
     fontdb: Arc<fontdb::Database>,
     user_record: UserRecord,
@@ -55,29 +55,16 @@ pub fn generate_svg_badge(
         })
         .unwrap_or_else(|| ("Global".to_string(), "N/A".to_string()));
 
-    let svg_icon = match (&contribution, &user_metadata, mode) {
-        (None, Some(_), Mode::Light) => {
-            std::fs::read_to_string("./public/templates/badge_bot_template_white.svg")?
+    let svg_icon = match (&contribution, &user_metadata) {
+        (None, Some(_)) => {
+            read_svg_with_mode("./public/templates/badge_bot_template", mode).await?
         }
-        (None, Some(_), Mode::Dark) => {
-            std::fs::read_to_string("./public/templates/badge_bot_template_dark.svg")?
+        (Some(_), Some(_)) => {
+            read_svg_with_mode("./public/templates/badge_bot_with_pr_info", mode).await?
         }
-        (Some(_), Some(_), Mode::Dark) => {
-            std::fs::read_to_string("./public/templates/badge_bot_with_pr_info_dark.svg")?
-        }
-        (Some(_), Some(_), Mode::Light) => {
-            std::fs::read_to_string("./public/templates/badge_bot_with_pr_info_white.svg")?
-        }
-        (None, None, Mode::Light) => {
-            std::fs::read_to_string("./public/templates/badge_share_template_white.svg")?
-        }
-        (None, None, Mode::Dark) => {
-            std::fs::read_to_string("./public/templates/badge_share_template_dark.svg")?
-        }
+        (None, None) => read_svg_with_mode("./public/templates/badge_share_template", mode).await?,
 
-        (Some(_), None, _) => {
-            return Err(anyhow::anyhow!("PR info provided without user metadata"))
-        }
+        (Some(_), None) => return Err(anyhow::anyhow!("PR info provided without user metadata")),
     };
 
     let svg_icon = if let Some(user_metadata) = user_metadata {
@@ -87,8 +74,8 @@ pub fn generate_svg_badge(
     };
 
     let svg_icon = if let Some(contribution) = contribution {
-        let svg_icon = process_challenges(svg_icon, &week_streak, &month_streak)?;
-        process_contribution(svg_icon, contribution)?
+        let svg_icon = process_challenges(svg_icon, &week_streak, &month_streak, mode).await?;
+        process_contribution(svg_icon, contribution).await?
     } else {
         svg_icon
     };
@@ -107,12 +94,20 @@ pub fn generate_svg_badge(
             &total_period.total_rating.to_formatted_string(&Locale::en),
         );
 
-    let svg_icon = process_rank(svg_icon, &user_record);
+    let svg_icon = process_rank(svg_icon, &user_record).await;
 
     postprocess_svg(svg_icon, fontdb)
 }
 
-pub fn generate_png_meta_badge(
+pub async fn read_svg_with_mode(string: &str, mode: Mode) -> Result<String, std::io::Error> {
+    let file_suffix = match mode {
+        Mode::Dark => "dark",
+        Mode::Light => "white",
+    };
+    read_to_string(format!("{}_{}.svg", string, file_suffix)).await
+}
+
+pub async fn generate_png_meta_badge(
     telegram: &Arc<TelegramSubscriber>,
     user_record: UserRecord,
     user_metadata: UserCachedMetadata,
@@ -165,6 +160,7 @@ pub fn generate_png_meta_badge(
     );
 
     let svg_icon = process_rank(svg_icon, &user_record)
+        .await
         .replace(
             "{total-rating}",
             &total_period.total_rating.to_formatted_string(&Locale::en),
@@ -209,10 +205,11 @@ fn process_user_metadata(
     .replace("{sloth-id}", &sloth_id)
 }
 
-fn process_challenges(
+async fn process_challenges(
     svg_icon: String,
     week_streak: &StreakRecord,
     month_streak: &StreakRecord,
+    mode: Mode,
 ) -> anyhow::Result<String> {
     let week_streak = crate::types::Streak::new(
         week_streak.name.clone(),
@@ -232,28 +229,26 @@ fn process_challenges(
     let (challenge_svg, challenge_title, challenge_subtitle) =
         match (week_streak.achived, month_streak.achived) {
             (true, true) => (
-                "public/streaks/streak_done.svg",
+                read_to_string("public/streaks/streak_done.svg").await?,
                 "Challenges completed".to_string(),
                 "Great job! Relax and take your time.. Or…",
             ),
             (true, false) => (
-                "public/streaks/streak_part_done.svg",
+                read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
                 month_streak.name,
                 "Weekly completed! Monthly challenge is still missing",
             ),
             (false, true) => (
-                "public/streaks/streak_part_done.svg",
+                read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
                 week_streak.name,
                 "Monthly completed! Weekly challenge is still missing",
             ),
             (false, false) => (
-                "public/streaks/streak_not_done.svg",
+                read_to_string("public/streaks/streak_not_done.svg").await?,
                 week_streak.name,
                 "Not completed yet… You can do it!",
             ),
         };
-
-    let challenge_svg = std::fs::read_to_string(challenge_svg)?;
 
     Ok(svg_icon
         .replace("{challenge-title}", &challenge_title)
@@ -261,7 +256,7 @@ fn process_challenges(
         .replace("{challenge-svg}", &challenge_svg))
 }
 
-fn process_contribution(
+async fn process_contribution(
     svg_icon: String,
     contribution: UserContributionRecord,
 ) -> anyhow::Result<String> {
@@ -271,7 +266,7 @@ fn process_contribution(
         true => "public/pr_state/finalized.svg",
         false => "public/pr_state/in-progress.svg",
     };
-    let svg = std::fs::read_to_string(svg)?;
+    let svg = read_to_string(svg).await?;
 
     let contribution_text = match (contribution.total_rating, contribution.executed) {
         (rating, true) => {
@@ -325,8 +320,8 @@ fn postprocess_svg_to_png(svg: String, fontdb: Arc<fontdb::Database>) -> anyhow:
     Ok(pixmap.encode_png()?)
 }
 
-fn process_rank(svg_icon: String, user_record: &UserRecord) -> String {
-    let (rank, rank_svg, title) = rank_data(user_record);
+async fn process_rank(svg_icon: String, user_record: &UserRecord) -> String {
+    let (rank, rank_svg, title) = rank_data(user_record).await;
     svg_icon
         .replace("{rank}", &rank)
         .replace("{rank-svg}", &rank_svg)
@@ -372,7 +367,7 @@ fn image_processing(
         .replace("{image-type}", image_type)
 }
 
-fn rank_data(user_record: &UserRecord) -> (String, String, String) {
+async fn rank_data(user_record: &UserRecord) -> (String, String, String) {
     let (rank, rank_svg_file, title) = match user_record.lifetime_percent {
         a if a >= 25 => ("Rust".to_string(), "rust.svg", "Rank"),
         a if a >= 20 => ("Platinum".to_string(), "platinum.svg", "Rank"),
@@ -389,7 +384,9 @@ fn rank_data(user_record: &UserRecord) -> (String, String, String) {
     };
     (
         rank,
-        std::fs::read_to_string(format!("./public/ranks/{}", rank_svg_file)).unwrap_or_default(),
+        read_to_string(format!("./public/ranks/{}", rank_svg_file))
+            .await
+            .unwrap_or_default(),
         title.to_string(),
     )
 }

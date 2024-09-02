@@ -147,10 +147,10 @@ pub async fn get_badge<'a>(
         }
     };
 
-    let construct_svg_badge_from_result = |badge| {
-        if let Ok(value) = badge {
-            Badge::new_svg(value)
-        } else {
+    let construct_svg_badge_from_result = |badge| match badge {
+        Ok(value) => Badge::new_svg(value),
+        Err(e) => {
+            eprintln!("Failed to generate badge: {e}");
             Badge::with_status(Status::InternalServerError)
         }
     };
@@ -195,14 +195,17 @@ pub async fn get_badge<'a>(
 
             eprintln!("contribution: {:?}", contribution);
 
-            construct_svg_badge_from_result(generate_svg_badge(
-                telegram,
-                font.inner().clone(),
-                user,
-                theme.unwrap_or(Mode::Dark),
-                Some(metadata),
-                Some(contribution),
-            ))
+            construct_svg_badge_from_result(
+                generate_svg_badge(
+                    telegram,
+                    font.inner().clone(),
+                    user,
+                    theme.unwrap_or(Mode::Dark),
+                    Some(metadata),
+                    Some(contribution),
+                )
+                .await,
+            )
         }
         ("bot", None) => {
             let metadata =
@@ -216,14 +219,17 @@ pub async fn get_badge<'a>(
                         return Badge::with_status(Status::InternalServerError);
                     }
                 };
-            construct_svg_badge_from_result(generate_svg_badge(
-                telegram,
-                font.inner().clone(),
-                user,
-                theme.unwrap_or(Mode::Dark),
-                Some(metadata),
-                None,
-            ))
+            construct_svg_badge_from_result(
+                generate_svg_badge(
+                    telegram,
+                    font.inner().clone(),
+                    user,
+                    theme.unwrap_or(Mode::Dark),
+                    Some(metadata),
+                    None,
+                )
+                .await,
+            )
         }
         ("meta", _) => {
             let metadata =
@@ -237,19 +243,22 @@ pub async fn get_badge<'a>(
                         return Badge::with_status(Status::InternalServerError);
                     }
                 };
-            match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()) {
+            match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()).await {
                 Ok(png) => Badge::new_ong(png),
                 Err(_) => Badge::with_status(Status::InternalServerError),
             }
         }
-        ("share", _) => construct_svg_badge_from_result(generate_svg_badge(
-            telegram,
-            font.inner().clone(),
-            user,
-            theme.unwrap_or(Mode::Dark),
-            None,
-            None,
-        )),
+        ("share", _) => construct_svg_badge_from_result(
+            generate_svg_badge(
+                telegram,
+                font.inner().clone(),
+                user,
+                theme.unwrap_or(Mode::Dark),
+                None,
+                None,
+            )
+            .await,
+        ),
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
             Badge::with_status(Status::NotFound)
