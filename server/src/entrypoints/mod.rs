@@ -4,8 +4,9 @@ use utoipa::OpenApi;
 pub mod aliases;
 pub mod leaderboards;
 pub mod statistics;
-pub mod types;
 pub mod user;
+
+use race_of_sloths_server::types;
 
 #[derive(OpenApi)]
 #[openapi(

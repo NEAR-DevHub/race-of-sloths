@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use chrono::NaiveDateTime;
-use race_of_sloths_server::db::types::{
+use crate::db::types::{
     LeaderboardRecord, RepoLeaderboardRecord, UserContributionRecord, UserRecord,
 };
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use shared::TimePeriod;
 use utoipa::ToSchema;
@@ -112,19 +112,19 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
 pub struct Streak {
-    name: String,
-    streak_type: String,
-    current: u32,
-    longest: u32,
-    achived: bool,
-    start_time: chrono::DateTime<chrono::Utc>,
-    end_time: chrono::DateTime<chrono::Utc>,
+    pub name: String,
+    pub streak_type: String,
+    pub current: u32,
+    pub longest: u32,
+    pub achived: bool,
+    pub start_time: chrono::DateTime<chrono::Utc>,
+    pub end_time: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
 pub struct Period {
-    contributions: u32,
-    rating: u32,
+    pub contributions: u32,
+    pub rating: u32,
 }
 
 impl Period {
@@ -146,10 +146,11 @@ impl Streak {
     ) -> Self {
         if let Some(time_period) = TimePeriod::from_streak_type(&streak_type) {
             let current_time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
+            let current_time_string = time_period.time_string(current_time as u64);
+
             let previous_period = time_period
                 .previous_period(current_time as u64)
                 .unwrap_or_default();
-            let current_time_string = time_period.time_string(current_time as u64);
             let previous_period_string = time_period.time_string(previous_period);
 
             let mut result = Self {

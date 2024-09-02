@@ -101,7 +101,7 @@ pub struct RepoLeaderboardRecord {
     pub forks: Option<i32>,
 }
 
-#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
 pub struct UserContributionRecord {
     pub organization_login: String,
     pub organization_full_name: Option<String>,

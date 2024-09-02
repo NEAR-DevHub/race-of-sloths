@@ -4,7 +4,7 @@ use base64::Engine;
 use http_body_util::BodyExt;
 use race_of_sloths_server::{
     db::{
-        types::{UserCachedMetadata, UserRecord},
+        types::{UserCachedMetadata, UserContributionRecord, UserRecord},
         DB,
     },
     github_pull::GithubClient,
@@ -55,7 +55,7 @@ impl Badge {
 
 impl<'r> Responder<'r, 'static> for Badge {
     fn respond_to(self, _req: &'r Request<'_>) -> response::Result<'static> {
-        let expiration = chrono::Utc::now().add(chrono::Duration::minutes(5));
+        let expiration = chrono::Utc::now().add(chrono::Duration::minutes(1));
         let mut response = response::Response::build();
         response
             .header(Header::new("Cache-Control", "no-cache"))
@@ -112,7 +112,7 @@ async fn fetch_user_metadata_lazily(
 #[utoipa::path(context_path = "/users", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>/badge?<type>&<theme>")]
+#[get("/<username>/badge?<type>&<theme>&<pr>")]
 pub async fn get_badge<'a>(
     telegram: &State<Arc<telegram::TelegramSubscriber>>,
     username: &str,
@@ -121,6 +121,7 @@ pub async fn get_badge<'a>(
     github_client: &State<Arc<GithubClient>>,
     r#type: Option<String>,
     theme: Option<Mode>,
+    pr: Option<String>,
 ) -> Badge {
     let badge_type = r#type.unwrap_or_else(|| "share".to_string());
 
@@ -146,17 +147,25 @@ pub async fn get_badge<'a>(
         }
     };
 
-    let construct_svg_badge_from_result = |badge| {
-        if let Ok(value) = badge {
-            Badge::new_svg(value)
-        } else {
+    let construct_svg_badge_from_result = |badge| match badge {
+        Ok(value) => Badge::new_svg(value),
+        Err(e) => {
+            race_of_sloths_server::error(telegram, &format!("Failed to generate badge: {e}"));
             Badge::with_status(Status::InternalServerError)
         }
     };
 
+    let pr = pr.and_then(|pr| {
+        let mut split = pr.split('/');
+        let owner = split.next()?.to_string();
+        let repo = split.next()?.to_string();
+        let number: i32 = split.next()?.parse().ok()?;
+        Some((owner, repo, number))
+    });
+
     // TODO: spaghetti code, refactor
-    match badge_type.as_str() {
-        "bot" => {
+    match (badge_type.as_str(), pr) {
+        ("bot", Some((owner, repo, number))) => {
             let metadata =
                 match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
                     Ok(metadata) => metadata,
@@ -168,15 +177,40 @@ pub async fn get_badge<'a>(
                         return Badge::with_status(Status::InternalServerError);
                     }
                 };
-            construct_svg_badge_from_result(generate_svg_badge(
-                telegram,
-                font.inner().clone(),
-                user,
-                theme.unwrap_or(Mode::Dark),
-                Some(metadata),
-            ))
+            let contribution = match db.get_contribution(&owner, &repo, number).await {
+                Ok(Some(contribution)) => contribution,
+                Ok(None) => {
+                    // It means it's a new PR, so let's create a mock contribution
+                    UserContributionRecord {
+                        organization_login: owner,
+                        repo,
+                        number,
+                        included_at: chrono::Utc::now().naive_utc(),
+                        ..Default::default()
+                    }
+                }
+                Err(e) => {
+                    race_of_sloths_server::error(
+                        telegram,
+                        &format!("Failed to fetch user contribution: {e}"),
+                    );
+                    return Badge::with_status(Status::InternalServerError);
+                }
+            };
+
+            construct_svg_badge_from_result(
+                generate_svg_badge(
+                    telegram,
+                    font.inner().clone(),
+                    user,
+                    theme.unwrap_or(Mode::Dark),
+                    Some(metadata),
+                    Some(contribution),
+                )
+                .await,
+            )
         }
-        "meta" => {
+        ("bot", None) => {
             let metadata =
                 match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
                     Ok(metadata) => metadata,
@@ -188,18 +222,46 @@ pub async fn get_badge<'a>(
                         return Badge::with_status(Status::InternalServerError);
                     }
                 };
-            match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()) {
+            construct_svg_badge_from_result(
+                generate_svg_badge(
+                    telegram,
+                    font.inner().clone(),
+                    user,
+                    theme.unwrap_or(Mode::Dark),
+                    Some(metadata),
+                    None,
+                )
+                .await,
+            )
+        }
+        ("meta", _) => {
+            let metadata =
+                match fetch_user_metadata_lazily(user.id, db, github_client, username).await {
+                    Ok(metadata) => metadata,
+                    Err(e) => {
+                        race_of_sloths_server::error(
+                            telegram,
+                            &format!("Failed to fetch user metadata: {e}"),
+                        );
+                        return Badge::with_status(Status::InternalServerError);
+                    }
+                };
+            match generate_png_meta_badge(telegram, user, metadata, font.inner().clone()).await {
                 Ok(png) => Badge::new_ong(png),
                 Err(_) => Badge::with_status(Status::InternalServerError),
             }
         }
-        "share" => construct_svg_badge_from_result(generate_svg_badge(
-            telegram,
-            font.inner().clone(),
-            user,
-            theme.unwrap_or(Mode::Dark),
-            None,
-        )),
+        ("share", _) => construct_svg_badge_from_result(
+            generate_svg_badge(
+                telegram,
+                font.inner().clone(),
+                user,
+                theme.unwrap_or(Mode::Dark),
+                None,
+                None,
+            )
+            .await,
+        ),
         _ => {
             rocket::info!("Unknown badge type {badge_type}, returning 404");
             Badge::with_status(Status::NotFound)

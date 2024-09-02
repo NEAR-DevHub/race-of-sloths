@@ -307,6 +307,7 @@ impl MessageLoader {
                 [
                     ("pr_author_username", user.name.clone()),
                     ("user_specific_message", user_specific_message),
+                    ("pr_id", pr.full_id.clone()),
                 ]
                 .into_iter()
                 .collect(),

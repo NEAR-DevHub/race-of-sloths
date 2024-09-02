@@ -9,7 +9,7 @@ use crate::entrypoints::user::Badge;
 #[utoipa::path(context_path = "/", responses(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
-#[get("/<username>?<type>&<theme>", rank = 2)]
+#[get("/<username>?<type>&<theme>&<pr>", rank = 2)]
 async fn get_badge<'a>(
     telegram: &State<Arc<TelegramSubscriber>>,
     username: &str,
@@ -18,8 +18,19 @@ async fn get_badge<'a>(
     github_client: &State<Arc<GithubClient>>,
     r#type: Option<String>,
     theme: Option<Mode>,
+    pr: Option<String>,
 ) -> Badge {
-    super::user::get_badge(telegram, username, db, font, github_client, r#type, theme).await
+    super::user::get_badge(
+        telegram,
+        username,
+        db,
+        font,
+        github_client,
+        r#type,
+        theme,
+        pr,
+    )
+    .await
 }
 
 pub fn stage() -> rocket::fairing::AdHoc {

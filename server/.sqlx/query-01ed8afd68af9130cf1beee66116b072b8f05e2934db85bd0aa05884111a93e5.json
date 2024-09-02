@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    o.login as organization_login,\n    o.full_name as organization_full_name,\n    r.name as repo,\n    pr.number as number,\n    pr.included_at as included_at,\n    pr.merged_at as merged_at,\n    pr.score as score,\n    pr.executed as executed,\n    pr.permanent_bonus as percentage_multiplier,\n    pr.streak_bonus as streak_bonus_rating,\n    pr.rating as rating\nFROM\n    users\n    JOIN pull_requests pr ON pr.author_id = users.id\n    JOIN repos r ON pr.repo_id = r.id\n    JOIN organizations o ON r.organization_id = o.id\nWHERE\n    o.login = $1\n    AND r.name = $2\n    AND pr.number = $3\nGROUP BY\n    o.login,\n    o.full_name,\n    r.name,\n    pr.number,\n    pr.included_at,\n    pr.merged_at,\n    pr.score,\n    pr.executed,\n    pr.permanent_bonus,\n    pr.streak_bonus,\n    pr.rating\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "organization_login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "repo",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "number",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "included_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 5,
+        "name": "merged_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "executed",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "percentage_multiplier",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "streak_bonus_rating",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "rating",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "01ed8afd68af9130cf1beee66116b072b8f05e2934db85bd0aa05884111a93e5"
+}

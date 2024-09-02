@@ -1,10 +1,15 @@
 link = "https://race-of-sloths-website.vercel.app"
 leaderboard_link = "https://race-of-sloths-website.vercel.app/leaderboard"
 form = "https://github.com/NEAR-DevHub/race-of-sloths/issues/new/choose"
-picture_api_link = "https://badge.staging.race-of-sloths.com/{pr_author_username}?type=bot"
+picture_api_link = "https://badge.staging.race-of-sloths.com/{pr_author_username}?type=bot&pr={pr_id}"
 
 [include_basic_messages]
-variables = ["picture_api_link", "pr_author_username", "user_specific_message"]
+variables = [
+    "picture_api_link",
+    "pr_author_username",
+    "user_specific_message",
+    "pr_id",
+]
 message = [
     """
 @{pr_author_username} Thank you for your contribution! Your pull request is now a part of the [Race of Sloths]({link})!
