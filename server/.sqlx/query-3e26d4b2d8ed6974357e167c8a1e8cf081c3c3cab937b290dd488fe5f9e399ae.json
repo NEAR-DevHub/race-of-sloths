@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    SELECT org.id as org_id, r.id as repo_id\n                    FROM organizations org\n                    JOIN repos r ON r.organization_id = org.id\n                    WHERE org.login = $1 AND r.name = $2\n                    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "org_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "repo_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3e26d4b2d8ed6974357e167c8a1e8cf081c3c3cab937b290dd488fe5f9e399ae"
+}

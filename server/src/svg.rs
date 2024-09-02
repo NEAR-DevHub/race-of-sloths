@@ -226,32 +226,27 @@ async fn process_challenges(
         month_streak.streak_type.clone(),
     );
 
-    let (challenge_svg, challenge_title, challenge_subtitle) =
-        match (week_streak.achived, month_streak.achived) {
-            (true, true) => (
-                read_to_string("public/streaks/streak_done.svg").await?,
-                "Challenges completed".to_string(),
-                "Great job! Relax and take your time.. Or…",
-            ),
-            (true, false) => (
-                read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
-                month_streak.name,
-                "Weekly completed! Monthly challenge is still missing",
-            ),
-            (false, true) => (
-                read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
-                week_streak.name,
-                "Monthly completed! Weekly challenge is still missing",
-            ),
-            (false, false) => (
-                read_to_string("public/streaks/streak_not_done.svg").await?,
-                week_streak.name,
-                "Not completed yet… You can do it!",
-            ),
-        };
+    let (challenge_svg, challenge_subtitle) = match (week_streak.achived, month_streak.achived) {
+        (true, true) => (
+            read_to_string("public/streaks/streak_done.svg").await?,
+            "Great job! Relax and take your time.. Or keep running!",
+        ),
+        (true, false) => (
+            read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
+            "Weekly completed! Monthly is still missing, just do it!",
+        ),
+        (false, true) => (
+            read_svg_with_mode("public/streaks/streak_part_done", mode).await?,
+            "Monthly completed! Weekly is still missing, just do it",
+        ),
+        (false, false) => (
+            read_to_string("public/streaks/streak_not_done.svg").await?,
+            "Not completed yet… You can do it!",
+        ),
+    };
 
     Ok(svg_icon
-        .replace("{challenge-title}", &challenge_title)
+        .replace("{challenge-title}", "Your streaks status:")
         .replace("{challenge-text}", challenge_subtitle)
         .replace("{challenge-svg}", &challenge_svg))
 }
