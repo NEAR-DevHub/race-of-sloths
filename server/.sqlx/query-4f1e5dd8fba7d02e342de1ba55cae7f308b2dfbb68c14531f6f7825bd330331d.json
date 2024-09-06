@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM pull_requests\n            WHERE (repo_id, number) NOT IN (\n                SELECT r.id, p.number\n                FROM unnest($1::text[], $2::text[], $3::int[]) AS p(org, repo, number)\n                JOIN organizations o ON o.login = p.org\n                JOIN repos r ON r.organization_id = o.id AND r.name = p.repo\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4f1e5dd8fba7d02e342de1ba55cae7f308b2dfbb68c14531f6f7825bd330331d"
+}

@@ -102,6 +102,13 @@ pub struct RepoLeaderboardRecord {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
+pub struct ExistingPR {
+    pub id: i32,
+    pub repo_id: i32,
+    pub number: i32,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]
 pub struct UserContributionRecord {
     pub organization_login: String,
     pub organization_full_name: Option<String>,

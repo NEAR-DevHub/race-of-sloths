@@ -3,7 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
+use shared::{PRv2, StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
 use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Database, Clone, Debug)]
@@ -195,6 +195,44 @@ impl DB {
 
             Ok(rec.id)
         }
+    }
+
+    pub async fn remove_non_existent_prs(
+        tx: &mut Transaction<'static, Postgres>,
+        prs: &[(PRv2, bool)],
+    ) -> anyhow::Result<()> {
+        let pr_keys: Vec<(String, String, i32)> = prs
+            .iter()
+            .map(|(pr, _)| (pr.organization.clone(), pr.repo.clone(), pr.number as i32))
+            .collect();
+
+        sqlx::query!(
+            r#"
+            DELETE FROM pull_requests
+            WHERE (repo_id, number) NOT IN (
+                SELECT r.id, p.number
+                FROM unnest($1::text[], $2::text[], $3::int[]) AS p(org, repo, number)
+                JOIN organizations o ON o.login = p.org
+                JOIN repos r ON r.organization_id = o.id AND r.name = p.repo
+            )
+            "#,
+            &pr_keys
+                .iter()
+                .map(|(org, _, _)| org.clone())
+                .collect::<Vec<_>>(),
+            &pr_keys
+                .iter()
+                .map(|(_, repo, _)| repo.clone())
+                .collect::<Vec<_>>(),
+            &pr_keys
+                .iter()
+                .map(|(_, _, number)| *number as i32)
+                .collect::<Vec<_>>(),
+        )
+        .execute(tx.as_mut())
+        .await?;
+
+        Ok(())
     }
 
     pub async fn upsert_pull_request(

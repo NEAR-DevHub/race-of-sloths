@@ -64,9 +64,7 @@ async fn fetch_and_store_prs(
         .await
         .context("Failed to fetch PRs from near_client")?;
 
-    DB::clear_prs(tx)
-        .await
-        .context("Failed to clear existing PRs from the database")?;
+    DB::remove_non_existent_prs(tx, &prs).await?;
 
     for (pr, executed) in prs {
         let Some((_, repo_id)) = DB::get_organization_repo_id(tx, &pr.organization, &pr.repo)
@@ -82,9 +80,11 @@ async fn fetch_and_store_prs(
             );
             continue;
         };
+
         let author_id = DB::get_user_id(tx, &pr.author)
             .await
             .context("Failed on getting user id")?;
+
         DB::upsert_pull_request(
             tx,
             repo_id,
