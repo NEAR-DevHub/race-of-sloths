@@ -130,7 +130,9 @@ impl Contract {
     pub fn repos(&self, page: usize, limit: usize) -> Vec<AllowedRepos> {
         let mut repos = HashMap::new();
 
-        for ((org, repo), data) in self.repos.into_iter().skip(page * limit).take(limit) {
+        for (org, repo) in self.repos.keys().skip(page * limit).take(limit) {
+            let data = self.repos.get(&(org.clone(), repo.clone())).unwrap();
+
             repos
                 .entry(org)
                 .or_insert_with(|| AllowedRepos {
