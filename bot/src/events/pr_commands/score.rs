@@ -49,7 +49,7 @@ impl BotScored {
 }
 
 impl BotScored {
-    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.full_id, score = self.score))]
+    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.repo_info.full_id, score = self.score))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -60,7 +60,7 @@ impl BotScored {
         if info.executed {
             debug!(
                 "Sloth is not included before or PR is already executed in: {}. Skipping.",
-                pr.full_id,
+                pr.repo_info.full_id,
             );
             return Ok(EventResult::Skipped);
         }
@@ -73,7 +73,10 @@ impl BotScored {
 
         // Info is updated in the previous call
         if !info.exist {
-            debug!("Sloth is not included in {}. Skipping.", pr.full_id);
+            debug!(
+                "Sloth is not included in {}. Skipping.",
+                pr.repo_info.full_id
+            );
             return Ok(EventResult::Skipped);
         }
 
@@ -82,10 +85,15 @@ impl BotScored {
         if pr.author.login == sender.login {
             debug!(
                 "Author tried to score their own PR {}. Skipping.",
-                pr.full_id,
+                pr.repo_info.full_id,
             );
             context
-                .reply_with_error(pr, self.comment_id, MsgCategory::ErrorSelfScore, vec![])
+                .reply_with_error(
+                    &pr.repo_info,
+                    self.comment_id,
+                    MsgCategory::ErrorSelfScore,
+                    vec![],
+                )
                 .await?;
             return Ok(EventResult::RepliedWithError);
         }
@@ -107,7 +115,7 @@ impl BotScored {
         if edited {
             context
                 .reply(
-                    pr,
+                    &pr.repo_info,
                     self.comment_id,
                     MsgCategory::CorrectableScoringMessage,
                     vec![
@@ -120,7 +128,7 @@ impl BotScored {
         } else if let Some(comment) = self.comment_id {
             context
                 .github
-                .like_comment(&pr.owner, &pr.repo, comment)
+                .like_comment(&pr.repo_info.owner, &pr.repo_info.repo, comment)
                 .await?;
         }
 
@@ -134,7 +142,7 @@ impl BotScored {
 
 #[cfg(test)]
 mod tests {
-    use super::commands::BotScored;
+    use super::pr_commands::BotScored;
 
     #[test]
     pub fn score_parsing() {

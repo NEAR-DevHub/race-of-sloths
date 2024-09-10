@@ -9,38 +9,33 @@ use self::api::CommentRepr;
 use super::*;
 
 impl Context {
-    pub async fn check_info(&self, pr_metadata: &PrMetadata) -> anyhow::Result<PRInfo> {
+    pub async fn check_info(&self, repo_info: &RepoInfo) -> anyhow::Result<PRInfo> {
         self.near
-            .check_info(&pr_metadata.owner, &pr_metadata.repo, pr_metadata.number)
+            .check_info(&repo_info.owner, &repo_info.repo, repo_info.number)
             .await
     }
 
     pub async fn reply_with_text(
         &self,
-        pr_metadata: &PrMetadata,
+        repo_info: &RepoInfo,
         comment_id: Option<u64>,
         text: &str,
     ) -> anyhow::Result<CommentRepr> {
         if let Some(comment_id) = comment_id {
             self.github
-                .like_comment(&pr_metadata.owner, &pr_metadata.repo, comment_id)
+                .like_comment(&repo_info.owner, &repo_info.repo, comment_id)
                 .await?;
         }
 
         self.github
-            .reply(
-                &pr_metadata.owner,
-                &pr_metadata.repo,
-                pr_metadata.number,
-                text,
-            )
+            .reply(&repo_info.owner, &repo_info.repo, repo_info.number, text)
             .await
             .map(Into::into)
     }
 
     pub async fn reply(
         &self,
-        pr_metadata: &PrMetadata,
+        repo_info: &RepoInfo,
         comment_id: Option<u64>,
         msg: MsgCategory,
         args: Vec<(&'static str, String)>,
@@ -49,19 +44,19 @@ impl Context {
 
         let text = text.format(args.into_iter().collect::<HashMap<_, _>>())?;
 
-        self.reply_with_text(pr_metadata, comment_id, &text).await
+        self.reply_with_text(repo_info, comment_id, &text).await
     }
 
     // It does the same, but maybe later we will add some additional logic
     // And it makes visual separation between different types of replies
     pub async fn reply_with_error(
         &self,
-        pr_metadata: &PrMetadata,
+        repo_info: &RepoInfo,
         comment_id: Option<u64>,
         error: MsgCategory,
         args: Vec<(&'static str, String)>,
     ) -> anyhow::Result<()> {
-        self.reply(pr_metadata, comment_id, error, args).await?;
+        self.reply(repo_info, comment_id, error, args).await?;
         Ok(())
     }
 }

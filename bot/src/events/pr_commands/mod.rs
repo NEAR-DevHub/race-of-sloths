@@ -47,7 +47,7 @@ impl Command {
             _ => {
                 info!(
                     "Unknown command: {} for PR: {}",
-                    command, pr_metadata.full_id
+                    command, pr_metadata.repo_info.full_id
                 );
                 UnknownCommand::construct(comment, command, args)
             }
@@ -70,7 +70,7 @@ impl Command {
         }
     }
 
-    #[instrument(skip(self, context, check_info, pr), fields(pr = pr.full_id))]
+    #[instrument(skip(self, context, check_info, pr), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -82,12 +82,12 @@ impl Command {
         if !check_info.allowed_repo {
             info!(
                 "Sloth called for a PR from not allowed org: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             if first_reply {
                 context
                     .reply_with_error(
-                        pr,
+                        &pr.repo_info,
                         None,
                         MsgCategory::ErrorOrgNotInAllowedListMessage,
                         vec![("pr_author_username", pr.author.login.clone())],
@@ -102,13 +102,13 @@ impl Command {
         if check_info.paused && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
             info!(
                 "Sloth called for a PR from paused repo: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
 
             if first_reply {
                 context
                     .reply_with_error(
-                        pr,
+                        &pr.repo_info,
                         None,
                         MsgCategory::ErrorPausedMessage,
                         vec![("user", sender.login.clone())],
@@ -123,12 +123,12 @@ impl Command {
         if check_info.executed {
             info!(
                 "Sloth called for a PR that is already executed: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             if let Command::Score(event) = self {
                 context
                     .reply_with_error(
-                        pr,
+                        &pr.repo_info,
                         event.comment_id,
                         MsgCategory::ErrorLateScoringMessage,
                         vec![],
@@ -142,7 +142,7 @@ impl Command {
         if check_info.excluded && !matches!(self, Command::Include(_)) {
             info!(
                 "Sloth called for a PR from excluded PR: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
 
             return Ok(EventResult::Skipped);
@@ -152,7 +152,11 @@ impl Command {
             Command::Include(event) => event.execute(pr, context, check_info, sender).await,
             Command::Score(event) => event.execute(pr, context, check_info, sender).await,
             Command::Pause(event) => event.execute(pr, context, check_info, sender).await,
-            Command::Unpause(event) => event.execute(pr, context, check_info, sender).await,
+            Command::Unpause(event) => {
+                event
+                    .execute(&pr.repo_info, context, check_info, sender)
+                    .await
+            }
             Command::Excluded(event) => event.execute(pr, context, check_info).await,
             Command::Unknown(event) => event.execute(pr, context, check_info, sender).await,
             Command::Update(event) => event.execute(pr, context, check_info, sender).await,
@@ -176,7 +180,7 @@ impl std::fmt::Display for Command {
 
 #[cfg(test)]
 pub mod tests {
-    use shared::github::{PrMetadata, User};
+    use shared::github::{PrMetadata, RepoInfo, User};
 
     use crate::api::CommentRepr;
 
@@ -203,9 +207,12 @@ pub mod tests {
 
     fn default_pr_metadata() -> PrMetadata {
         PrMetadata {
-            owner: "a".to_string(),
-            repo: "b".to_string(),
-            number: 1,
+            repo_info: RepoInfo {
+                owner: "a".to_string(),
+                repo: "b".to_string(),
+                number: 1,
+                full_id: "a/b/1".to_string(),
+            },
             author: User::new(
                 "a-u".to_string(),
                 octocrab::models::AuthorAssociation::Contributor,
@@ -213,7 +220,6 @@ pub mod tests {
             created: chrono::Utc::now(),
             merged: None,
             updated_at: chrono::Utc::now(),
-            full_id: "a/b/1".to_string(),
             body: "abc".to_string(),
             closed: false,
         }

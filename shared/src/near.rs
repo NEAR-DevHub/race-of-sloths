@@ -38,16 +38,16 @@ impl NearClient {
         Ok(Self { contract })
     }
 
-    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr), fields(pr = pr.repo_info.full_id))]
     pub async fn send_start(
         &self,
         pr: &PrMetadata,
         is_maintainer: bool,
     ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
-            "organization": pr.owner,
-            "repo": pr.repo,
-            "pr_number": pr.number,
+            "organization": pr.repo_info.owner,
+            "repo": pr.repo_info.repo,
+            "pr_number": pr.repo_info.number,
             "user": pr.author.login,
             "created_at": pr.created.timestamp_nanos_opt().unwrap_or(0),
             "override_exclude": is_maintainer,
@@ -64,7 +64,7 @@ impl NearClient {
         process_execution_final_result(result)
     }
 
-    #[instrument(skip(self), fields(pr = pr.full_id, user, score))]
+    #[instrument(skip(self), fields(pr = pr.repo_info.full_id, user, score))]
     pub async fn send_scored(
         &self,
         pr: &PrMetadata,
@@ -72,7 +72,7 @@ impl NearClient {
         score: u64,
     ) -> anyhow::Result<Vec<Event>> {
         let args = json!({
-            "pr_id": pr.full_id,
+            "pr_id": pr.repo_info.full_id,
             "user": user,
             "score": score,
         });
@@ -87,14 +87,14 @@ impl NearClient {
         process_execution_final_result(result)
     }
 
-    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr), fields(pr = pr.repo_info.full_id))]
     pub async fn send_merge(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         if pr.merged.is_none() {
             bail!("PR is not merged")
         }
 
         let args = json!({
-            "pr_id": pr.full_id,
+            "pr_id": pr.repo_info.full_id,
             "merged_at": pr.merged.unwrap().timestamp_nanos_opt().unwrap_or(0),
         });
 
@@ -228,10 +228,10 @@ impl NearClient {
         Ok(res)
     }
 
-    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr), fields(pr = pr.repo_info.full_id))]
     pub async fn send_stale(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         let args = json!({
-            "pr_id": pr.full_id,
+            "pr_id": pr.repo_info.full_id,
         });
 
         let result = self
@@ -244,10 +244,10 @@ impl NearClient {
         process_execution_final_result(result)
     }
 
-    #[instrument(skip(self, pr), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr), fields(pr = pr.repo_info.full_id))]
     pub async fn send_exclude(&self, pr: &PrMetadata) -> anyhow::Result<Vec<Event>> {
         let args = json!({
-            "pr_id": pr.full_id,
+            "pr_id": pr.repo_info.full_id,
         });
 
         let result = self

@@ -18,7 +18,7 @@ impl BotUpdated {
         }
     }
 
-    #[instrument(skip(self, _pr, _context, _info, _sender), fields(pr = _pr.full_id))]
+    #[instrument(skip(self, _pr, _context, _info, _sender), fields(pr = _pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         _pr: &PrMetadata,

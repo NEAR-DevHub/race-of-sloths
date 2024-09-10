@@ -14,7 +14,7 @@ pub struct BotExcluded {
 }
 
 impl BotExcluded {
-    #[instrument(skip(self, pr, context, check_info), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, check_info), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -24,11 +24,11 @@ impl BotExcluded {
         if !self.author.is_maintainer() {
             info!(
                 "Tried to exclude a PR from not maintainer: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             context
                 .reply_with_error(
-                    pr,
+                    &pr.repo_info,
                     self.comment_id,
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -37,7 +37,7 @@ impl BotExcluded {
             return Ok(EventResult::RepliedWithError);
         }
 
-        debug!("Excluding PR {}", pr.full_id);
+        debug!("Excluding PR {}", pr.repo_info.full_id);
 
         context.near.send_exclude(pr).await?;
         *check_info = PRInfo {
@@ -49,7 +49,12 @@ impl BotExcluded {
             ..*check_info
         };
         context
-            .reply(pr, self.comment_id, MsgCategory::ExcludeMessages, vec![])
+            .reply(
+                &pr.repo_info,
+                self.comment_id,
+                MsgCategory::ExcludeMessages,
+                vec![],
+            )
             .await?;
         Ok(EventResult::success(true))
     }

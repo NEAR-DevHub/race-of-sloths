@@ -30,7 +30,7 @@ impl UnknownCommand {
         }
     }
 
-    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -46,7 +46,7 @@ impl UnknownCommand {
 
         context
             .reply_with_error(
-                pr,
+                &pr.repo_info,
                 self.comment_id,
                 MsgCategory::ErrorUnknownCommandMessage,
                 vec![],

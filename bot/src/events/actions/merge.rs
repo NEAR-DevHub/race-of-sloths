@@ -13,7 +13,7 @@ pub struct PullRequestMerge {
 }
 
 impl PullRequestMerge {
-    #[instrument(skip(self, pr, context, info), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, info), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -37,7 +37,12 @@ impl PullRequestMerge {
 
         let is_active = context
             .github
-            .is_active_pr(&pr.owner, &pr.repo, &pr.author.login, pr.number)
+            .is_active_pr(
+                &pr.repo_info.owner,
+                &pr.repo_info.repo,
+                &pr.author.login,
+                pr.repo_info.number,
+            )
             .await
             .unwrap_or_default();
         let autoscore = if is_active { 2 } else { 1 }.to_string();
@@ -45,7 +50,7 @@ impl PullRequestMerge {
         if self.merger != pr.author.login {
             context
                 .reply(
-                    pr,
+                    &pr.repo_info,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByOtherParty,
                     vec![
@@ -57,7 +62,7 @@ impl PullRequestMerge {
         } else if !self.reviewers.is_empty() {
             context
                 .reply(
-                    pr,
+                    &pr.repo_info,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByOtherParty,
                     vec![
@@ -69,7 +74,7 @@ impl PullRequestMerge {
         } else {
             context
                 .reply(
-                    pr,
+                    &pr.repo_info,
                     None,
                     MsgCategory::MergeWithoutScoreMessageByAuthorWithoutReviewers,
                     vec![

@@ -10,17 +10,18 @@ use crate::{
 };
 
 use shared::{
-    github::{PrMetadata, User},
+    github::{PrMetadata, RepoInfo, User},
     near::NearClient,
     telegram::TelegramSubscriber,
     PRInfo, TimePeriod,
 };
 
-use self::{actions::Action, commands::Command};
+use self::{actions::Action, pr_commands::Command};
 
 pub mod actions;
-pub mod commands;
 pub(crate) mod common;
+pub mod issue_commands;
+pub mod pr_commands;
 
 #[derive(Clone)]
 pub struct Context {
@@ -64,7 +65,7 @@ impl Context {
         if comment.is_none() {
             comment = self
                 .github
-                .get_bot_comment(&pr.owner, &pr.repo, pr.number)
+                .get_bot_comment(&pr.repo_info.owner, &pr.repo_info.repo, pr.repo_info.number)
                 .await
                 .ok()
                 .flatten();
@@ -83,7 +84,7 @@ impl Context {
                         Err(e) => {
                             tracing::error!(
                                 "Failed to get new status message for {}: {e}",
-                                pr.full_id
+                                pr.repo_info.full_id
                             );
                             return;
                         }
@@ -91,7 +92,7 @@ impl Context {
                 };
 
                 self.github
-                    .edit_comment(&pr.owner, &pr.repo, comment.id, &msg)
+                    .edit_comment(&pr.repo_info.owner, &pr.repo_info.repo, comment.id, &msg)
                     .await
             }
             None => {
@@ -99,11 +100,19 @@ impl Context {
                 match self.new_status_message(pr, &info, final_data).await {
                     Ok(msg) => self
                         .github
-                        .reply(&pr.owner, &pr.repo, pr.number, &msg)
+                        .reply(
+                            &pr.repo_info.owner,
+                            &pr.repo_info.repo,
+                            pr.repo_info.number,
+                            &msg,
+                        )
                         .await
                         .map(|_| ()),
                     Err(e) => {
-                        tracing::error!("Failed to get new status message for {}: {e}", pr.full_id);
+                        tracing::error!(
+                            "Failed to get new status message for {}: {e}",
+                            pr.repo_info.full_id
+                        );
                         return;
                     }
                 }
@@ -111,7 +120,10 @@ impl Context {
         };
 
         if let Err(e) = result {
-            tracing::error!("Failed to update status comment for {}: {e}", pr.full_id);
+            tracing::error!(
+                "Failed to update status comment for {}: {e}",
+                pr.repo_info.full_id
+            );
         }
     }
 
@@ -150,7 +162,10 @@ impl Context {
             .messages
             .status_message(&self.github.user_handle, info, pr, final_data)
             .unwrap_or_else(|err| {
-                tracing::error!("Failed to get status message for {}: {err}", pr.full_id);
+                tracing::error!(
+                    "Failed to get status message for {}: {err}",
+                    pr.repo_info.full_id
+                );
                 String::default()
             });
 
@@ -160,7 +175,6 @@ impl Context {
 
 pub struct Event {
     pub event: EventType,
-    pub pr: PrMetadata,
     pub comment: Option<CommentRepr>,
     pub event_time: chrono::DateTime<Utc>,
 }
@@ -172,14 +186,15 @@ impl Event {
         check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         let result = match &self.event {
-            EventType::Command {
+            EventType::PRCommand {
                 command,
                 sender,
                 notification_id,
+                pr,
             } => {
                 let should_update = command
                     .execute(
-                        &self.pr,
+                        pr,
                         context.clone(),
                         check_info,
                         sender,
@@ -194,14 +209,38 @@ impl Event {
                 }
                 should_update
             }
-            EventType::Action(action) => {
-                action.execute(&self.pr, context.clone(), check_info).await
+            EventType::Action { action, pr } => {
+                action.execute(pr, context.clone(), check_info).await
+            }
+            EventType::IssueCommand {
+                command,
+                repo_info,
+                sender,
+                notification_id,
+            } => {
+                let result = command
+                    .execute(repo_info, context.clone(), check_info, sender)
+                    .await;
+                if result.is_ok() {
+                    context
+                        .github
+                        .mark_notification_as_read(notification_id.0)
+                        .await?;
+                }
+                result
             }
         };
+
+        match &self.event {
+            EventType::PRCommand { pr, .. } | EventType::Action { pr, .. } => {
+                context
+                    .prometheus
+                    .record_pr(&self.event, pr, &result, self.event_time);
+            }
+            _ => {}
+        }
+
         send_event_to_telegram(&context.telegram, self, &result);
-        context
-            .prometheus
-            .record(&self.event, &self.pr, &result, self.event_time);
 
         result
     }
@@ -209,24 +248,44 @@ impl Event {
 
 #[derive(Debug, Clone)]
 pub enum EventType {
-    Command {
+    PRCommand {
         command: Command,
         sender: User,
         notification_id: NotificationId,
+        pr: PrMetadata,
     },
-    Action(Action),
+    Action {
+        action: Action,
+        pr: PrMetadata,
+    },
+    IssueCommand {
+        command: issue_commands::Command,
+        sender: User,
+        notification_id: NotificationId,
+        repo_info: RepoInfo,
+    },
 }
 
 impl EventType {
+    pub fn repo_info(&self) -> &RepoInfo {
+        match self {
+            EventType::PRCommand { pr, .. } => &pr.repo_info,
+            EventType::Action { pr, .. } => &pr.repo_info,
+            EventType::IssueCommand {
+                repo_info: issue, ..
+            } => issue,
+        }
+    }
+
     pub fn same_event(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                EventType::Command {
+                EventType::PRCommand {
                     command: command1,
                     sender: sender1,
                     ..
                 },
-                EventType::Command {
+                EventType::PRCommand {
                     command: command2,
                     sender: sender2,
                     ..
@@ -235,9 +294,12 @@ impl EventType {
                 std::mem::discriminant(command1) == std::mem::discriminant(command2)
                     && sender1.login == sender2.login
             }
-            (EventType::Action(a), EventType::Action(b)) => {
-                std::mem::discriminant(a) == std::mem::discriminant(b)
-            }
+            (
+                EventType::Action { action, .. },
+                EventType::Action {
+                    action: action2, ..
+                },
+            ) => std::mem::discriminant(action) == std::mem::discriminant(action2),
             _ => false,
         }
     }
@@ -246,15 +308,16 @@ impl EventType {
 impl std::fmt::Display for EventType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            EventType::Command {
+            EventType::PRCommand {
                 command, sender, ..
             } => write!(
                 f,
-                "Command `{}` send by [{name}](https://github.com/{name})",
+                "PR Command `{}` send by [{name}](https://github.com/{name})",
                 command,
                 name = sender.login
             ),
-            EventType::Action(action) => write!(f, "Action `{action}`",),
+            EventType::Action { action, .. } => write!(f, "Action `{action}`",),
+            EventType::IssueCommand { command, .. } => write!(f, "Issue Command `{command}`",),
         }
     }
 }
@@ -270,9 +333,10 @@ fn send_event_to_telegram(
         "Failed".to_string()
     };
 
+    let repo_info = event.event.repo_info();
     let message = format!(
         "{} in the [{}](https://github.com/{}/{}/pull/{}) was {}",
-        event.event, event.pr.full_id, event.pr.owner, event.pr.repo, event.pr.number, text
+        event.event, repo_info.full_id, repo_info.owner, repo_info.repo, repo_info.number, text
     );
     telegram.send_to_telegram(&message, &Level::INFO);
 }

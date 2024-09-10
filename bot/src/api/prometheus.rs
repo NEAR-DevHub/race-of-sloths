@@ -27,19 +27,22 @@ pub enum EventType {
 impl From<&crate::events::EventType> for EventType {
     fn from(e: &crate::events::EventType) -> Self {
         match e {
-            crate::events::EventType::Command { command, .. } => match command {
-                crate::events::commands::Command::Include(_) => EventType::Include,
-                crate::events::commands::Command::Score(_) => EventType::Score,
-                crate::events::commands::Command::Pause(_) => EventType::Pause,
-                crate::events::commands::Command::Unpause(_) => EventType::Unpause,
-                crate::events::commands::Command::Excluded(_) => EventType::Excluded,
-                crate::events::commands::Command::Unknown(_) => EventType::Unknown,
-                crate::events::commands::Command::Update(_) => EventType::Update,
+            crate::events::EventType::PRCommand { command, .. } => match command {
+                crate::events::pr_commands::Command::Include(_) => EventType::Include,
+                crate::events::pr_commands::Command::Score(_) => EventType::Score,
+                crate::events::pr_commands::Command::Pause(_) => EventType::Pause,
+                crate::events::pr_commands::Command::Unpause(_) => EventType::Unpause,
+                crate::events::pr_commands::Command::Excluded(_) => EventType::Excluded,
+                crate::events::pr_commands::Command::Unknown(_) => EventType::Unknown,
+                crate::events::pr_commands::Command::Update(_) => EventType::Update,
             },
-            crate::events::EventType::Action(action) => match action {
+            crate::events::EventType::Action { action, .. } => match action {
                 crate::events::actions::Action::Merge(_) => EventType::Merge,
                 crate::events::actions::Action::Finalize(_) => EventType::Finalize,
                 crate::events::actions::Action::Stale(_) => EventType::Stale,
+            },
+            crate::events::EventType::IssueCommand { command, .. } => match command {
+                crate::events::issue_commands::Command::Unpause(_) => EventType::Unpause,
             },
         }
     }
@@ -131,7 +134,7 @@ impl Default for PrometheusClient {
 }
 
 impl PrometheusClient {
-    pub fn record(
+    pub fn record_pr(
         &self,
         event: &crate::events::EventType,
         pr: &PrMetadata,
@@ -146,9 +149,9 @@ impl PrometheusClient {
         let record = MetricRecord {
             event_type,
             author: pr.author.login.clone(),
-            organization: pr.owner.clone(),
-            repository: pr.repo.clone(),
-            pr_number: pr.number,
+            organization: pr.repo_info.owner.clone(),
+            repository: pr.repo_info.repo.clone(),
+            pr_number: pr.repo_info.number,
             success: result.is_ok() as u32,
             result_text,
         };

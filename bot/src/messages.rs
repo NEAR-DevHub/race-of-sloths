@@ -307,7 +307,7 @@ impl MessageLoader {
                 [
                     ("pr_author_username", user.name.clone()),
                     ("user_specific_message", user_specific_message),
-                    ("pr_id", pr.full_id.clone()),
+                    ("pr_id", pr.repo_info.full_id.clone()),
                 ]
                 .into_iter()
                 .collect(),
@@ -589,7 +589,7 @@ fn rating_breakthrough(
 #[cfg(test)]
 mod tests {
     use shared::{
-        github::{PrMetadata, User},
+        github::{PrMetadata, RepoInfo, User},
         Score,
     };
 
@@ -653,17 +653,19 @@ mod tests {
             exist: true,
         };
         let pr = PrMetadata {
-            owner: "a".to_string(),
-            repo: "a".to_string(),
+            repo_info: RepoInfo {
+                owner: "a".to_string(),
+                repo: "a".to_string(),
+                number: 0,
+                full_id: "a/a/0".to_string(),
+            },
             author: User::new(
                 "a".to_string(),
                 octocrab::models::AuthorAssociation::Contributor,
             ),
             created: chrono::Utc::now(),
             merged: None,
-            number: 0,
             updated_at: chrono::Utc::now(),
-            full_id: "a/a/0".to_string(),
             body: "".to_string(),
             closed: false,
         };

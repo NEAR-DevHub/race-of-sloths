@@ -47,7 +47,7 @@ impl Action {
         check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if check_info.excluded {
-            error!("Shouldn't happening. PR({}) is excluded, so should be removed, but we tracked action for it...", pr.full_id);
+            error!("Shouldn't happening. PR({}) is excluded, so should be removed, but we tracked action for it...", pr.repo_info.full_id);
             return Ok(EventResult::Skipped);
         }
         if !check_info.exist {

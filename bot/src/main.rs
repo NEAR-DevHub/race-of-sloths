@@ -125,8 +125,10 @@ async fn event_task(context: Context) {
     let events_per_pr = events.into_iter().fold(
         std::collections::HashMap::new(),
         |mut map: HashMap<String, Vec<Event>>, event| {
-            let pr = &event.pr;
-            map.entry(pr.full_id.clone()).or_default().push(event);
+            let repo_info = event.event.repo_info();
+            map.entry(repo_info.full_id.clone())
+                .or_default()
+                .push(event);
             map
         },
     );
@@ -185,7 +187,9 @@ async fn merge_and_execute_task(
 async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
     // TODO: pretty sure that we can achive deduplication with keeping the last element more easily
     events.reverse();
-    events.dedup_by(|a, b| a.pr.full_id == b.pr.full_id && a.event.same_event(&b.event));
+    events.dedup_by(|a, b| {
+        a.event.repo_info().full_id == b.event.repo_info().full_id && a.event.same_event(&b.event)
+    });
     events.reverse();
 
     if events.is_empty() {
@@ -195,16 +199,19 @@ async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
     debug!("Executing {} events", events.len());
     let mut should_update = false;
     let event = &events[0];
-    let pr = &event.pr;
+    let repo_info = event.event.repo_info();
 
-    if !events.iter().all(|e| pr.full_id == e.pr.full_id) {
+    if !events
+        .iter()
+        .all(|e| repo_info.full_id == e.event.repo_info().full_id)
+    {
         error!("Constraint failed: all events should be for the same PR")
     }
 
-    let mut check_info = match context.check_info(pr).await {
+    let mut check_info = match context.check_info(repo_info).await {
         Ok(info) => info,
         Err(e) => {
-            error!("Failed to get PR info for {}: {e}", pr.full_id);
+            error!("Failed to get PR info for {}: {e}", repo_info.full_id);
             return;
         }
     };
@@ -216,7 +223,7 @@ async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
             }
             Ok(_) => {}
             Err(e) => {
-                error!("Failed to execute event for {}: {e}", event.pr.full_id);
+                error!("Failed to execute event for {}: {e}", repo_info.full_id);
             }
         }
     }
@@ -224,15 +231,23 @@ async fn execute_events_from_one_pr(context: Context, mut events: Vec<Event>) {
     if !should_update {
         debug!(
             "No events that require updating status comment for {}",
-            pr.full_id
+            repo_info.full_id
         );
         return;
     }
 
     debug!(
         "Finished executing events. Updating status comment for {}",
-        pr.full_id
+        repo_info.full_id
     );
+
+    let Some(pr) = events.iter().find_map(|e| match &e.event {
+        EventType::Action { pr, .. } | EventType::PRCommand { pr, .. } => Some(pr),
+        _ => None,
+    }) else {
+        error!("Not found any PR in events, but requested update");
+        return;
+    };
 
     context
         .status_message(pr, event.comment.clone(), check_info, None)
@@ -271,20 +286,28 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         if pr_metadata.merged.is_none() {
             trace!(
                 "PR {} is not merged. Checking for stale",
-                pr_metadata.full_id
+                pr_metadata.repo_info.full_id
             );
             if check_for_stale_pr(&pr_metadata) {
-                info!("PR {} is stale. Creating an event", pr_metadata.full_id);
+                info!(
+                    "PR {} is stale. Creating an event",
+                    pr_metadata.repo_info.full_id
+                );
                 results.push(Event {
-                    event: EventType::Action(Action::stale()),
-                    pr: pr_metadata,
+                    event: EventType::Action {
+                        action: Action::stale(),
+                        pr: pr_metadata,
+                    },
                     comment: None,
                     event_time: chrono::Utc::now(),
                 });
             }
             continue;
         }
-        trace!("PR {} is merged. Creating an event", pr_metadata.full_id);
+        trace!(
+            "PR {} is merged. Creating an event",
+            pr_metadata.repo_info.full_id
+        );
         let merged_by = merged_by
             .map(|e| e.login)
             .unwrap_or_else(|| pr_metadata.author.login.clone());
@@ -292,17 +315,19 @@ async fn merge_events(context: &Context) -> anyhow::Result<Vec<Event>> {
         let reviewers = context
             .github
             .get_positive_or_pending_review(
-                &pr_metadata.owner,
-                &pr_metadata.repo,
-                pr_metadata.number,
+                &pr_metadata.repo_info.owner,
+                &pr_metadata.repo_info.repo,
+                pr_metadata.repo_info.number,
             )
             .await
             .unwrap_or_default();
         results.push(Event {
-            event: EventType::Action(Action::merge(merged_by, reviewers)),
             event_time: pr_metadata.merged.unwrap(),
-            pr: pr_metadata,
             comment: None,
+            event: EventType::Action {
+                action: Action::merge(merged_by, reviewers),
+                pr: pr_metadata,
+            },
         });
     }
     info!("Finished merge task with {} events", results.len());
@@ -317,13 +342,15 @@ async fn finalized_events(context: &Context) -> anyhow::Result<Vec<Event>> {
     Ok(prs
         .into_iter()
         .map(|pr| Event {
-            event: EventType::Action(Action::finalize()),
             event_time: pr
                 .ready_to_move_timestamp()
                 .map(|t| chrono::DateTime::from_timestamp_nanos(t as i64))
                 .unwrap_or_else(chrono::Utc::now),
-            pr: pr.into(),
             comment: None,
+            event: EventType::Action {
+                action: Action::finalize(),
+                pr: pr.into(),
+            },
         })
         .collect())
 }

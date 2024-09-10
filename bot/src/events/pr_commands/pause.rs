@@ -13,7 +13,7 @@ pub struct BotPaused {
 }
 
 impl BotPaused {
-    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, check_info, sender), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -24,11 +24,11 @@ impl BotPaused {
         if check_info.paused {
             info!(
                 "Tried to pause a PR from paused repo: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             context
                 .reply_with_error(
-                    pr,
+                    &pr.repo_info,
                     self.comment_id,
                     MsgCategory::ErrorPausePausedMessage,
                     vec![],
@@ -40,11 +40,11 @@ impl BotPaused {
         if !sender.is_maintainer() {
             info!(
                 "Tried to pause a PR from not maintainer: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             context
                 .reply_with_error(
-                    pr,
+                    &pr.repo_info,
                     self.comment_id,
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -53,11 +53,19 @@ impl BotPaused {
             return Ok(EventResult::RepliedWithError);
         }
 
-        debug!("Pausing the repository in the PR: {}", pr.full_id);
-        context.near.send_pause(&pr.owner, &pr.repo).await?;
+        debug!("Pausing the repository in the PR: {}", pr.repo_info.full_id);
+        context
+            .near
+            .send_pause(&pr.repo_info.owner, &pr.repo_info.repo)
+            .await?;
         check_info.paused = true;
         context
-            .reply(pr, self.comment_id, MsgCategory::PauseMessage, vec![])
+            .reply(
+                &pr.repo_info,
+                self.comment_id,
+                MsgCategory::PauseMessage,
+                vec![],
+            )
             .await?;
         Ok(EventResult::success(false))
     }
@@ -77,10 +85,10 @@ pub struct BotUnpaused {
 }
 
 impl BotUnpaused {
-    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.full_id))]
+    #[instrument(skip(self, repo_info, context, info, sender), fields(pr = repo_info.full_id))]
     pub async fn execute(
         &self,
-        pr: &PrMetadata,
+        repo_info: &RepoInfo,
         context: Context,
         info: &mut PRInfo,
         sender: &User,
@@ -88,23 +96,31 @@ impl BotUnpaused {
         if !sender.is_maintainer() {
             info!(
                 "Tried to unpause a PR from not maintainer: {}. Skipping",
-                pr.full_id
+                repo_info.full_id
             );
             return Ok(EventResult::Skipped);
         }
 
         if info.paused {
-            context.near.send_unpause(&pr.owner, &pr.repo).await?;
-            info.paused = false;
-            debug!("Unpaused PR {}", pr.full_id);
             context
-                .reply(pr, self.comment_id, MsgCategory::UnpauseMessage, vec![])
+                .near
+                .send_unpause(&repo_info.owner, &repo_info.repo)
+                .await?;
+            info.paused = false;
+            debug!("Unpaused PR {}", repo_info.full_id);
+            context
+                .reply(
+                    repo_info,
+                    self.comment_id,
+                    MsgCategory::UnpauseMessage,
+                    vec![],
+                )
                 .await?;
             Ok(EventResult::success(false))
         } else {
             context
                 .reply(
-                    pr,
+                    repo_info,
                     self.comment_id,
                     MsgCategory::ErrorUnpauseUnpausedMessage,
                     vec![],

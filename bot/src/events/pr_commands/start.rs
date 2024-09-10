@@ -23,7 +23,7 @@ impl BotIncluded {
 }
 
 impl BotIncluded {
-    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, info, sender), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -32,7 +32,10 @@ impl BotIncluded {
         sender: &User,
     ) -> anyhow::Result<EventResult> {
         if info.exist {
-            debug!("Sloth is already included in {}. Skipping", pr.full_id,);
+            debug!(
+                "Sloth is already included in {}. Skipping",
+                pr.repo_info.full_id,
+            );
             return Ok(EventResult::Skipped);
         }
 
@@ -40,10 +43,10 @@ impl BotIncluded {
             (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(1) => {}
             (_, false) => {}
             _ => {
-                debug!("PR {} is already merged. Skipping", pr.full_id,);
+                debug!("PR {} is already merged. Skipping", pr.repo_info.full_id,);
                 context
                     .reply_with_error(
-                        pr,
+                        &pr.repo_info,
                         self.user_comment_id,
                         MsgCategory::ErrorLateIncludeMessage,
                         vec![],
@@ -56,11 +59,11 @@ impl BotIncluded {
         if info.excluded && !sender.is_maintainer() {
             debug!(
                 "Tried to include an excluded PR from not maintainer: {}. Skipping",
-                pr.full_id
+                pr.repo_info.full_id
             );
             context
                 .reply_with_error(
-                    pr,
+                    &pr.repo_info,
                     self.user_comment_id,
                     MsgCategory::ErrorRightsViolationMessage,
                     vec![],
@@ -74,13 +77,13 @@ impl BotIncluded {
             if user_info.is_none() {
                 debug!(
                     "Author of PR {} is not registered in Race-of-Sloths. Inviting instead of including. Skipping",
-                    pr.full_id
+                    pr.repo_info.full_id
                 );
                 let invite_txt = context
                     .messages
                     .invite_message(&pr.author.login, &sender.login)?;
                 context
-                    .reply_with_text(pr, self.user_comment_id, &invite_txt)
+                    .reply_with_text(&pr.repo_info, self.user_comment_id, &invite_txt)
                     .await?;
                 return Ok(EventResult::Success {
                     should_update: false,
@@ -88,7 +91,7 @@ impl BotIncluded {
             }
         }
 
-        debug!("Starting PR {}", pr.full_id);
+        debug!("Starting PR {}", pr.repo_info.full_id);
         context.near.send_start(pr, sender.is_maintainer()).await?;
         info.exist = true;
         info.excluded = false;
@@ -96,7 +99,7 @@ impl BotIncluded {
         if let Some(comment_id) = self.user_comment_id {
             context
                 .github
-                .like_comment(&pr.owner, &pr.repo, comment_id)
+                .like_comment(&pr.repo_info.owner, &pr.repo_info.repo, comment_id)
                 .await?;
         }
 

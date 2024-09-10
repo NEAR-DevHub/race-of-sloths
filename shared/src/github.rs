@@ -32,15 +32,38 @@ impl User {
 }
 
 #[derive(Debug, Clone)]
-pub struct PrMetadata {
+pub struct RepoInfo {
     pub owner: String,
     pub repo: String,
     pub number: u64,
+    pub full_id: String,
+}
+
+impl RepoInfo {
+    pub fn from_issue(
+        issue: octocrab::models::issues::Issue,
+        repo: octocrab::models::Repository,
+    ) -> Option<Self> {
+        let owner = repo.owner?.login;
+        let repo = repo.name;
+        let number = issue.number;
+        let full_id = format!("{}/{}/{}", owner, repo, number);
+        Some(Self {
+            owner,
+            repo,
+            number,
+            full_id,
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PrMetadata {
+    pub repo_info: RepoInfo,
     pub author: User,
     pub created: chrono::DateTime<chrono::Utc>,
     pub merged: Option<chrono::DateTime<chrono::Utc>>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
-    pub full_id: String,
     pub body: String,
     pub closed: bool,
 }
@@ -49,9 +72,12 @@ impl From<PRv2> for PrMetadata {
     fn from(pr: PRv2) -> Self {
         let full_id = format!("{}/{}/{}", pr.organization, pr.repo, pr.number);
         Self {
-            owner: pr.organization,
-            repo: pr.repo,
-            number: pr.number,
+            repo_info: RepoInfo {
+                owner: pr.organization,
+                repo: pr.repo,
+                number: pr.number,
+                full_id,
+            },
             author: User::new(pr.author, AuthorAssociation::None),
             body: Default::default(),
             created: chrono::DateTime::from_timestamp_nanos(
@@ -63,7 +89,6 @@ impl From<PRv2> for PrMetadata {
             updated_at: chrono::DateTime::from_timestamp_nanos(
                 pr.merged_at.or(pr.created_at).unwrap_or(pr.included_at) as i64,
             ),
-            full_id,
             closed: false,
         }
     }
@@ -95,15 +120,17 @@ impl TryFrom<octocrab::models::pulls::PullRequest> for PrMetadata {
         ) {
             let full_id = format!("{}/{}/{}", owner.login, repo, pr.number);
             Ok(Self {
-                owner: owner.login,
-                repo,
+                repo_info: RepoInfo {
+                    owner: owner.login,
+                    repo,
+                    number: pr.number,
+                    full_id,
+                },
                 body,
-                number: pr.number,
                 author: User::new(user.login, author_association),
                 created: created_at,
                 merged: pr.merged_at,
                 updated_at,
-                full_id,
                 closed: pr.closed_at.is_some(),
             })
         } else {

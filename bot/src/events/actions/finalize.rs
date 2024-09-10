@@ -10,7 +10,7 @@ use super::{EventResult, FinalMessageData};
 pub struct PullRequestFinalize {}
 
 impl PullRequestFinalize {
-    #[instrument(skip(self, pr, context, info), fields(pr = pr.full_id))]
+    #[instrument(skip(self, pr, context, info), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -18,7 +18,7 @@ impl PullRequestFinalize {
         info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if info.executed {
-            warn!("PR {} is already finalized. Skipping", pr.full_id);
+            warn!("PR {} is already finalized. Skipping", pr.repo_info.full_id);
             return Ok(EventResult::Skipped);
         }
 
@@ -28,14 +28,19 @@ impl PullRequestFinalize {
         } else {
             context
                 .github
-                .is_active_pr(&pr.owner, &pr.repo, &pr.author.login, pr.number)
+                .is_active_pr(
+                    &pr.repo_info.owner,
+                    &pr.repo_info.repo,
+                    &pr.author.login,
+                    pr.repo_info.number,
+                )
                 .await
                 .ok()
                 .map(|active| (active, context.github.user_handle.clone()))
         };
         let events = context
             .near
-            .send_finalize(&pr.full_id, is_active_pr)
+            .send_finalize(&pr.repo_info.full_id, is_active_pr)
             .await?;
         info.executed = true;
 

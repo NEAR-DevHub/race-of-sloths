@@ -10,7 +10,7 @@ use super::EventResult;
 pub struct PullRequestStale {}
 
 impl PullRequestStale {
-    #[instrument(skip(self, context, check_info), fields(pr = pr.full_id))]
+    #[instrument(skip(self, context, check_info), fields(pr = pr.repo_info.full_id))]
     pub async fn execute(
         &self,
         pr: &PrMetadata,
@@ -18,7 +18,7 @@ impl PullRequestStale {
         check_info: &mut PRInfo,
     ) -> anyhow::Result<EventResult> {
         if check_info.merged {
-            warn!("PR {} is already merged. Skipping", pr.full_id);
+            warn!("PR {} is already merged. Skipping", pr.repo_info.full_id);
             return Ok(EventResult::Skipped);
         }
 
@@ -40,7 +40,7 @@ impl PullRequestStale {
         }
 
         context
-            .reply(pr, None, MsgCategory::StaleMessage, vec![])
+            .reply(&pr.repo_info, None, MsgCategory::StaleMessage, vec![])
             .await?;
         Ok(EventResult::success(true))
     }

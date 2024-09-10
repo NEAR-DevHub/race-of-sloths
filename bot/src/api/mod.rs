@@ -3,14 +3,14 @@ use std::sync::Arc;
 use futures::future::join_all;
 use octocrab::models::{
     activity::Notification,
-    issues::Comment,
+    issues::{Comment, Issue},
     pulls::{PullRequest, Review, ReviewState},
     AuthorAssociation, CommentId, NotificationId, RateLimit,
 };
 use shared::GithubHandle;
 use tracing::{error, info, instrument};
 
-use crate::events::{actions::Action, commands::Command, Event, EventType};
+use crate::events::{actions::Action, issue_commands, pr_commands::Command, Event, EventType};
 
 pub use shared::github::*;
 
@@ -100,9 +100,7 @@ impl GithubClient {
         let events = self.octocrab.all_pages(page).await?;
 
         let fetch_pr_futures = events.into_iter().map(|event| async move {
-            if event.subject.r#type != "PullRequest"
-                || (event.reason != "mention" && event.reason != "state_change")
-            {
+            if event.reason != "mention" && event.reason != "state_change" {
                 info!(
                     "Skipping event: {} with reason {}",
                     event.subject.r#type, event.reason
@@ -116,160 +114,23 @@ impl GithubClient {
                 return None;
             }
 
-            let pr = match self.get_pull_request_from_notification(&event).await {
-                Ok(pr) => pr,
-                Err(e) => {
-                    error!("Failed to get PR: {:?}", e);
-                    return None;
-                }
-            };
-
-            let merged_by = pr.merged_by.clone();
-            let pr_metadata = match PrMetadata::try_from(pr) {
-                Ok(pr) => pr,
-                Err(e) => {
-                    error!("Failed to convert PR: {:?}", e);
-                    return None;
-                }
-            };
-
-            if pr_metadata.merged.is_none() && pr_metadata.closed {
-                info!("PR is closed: {}", pr_metadata.number);
+            if event.subject.r#type == "PullRequest" {
+                self.parse_pr_event(event).await
+            } else if event.subject.r#type == "Issue" {
+                self.parse_issue_event(event).await
+            } else {
+                info!(
+                    "Skipping event: {} with reason {}",
+                    event.subject.r#type, event.reason
+                );
                 if let Err(e) = self.mark_notification_as_read(event.id).await {
                     error!(
                         "Failed to mark notification as read for event: {:?}: {e:?}",
                         event.id
                     );
                 }
-
-                return Some(vec![Event {
-                    event: EventType::Action(Action::stale()),
-                    pr: pr_metadata.clone(),
-                    comment: None,
-                    event_time: pr_metadata.updated_at,
-                }]);
+                return None;
             }
-
-            let comments = self
-                .octocrab
-                .issues(&pr_metadata.owner, &pr_metadata.repo)
-                .list_comments(pr_metadata.number)
-                .per_page(100)
-                .send()
-                .await;
-
-            let comments = match comments {
-                Ok(comments) => comments,
-                Err(e) => {
-                    error!("Failed to get comments: {:?}", e);
-                    return None;
-                }
-            };
-
-            let comments = match self.octocrab.all_pages(comments).await {
-                Ok(comments) => comments,
-                Err(e) => {
-                    error!("Failed to get all comments: {:?}", e);
-                    return None;
-                }
-            };
-            let first_bot_comment = comments
-                .iter()
-                .find(|c| c.user.login == self.user_handle)
-                .cloned()
-                .map(Into::into);
-
-            let reviews = self
-                .octocrab
-                .pulls(&pr_metadata.owner, &pr_metadata.repo)
-                .list_reviews(pr_metadata.number)
-                .per_page(100)
-                .send()
-                .await;
-            let reviews = match reviews {
-                Ok(reviews) => reviews,
-                Err(e) => {
-                    error!("Failed to get reviews: {:?}", e);
-                    return None;
-                }
-            };
-
-            let mut comments = comments
-                .into_iter()
-                .map(CommentRepr::from)
-                .chain(reviews.into_iter().flat_map(CommentRepr::try_from))
-                .collect::<Vec<_>>();
-            comments.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
-            let mut results = Vec::new();
-
-            for comment in comments.into_iter().rev() {
-                // We have processed older messages
-                if comment.user.login == self.user_handle {
-                    break;
-                }
-
-                if let Some(command) =
-                    Command::parse_command(&self.user_handle, &pr_metadata, &comment)
-                {
-                    results.push(Event {
-                        event: EventType::Command {
-                            command,
-                            notification_id: event.id,
-                            sender: comment.user.clone(),
-                        },
-                        pr: pr_metadata.clone(),
-                        comment: first_bot_comment.clone(),
-                        event_time: comment.timestamp,
-                    });
-                }
-            }
-
-            if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
-                results.push(Event {
-                    event: EventType::Command {
-                        command,
-                        notification_id: event.id,
-                        sender: pr_metadata.author.clone(),
-                    },
-                    pr: pr_metadata.clone(),
-                    comment: first_bot_comment.clone(),
-                    event_time: pr_metadata.created,
-                });
-            }
-
-            if results.is_empty() {
-                info!("No commands found in PR: {}", pr_metadata.number);
-                if let Err(e) = self.mark_notification_as_read(event.id).await {
-                    error!("Failed to mark notification as read: {:?}", e);
-                }
-            }
-
-            // To keep the chronological order, we reverse the results
-            results.reverse();
-
-            if pr_metadata.merged.is_some() {
-                let reviewers = self
-                    .get_positive_or_pending_review(
-                        &pr_metadata.owner,
-                        &pr_metadata.repo,
-                        pr_metadata.number,
-                    )
-                    .await
-                    .unwrap_or_default();
-                let merged_by = merged_by
-                    .map(|e| e.login)
-                    .unwrap_or_else(|| pr_metadata.author.login.clone());
-
-                results.push(Event {
-                    event: EventType::Action(Action::merge(merged_by, reviewers)),
-                    pr: pr_metadata.clone(),
-                    comment: first_bot_comment,
-                    event_time: pr_metadata.merged.unwrap(),
-                });
-            }
-
-            Some(results)
         });
 
         let results = join_all(fetch_pr_futures)
@@ -279,6 +140,231 @@ impl GithubClient {
             .flatten()
             .collect();
         Ok(results)
+    }
+
+    async fn parse_issue_event(&self, event: Notification) -> Option<Vec<Event>> {
+        let issue = match self.get_issue_from_notification(&event).await {
+            Ok(issue) => issue,
+            Err(e) => {
+                error!("Failed to get issue: {:?}", e);
+                return None;
+            }
+        };
+
+        let Some(repo_info) = RepoInfo::from_issue(issue, event.repository) else {
+            error!("Failed to get repo info");
+            return None;
+        };
+
+        let comments = self
+            .octocrab
+            .issues(&repo_info.owner, &repo_info.repo)
+            .list_comments(repo_info.number)
+            .per_page(100)
+            .send()
+            .await;
+
+        let comments = match comments {
+            Ok(comments) => comments,
+            Err(e) => {
+                error!("Failed to get comments: {:?}", e);
+                return None;
+            }
+        };
+
+        let comments = match self.octocrab.all_pages(comments).await {
+            Ok(comments) => comments,
+            Err(e) => {
+                error!("Failed to get all comments: {:?}", e);
+                return None;
+            }
+        };
+
+        let mut results = Vec::new();
+
+        for comment in comments.into_iter().map(CommentRepr::from).rev() {
+            // We have processed older messages
+            if comment.user.login == self.user_handle {
+                break;
+            }
+
+            if let Some(command) =
+                issue_commands::Command::parse_command(&self.user_handle, &comment)
+            {
+                results.push(Event {
+                    event: EventType::IssueCommand {
+                        command,
+                        notification_id: event.id,
+                        sender: comment.user.clone(),
+                        repo_info: repo_info.clone(),
+                    },
+                    comment: None,
+                    event_time: comment.timestamp,
+                });
+            }
+        }
+
+        Some(results)
+    }
+
+    async fn parse_pr_event(&self, event: Notification) -> Option<Vec<Event>> {
+        let pr = match self.get_pull_request_from_notification(&event).await {
+            Ok(pr) => pr,
+            Err(e) => {
+                error!("Failed to get PR: {:?}", e);
+                return None;
+            }
+        };
+
+        let merged_by = pr.merged_by.clone();
+        let pr_metadata = match PrMetadata::try_from(pr) {
+            Ok(pr) => pr,
+            Err(e) => {
+                error!("Failed to convert PR: {:?}", e);
+                return None;
+            }
+        };
+
+        if pr_metadata.merged.is_none() && pr_metadata.closed {
+            info!("PR is closed: {}", pr_metadata.repo_info.number);
+            if let Err(e) = self.mark_notification_as_read(event.id).await {
+                error!(
+                    "Failed to mark notification as read for event: {:?}: {e:?}",
+                    event.id
+                );
+            }
+
+            return Some(vec![Event {
+                event: EventType::Action {
+                    action: Action::stale(),
+                    pr: pr_metadata.clone(),
+                },
+                comment: None,
+                event_time: pr_metadata.updated_at,
+            }]);
+        }
+
+        let comments = self
+            .octocrab
+            .issues(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
+            .list_comments(pr_metadata.repo_info.number)
+            .per_page(100)
+            .send()
+            .await;
+
+        let comments = match comments {
+            Ok(comments) => comments,
+            Err(e) => {
+                error!("Failed to get comments: {:?}", e);
+                return None;
+            }
+        };
+
+        let comments = match self.octocrab.all_pages(comments).await {
+            Ok(comments) => comments,
+            Err(e) => {
+                error!("Failed to get all comments: {:?}", e);
+                return None;
+            }
+        };
+        let first_bot_comment = comments
+            .iter()
+            .find(|c| c.user.login == self.user_handle)
+            .cloned()
+            .map(Into::into);
+
+        let reviews = self
+            .octocrab
+            .pulls(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
+            .list_reviews(pr_metadata.repo_info.number)
+            .per_page(100)
+            .send()
+            .await;
+        let reviews = match reviews {
+            Ok(reviews) => reviews,
+            Err(e) => {
+                error!("Failed to get reviews: {:?}", e);
+                return None;
+            }
+        };
+
+        let mut comments = comments
+            .into_iter()
+            .map(CommentRepr::from)
+            .chain(reviews.into_iter().flat_map(CommentRepr::try_from))
+            .collect::<Vec<_>>();
+        comments.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+        let mut results = Vec::new();
+
+        for comment in comments.into_iter().rev() {
+            // We have processed older messages
+            if comment.user.login == self.user_handle {
+                break;
+            }
+
+            if let Some(command) = Command::parse_command(&self.user_handle, &pr_metadata, &comment)
+            {
+                results.push(Event {
+                    event: EventType::PRCommand {
+                        command,
+                        notification_id: event.id,
+                        sender: comment.user.clone(),
+                        pr: pr_metadata.clone(),
+                    },
+                    comment: first_bot_comment.clone(),
+                    event_time: comment.timestamp,
+                });
+            }
+        }
+
+        if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
+            results.push(Event {
+                event: EventType::PRCommand {
+                    command,
+                    notification_id: event.id,
+                    sender: pr_metadata.author.clone(),
+                    pr: pr_metadata.clone(),
+                },
+                comment: first_bot_comment.clone(),
+                event_time: pr_metadata.created,
+            });
+        }
+
+        if results.is_empty() {
+            info!("No commands found in PR: {}", pr_metadata.repo_info.number);
+            if let Err(e) = self.mark_notification_as_read(event.id).await {
+                error!("Failed to mark notification as read: {:?}", e);
+            }
+        }
+
+        // To keep the chronological order, we reverse the results
+        results.reverse();
+
+        if pr_metadata.merged.is_some() {
+            let reviewers = self
+                .get_positive_or_pending_review(
+                    &pr_metadata.repo_info.owner,
+                    &pr_metadata.repo_info.repo,
+                    pr_metadata.repo_info.number,
+                )
+                .await
+                .unwrap_or_default();
+            let merged_by = merged_by
+                .map(|e| e.login)
+                .unwrap_or_else(|| pr_metadata.author.login.clone());
+
+            results.push(Event {
+                event: EventType::Action {
+                    action: Action::merge(merged_by, reviewers),
+                    pr: pr_metadata.clone(),
+                },
+                comment: first_bot_comment,
+                event_time: pr_metadata.merged.unwrap(),
+            });
+        }
+
+        Some(results)
     }
 
     pub async fn get_positive_or_pending_review(
@@ -304,7 +390,7 @@ impl GithubClient {
     }
 
     #[instrument(skip(self), fields(notification = notification.id.0))]
-    pub async fn get_pull_request_from_notification(
+    async fn get_pull_request_from_notification(
         &self,
         notification: &Notification,
     ) -> anyhow::Result<PullRequest> {
@@ -318,6 +404,28 @@ impl GithubClient {
                     .url
                     .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("No PR url"))?,
+                None::<&()>,
+            )
+            .await?;
+
+        Ok(pull_request)
+    }
+
+    #[instrument(skip(self), fields(notification = notification.id.0))]
+    async fn get_issue_from_notification(
+        &self,
+        notification: &Notification,
+    ) -> anyhow::Result<Issue> {
+        assert_eq!(notification.subject.r#type, "Issue");
+
+        let pull_request = self
+            .octocrab
+            .get(
+                notification
+                    .subject
+                    .url
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("No Issue url"))?,
                 None::<&()>,
             )
             .await?;
