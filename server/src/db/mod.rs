@@ -545,6 +545,8 @@ impl DB {
             FROM repos r
             JOIN organizations o ON r.organization_id = o.id
             WHERE r.paused = true
+            ORDER BY
+            o.login, r.name
             "#
         )
         .fetch_all(&self.0)
@@ -581,6 +583,7 @@ impl DB {
         let total_count = sqlx::query!(
             r#"SELECT COUNT(DISTINCT(r.organization_id, r.id)) as id
             FROM repos r
+            WHERE r.paused = false
             "#,
         )
         .fetch_one(&self.0)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT o.login, r.name\n            FROM repos r\n            JOIN organizations o ON r.organization_id = o.id\n            WHERE r.paused = true\n            ",
+  "query": "\n            SELECT o.login, r.name\n            FROM repos r\n            JOIN organizations o ON r.organization_id = o.id\n            WHERE r.paused = true\n            ORDER BY\n            o.login, r.name\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "9b5ed3d2fc5fe5eda27f684078a951486fb69fd8ebb43366d25b560711984061"
+  "hash": "b5dc0da5438a003cc5600e9069cdd6aaf9da46c3388571002a433f738a5d7253"
 }
