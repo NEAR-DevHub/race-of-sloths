@@ -321,7 +321,7 @@ impl NearClient {
     #[instrument(skip(self))]
     pub async fn users(&self, periods: Vec<TimePeriodString>) -> anyhow::Result<Vec<User>> {
         let mut page = 0;
-        const LIMIT: u64 = 100;
+        const LIMIT: u64 = 250;
         let mut res = vec![];
         loop {
             let users = self.users_paged(page, LIMIT, periods.clone()).await?;
@@ -352,7 +352,7 @@ impl NearClient {
     #[instrument(skip(self))]
     pub async fn prs(&self) -> anyhow::Result<Vec<(PRv2, bool)>> {
         let mut page = 0;
-        const LIMIT: u64 = 100;
+        const LIMIT: u64 = 250;
         let mut res = vec![];
         loop {
             let prs = self.prs_paged(page, LIMIT).await?;
@@ -387,7 +387,7 @@ impl NearClient {
     #[instrument(skip(self))]
     pub async fn repos(&self) -> anyhow::Result<Vec<AllowedRepos>> {
         let mut page = 0;
-        const LIMIT: usize = 50;
+        const LIMIT: usize = 500;
         let mut res = vec![];
         loop {
             let prs = self.repos_paged(page, LIMIT).await?;
