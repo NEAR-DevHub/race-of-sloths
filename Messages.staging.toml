@@ -107,6 +107,12 @@ message = ["""### ▶️ Repository unpaused!
 Feel free to tag us again to participate in the Race of Sloths!
 """]
 
+[unpause_issue_messages]
+variables = []
+message = ["""### ▶️ Repository activated! 
+Feel free to tag us in your PRs to participate in the Race of Sloths!
+"""]
+
 [merge_without_score_by_other_party]
 variables = ["bot_name", "maintainer", "potential_score"]
 message = [

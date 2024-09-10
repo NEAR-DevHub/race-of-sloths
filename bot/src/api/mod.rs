@@ -180,6 +180,12 @@ impl GithubClient {
             }
         };
 
+        let first_bot_comment = comments
+            .iter()
+            .find(|c| c.user.login == self.user_handle)
+            .cloned()
+            .map(Into::into);
+
         let mut results = Vec::new();
 
         for comment in comments.into_iter().map(CommentRepr::from).rev() {
@@ -198,7 +204,7 @@ impl GithubClient {
                         sender: comment.user.clone(),
                         repo_info: repo_info.clone(),
                     },
-                    comment: None,
+                    comment: first_bot_comment.clone(),
                     event_time: comment.timestamp,
                 });
             }

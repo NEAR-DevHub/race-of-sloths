@@ -2,9 +2,9 @@ use shared::{
     github::{RepoInfo, User},
     PRInfo,
 };
-use tracing::instrument;
+use tracing::{info, instrument};
 
-use crate::api::CommentRepr;
+use crate::{api::CommentRepr, messages::MsgCategory};
 
 use super::{common, pr_commands::BotUnpaused, Context, EventResult};
 
@@ -21,6 +21,7 @@ impl Command {
             "yes" | "approve" | "add" => Command::Unpause(BotUnpaused {
                 timestamp: comment.timestamp,
                 comment_id: comment.comment_id,
+                from_issue: true,
             }),
             _ => return None,
         })
@@ -39,8 +40,29 @@ impl Command {
         context: Context,
         // TODO: it's a bit weird as we don't have a PR here, but it's for pause/unpause commands
         check_info: &mut PRInfo,
+        first_reply: bool,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
+        if !check_info.allowed_repo {
+            info!(
+                "Sloth called for a PR from not allowed org: {}. Skipping",
+                repo_info.full_id
+            );
+            if first_reply {
+                context
+                    .reply_with_error(
+                        repo_info,
+                        None,
+                        MsgCategory::ErrorOrgNotInAllowedListMessage,
+                        vec![("pr_author_username", sender.login.clone())],
+                    )
+                    .await?;
+                return Ok(EventResult::RepliedWithError);
+            }
+
+            return Ok(EventResult::Skipped);
+        }
+
         match self {
             Command::Unpause(event) => event.execute(repo_info, context, check_info, sender).await,
         }

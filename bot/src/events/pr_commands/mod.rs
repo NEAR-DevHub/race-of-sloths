@@ -37,7 +37,7 @@ impl Command {
         Some(match command.as_str() {
             "score" | "score:" | "rate" | "value" => BotScored::construct(comment, args),
             "pause" | "block" => BotPaused::construct(comment),
-            "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment),
+            "unpause" | "resume" | "unblock" => BotUnpaused::construct(comment, false),
             "exclude" | "leave" => BotExcluded::construct(comment),
             "include" | "in" | "start" | "join" | "invite" => BotIncluded::construct(comment),
             "update" => BotUpdated::construct(comment),

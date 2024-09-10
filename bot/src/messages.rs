@@ -18,6 +18,7 @@ pub enum MsgCategory {
     ExcludeMessages,
     PauseMessage,
     UnpauseMessage,
+    UnpauseIssueMessage,
     MergeWithoutScoreMessageByOtherParty,
     MergeWithoutScoreMessageByAuthorWithoutReviewers,
     RatingMessagesCommon,
@@ -109,6 +110,7 @@ pub struct MessageLoader {
     pub exclude_messages: Messages,
     pub pause_messages: Messages,
     pub unpause_messages: Messages,
+    pub unpause_issue_messages: Messages,
     pub merge_without_score_by_other_party: Messages,
     pub merge_without_score_by_author_without_reviewers: Messages,
     pub rating_messages_common: Messages,
@@ -191,6 +193,7 @@ impl MessageLoader {
             &mut self.exclude_messages,
             &mut self.pause_messages,
             &mut self.unpause_messages,
+            &mut self.unpause_issue_messages,
             &mut self.merge_without_score_by_other_party,
             &mut self.merge_without_score_by_author_without_reviewers,
             &mut self.rating_messages_common,
@@ -233,6 +236,7 @@ impl MessageLoader {
             MsgCategory::ExcludeMessages => &self.exclude_messages,
             MsgCategory::PauseMessage => &self.pause_messages,
             MsgCategory::UnpauseMessage => &self.unpause_messages,
+            MsgCategory::UnpauseIssueMessage => &self.unpause_issue_messages,
             MsgCategory::MergeWithoutScoreMessageByOtherParty => {
                 &self.merge_without_score_by_other_party
             }

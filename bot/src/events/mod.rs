@@ -219,7 +219,13 @@ impl Event {
                 notification_id,
             } => {
                 let result = command
-                    .execute(repo_info, context.clone(), check_info, sender)
+                    .execute(
+                        repo_info,
+                        context.clone(),
+                        check_info,
+                        self.comment.is_none(),
+                        sender,
+                    )
                     .await;
                 if result.is_ok() {
                     context

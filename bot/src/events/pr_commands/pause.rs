@@ -82,6 +82,7 @@ impl BotPaused {
 pub struct BotUnpaused {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: Option<u64>,
+    pub from_issue: bool,
 }
 
 impl BotUnpaused {
@@ -108,13 +109,13 @@ impl BotUnpaused {
                 .await?;
             info.paused = false;
             debug!("Unpaused PR {}", repo_info.full_id);
+            let msg = if self.from_issue {
+                MsgCategory::UnpauseIssueMessage
+            } else {
+                MsgCategory::UnpauseMessage
+            };
             context
-                .reply(
-                    repo_info,
-                    self.comment_id,
-                    MsgCategory::UnpauseMessage,
-                    vec![],
-                )
+                .reply(repo_info, self.comment_id, msg, vec![])
                 .await?;
             Ok(EventResult::success(false))
         } else {
@@ -130,10 +131,11 @@ impl BotUnpaused {
         }
     }
 
-    pub fn construct(comment: &CommentRepr) -> Command {
+    pub fn construct(comment: &CommentRepr, from_issue: bool) -> Command {
         Command::Unpause(BotUnpaused {
             timestamp: comment.timestamp,
             comment_id: comment.comment_id,
+            from_issue,
         })
     }
 }
