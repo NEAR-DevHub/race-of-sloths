@@ -1,5 +1,3 @@
-#[allow(deprecated)]
-use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     require,

@@ -129,6 +129,7 @@ impl Contract {
     // TODO: remove this method after we would have enough data in the PRs
     pub fn repos(&self, page: usize, limit: usize) -> Vec<AllowedRepos> {
         let mut repos = HashMap::new();
+        env::log_str(&format!("Total len: {}", self.repos.len()));
 
         for (org, repo) in self.repos.keys().skip(page * limit).take(limit) {
             let data = self.repos.get(&(org.clone(), repo.clone())).unwrap();
