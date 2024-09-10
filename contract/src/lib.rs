@@ -246,6 +246,14 @@ impl Contract {
         self.repos.remove(&(organization, repo));
     }
 
+    pub fn bulk_include_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
+        self.assert_sloth();
+
+        for allowed_org in allowed_orgs {
+            self.include_org_with_repos(allowed_org);
+        }
+    }
+
     pub fn include_org_with_repos(&mut self, allowed_org: AllowedRepos) {
         self.assert_sloth();
 
