@@ -36,6 +36,8 @@ FROM
     LEFT JOIN pull_requests pr ON pr.repo_id = r.id
     LEFT JOIN top_contributors tc ON tc.repo_id = r.id
     AND tc.rank = 1
+WHERE
+    r.paused = false
 GROUP BY
     o.login,
     o.full_name,

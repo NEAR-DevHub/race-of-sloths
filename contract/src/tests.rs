@@ -32,7 +32,10 @@ impl ContractExt {
             admin(),
             vec![AllowedRepos {
                 organization: "NEAR-DevHub".to_owned(),
-                repos: vec!["devbot".to_owned()],
+                repos: vec![Repo {
+                    login: "devbot".to_owned(),
+                    paused: false,
+                }],
             }],
         );
 

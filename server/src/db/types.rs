@@ -17,6 +17,7 @@ pub struct LeaderboardRecord {
     pub streak_type: String,
     pub streak_latest_time_string: String,
     pub place: i64,
+    pub permanent_bonus: i32,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]

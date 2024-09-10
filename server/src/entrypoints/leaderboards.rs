@@ -43,7 +43,7 @@ async fn get_leaderboard(
     )))
 }
 
-#[utoipa::path(context_path = "/leaderboard", responses(
+#[utoipa::path(context_path = "/repos", responses(
     (status = 200, description = "Get repo leaderboard", body = PaginatedRepoResponse)
 ))]
 #[get("/repos?<page>&<limit>")]
@@ -73,8 +73,29 @@ async fn get_repos(
     )))
 }
 
+#[utoipa::path(context_path = "/potential_repos", responses(
+    (status = 200, description = "Get paused repos", body = PaginatedRepoResponse)
+))]
+#[get("/potential_repos")]
+async fn get_potential_repos(
+    telegram: &State<Arc<telegram::TelegramSubscriber>>,
+    db: &State<DB>,
+) -> Option<Json<Vec<String>>> {
+    let repos = match db.get_potential_repos().await {
+        Err(e) => {
+            race_of_sloths_server::error(telegram, &format!("Failed to get potential repos: {e}"));
+            return None;
+        }
+        Ok(value) => value,
+    };
+    Some(Json::from(repos))
+}
+
 pub fn stage() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Installing entrypoints", |rocket| async {
-        rocket.mount("/leaderboard", rocket::routes![get_repos, get_leaderboard,])
+        rocket.mount(
+            "/leaderboard",
+            rocket::routes![get_repos, get_leaderboard, get_potential_repos],
+        )
     })
 }

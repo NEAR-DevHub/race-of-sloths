@@ -82,6 +82,7 @@ impl From<RepoLeaderboardRecord> for RepoResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct LeaderboardResponse {
     pub user: GithubMeta,
+    pub rank: String,
     pub rating: u32,
     pub contributions: u32,
     pub streak: Streak,
@@ -92,6 +93,16 @@ pub struct LeaderboardResponse {
 
 impl From<LeaderboardRecord> for LeaderboardResponse {
     fn from(record: LeaderboardRecord) -> Self {
+        let rank = match record.permanent_bonus {
+            a if a >= 25 => "Rust",
+            a if a >= 20 => "Platinum",
+            a if a >= 15 => "Gold",
+            a if a >= 10 => "Silver",
+            a if a >= 5 => "Bronze",
+            _ => "Unranked",
+        }
+        .to_string();
+
         Self {
             user: GithubMeta::new(record.login, record.full_name),
             rating: record.total_rating as u32,
@@ -106,6 +117,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
             place: record.place as u32,
+            rank,
         }
     }
 }

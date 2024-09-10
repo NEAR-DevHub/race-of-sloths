@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n    users.login,\n    users.full_name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    user_period_data.total_rating as total_rating,\n    period as streak_type,\n    streak.name as streak_name,\n    latest_time_string as streak_latest_time_string,\n    RANK() OVER (\n        ORDER BY\n            total_rating DESC\n    ) as place\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    period_type = $1\n    AND streak_user_data.streak_id = $2\nORDER BY\n    place,\n    total_rating DESC\nLIMIT\n    $3 OFFSET $4\n",
+  "query": "SELECT\n    users.login,\n    users.full_name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    best as streak_best,\n    amount as streak_amount,\n    user_period_data.total_rating as total_rating,\n    period as streak_type,\n    streak.name as streak_name,\n    latest_time_string as streak_latest_time_string,\n    RANK() OVER (\n        ORDER BY\n            total_rating DESC\n    ) as place,\n    users.permanent_bonus as permanent_bonus\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data ON streak_user_data.user_id = users.id\n    JOIN streak ON streak.id = streak_user_data.streak_id\nWHERE\n    period_type = $1\n    AND streak_user_data.streak_id = $2\nORDER BY\n    place,\n    total_rating DESC\nLIMIT\n    $3 OFFSET $4\n",
   "describe": {
     "columns": [
       {
@@ -77,6 +77,11 @@
         "ordinal": 14,
         "name": "place",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 15,
+        "name": "permanent_bonus",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -102,8 +107,9 @@
       false,
       false,
       false,
-      null
+      null,
+      false
     ]
   },
-  "hash": "d6cd9df3a90462ad803af5f163586ea3c0530671d329fb81e9c2722d0345947d"
+  "hash": "6f1cc9c2ec4613a5344de109c177306939262e6101a560171ab5e1df7bdf856a"
 }

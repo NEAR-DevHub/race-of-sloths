@@ -16,7 +16,8 @@ SELECT
     RANK() OVER (
         ORDER BY
             total_rating DESC
-    ) as place
+    ) as place,
+    users.permanent_bonus as permanent_bonus
 FROM
     user_period_data
     JOIN users ON users.id = user_period_data.user_id

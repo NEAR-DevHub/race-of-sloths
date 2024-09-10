@@ -131,10 +131,6 @@ impl Contract {
         let mut repos = HashMap::new();
 
         for ((org, repo), data) in self.repos.into_iter() {
-            if data.is_paused() {
-                continue;
-            }
-
             repos
                 .entry(org)
                 .or_insert_with(|| AllowedRepos {
@@ -142,7 +138,10 @@ impl Contract {
                     repos: vec![],
                 })
                 .repos
-                .push(repo.clone());
+                .push(Repo {
+                    login: repo.clone(),
+                    paused: data.is_paused(),
+                });
         }
 
         repos.into_values().collect()

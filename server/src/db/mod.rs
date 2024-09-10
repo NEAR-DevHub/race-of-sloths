@@ -3,7 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{PRv2, StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
+use shared::{PRv2, Repo, StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
 use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Database, Clone, Debug)]
@@ -160,18 +160,19 @@ impl DB {
     pub async fn upsert_repo(
         tx: &mut Transaction<'static, Postgres>,
         organization_id: i32,
-        name: &str,
+        repo: &Repo,
     ) -> anyhow::Result<i32> {
         // First try to update the repo
         let rec = sqlx::query!(
             r#"
             UPDATE repos
-            SET name = $2
+            SET name = $2, paused = $3
             WHERE organization_id = $1 AND name = $2
             RETURNING id
             "#,
             organization_id,
-            name
+            repo.login,
+            repo.paused
         )
         .fetch_optional(tx.as_mut())
         .await?;
@@ -182,13 +183,14 @@ impl DB {
         } else {
             let rec = sqlx::query!(
                 r#"
-                INSERT INTO repos (organization_id, name)
-                VALUES ($1, $2)
+                INSERT INTO repos (organization_id, name, paused)
+                VALUES ($1, $2, $3)
                 ON CONFLICT (organization_id, name) DO NOTHING
                 RETURNING id
                 "#,
                 organization_id,
-                name
+                repo.login,
+                repo.paused
             )
             .fetch_one(tx.as_mut())
             .await?;
@@ -534,6 +536,24 @@ impl DB {
             .await?;
 
         Ok(rec.and_then(|rec| rec.place))
+    }
+
+    pub async fn get_potential_repos(&self) -> anyhow::Result<Vec<String>> {
+        let rec = sqlx::query!(
+            r#"
+            SELECT o.login, r.name
+            FROM repos r
+            JOIN organizations o ON r.organization_id = o.id
+            WHERE r.paused = true
+            "#
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        Ok(rec
+            .into_iter()
+            .map(|r| format!("{}/{}", r.login, r.name))
+            .collect())
     }
 
     pub async fn get_repo_leaderboard(

@@ -9,8 +9,8 @@ use near_sdk::{
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
     AccountWithPermanentPercentageBonus, AllowedRepos, Event, GithubHandle, IntoEnumIterator, PRId,
-    PRv2, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod, TimePeriodString,
-    UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
+    PRv2, Repo, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod,
+    TimePeriodString, UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
 use types::{Repository, VersionedRepository};
@@ -69,9 +69,7 @@ impl Contract {
         };
 
         for org in allowed_repos {
-            for repo in org.repos {
-                contract.include_repo(org.organization.clone(), repo)
-            }
+            contract.include_org_with_repos(org);
         }
 
         contract.create_streak(
@@ -253,8 +251,10 @@ impl Contract {
 
         for repo in allowed_org.repos {
             self.repos.insert(
-                (allowed_org.organization.to_string(), repo),
-                VersionedRepository::V1(Repository { paused: false }),
+                (allowed_org.organization.to_string(), repo.login),
+                VersionedRepository::V1(Repository {
+                    paused: repo.paused,
+                }),
             );
         }
     }
