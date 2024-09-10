@@ -387,7 +387,7 @@ impl NearClient {
     #[instrument(skip(self))]
     pub async fn repos(&self) -> anyhow::Result<Vec<AllowedRepos>> {
         let mut page = 0;
-        const LIMIT: usize = 100;
+        const LIMIT: usize = 50;
         let mut res = vec![];
         loop {
             let prs = self.repos_paged(page, LIMIT).await?;
