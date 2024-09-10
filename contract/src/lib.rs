@@ -3,7 +3,7 @@ use near_sdk::store::UnorderedMap;
 use near_sdk::{
     borsh::{BorshDeserialize, BorshSerialize},
     require,
-    store::{LookupMap, LookupSet, Vector},
+    store::{IterableMap, LookupMap, LookupSet, Vector},
     Timestamp,
 };
 use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
@@ -33,10 +33,8 @@ pub struct Contract {
     users: Vector<VersionedAccount>,
     sloths_per_period: LookupMap<(UserId, TimePeriodString), VersionedUserPeriodData>,
     // We need to think about removing PRs that are stale for a long time
-    #[allow(deprecated)]
-    prs: UnorderedMap<PRId, VersionedPR>,
-    #[allow(deprecated)]
-    executed_prs: UnorderedMap<PRId, VersionedPR>,
+    prs: IterableMap<PRId, VersionedPR>,
+    executed_prs: IterableMap<PRId, VersionedPR>,
     excluded_prs: LookupSet<PRId>,
 
     // Configured streaks
@@ -44,8 +42,7 @@ pub struct Contract {
     user_streaks: LookupMap<(UserId, StreakId), VersionedStreakUserData>,
 
     // Repo allowlist
-    #[allow(deprecated)]
-    repos: UnorderedMap<(GithubHandle, GithubHandle), VersionedRepository>,
+    repos: IterableMap<(GithubHandle, GithubHandle), VersionedRepository>,
 }
 
 #[near_bindgen]
@@ -57,15 +54,12 @@ impl Contract {
             account_ids: LookupMap::new(storage::StorageKey::AccountIds),
             users: Vector::new(storage::StorageKey::Users),
             sloths_per_period: LookupMap::new(storage::StorageKey::SlothsPerPeriod),
-            #[allow(deprecated)]
-            prs: UnorderedMap::new(storage::StorageKey::PRs),
-            #[allow(deprecated)]
-            executed_prs: UnorderedMap::new(storage::StorageKey::MergedPRs),
+            prs: IterableMap::new(storage::StorageKey::PRs),
+            executed_prs: IterableMap::new(storage::StorageKey::MergedPRs),
             excluded_prs: LookupSet::new(storage::StorageKey::ExcludedPRs),
             streaks: Vector::new(storage::StorageKey::Streaks),
             user_streaks: LookupMap::new(storage::StorageKey::UserStreaks),
-            #[allow(deprecated)]
-            repos: UnorderedMap::new(storage::StorageKey::Repos),
+            repos: IterableMap::new(storage::StorageKey::ReposNew),
         };
 
         for org in allowed_repos {

@@ -146,6 +146,10 @@ impl Contract {
                 });
         }
 
+        if repos.is_empty() {
+            return vec![];
+        }
+
         repos.into_values().collect()
     }
 }

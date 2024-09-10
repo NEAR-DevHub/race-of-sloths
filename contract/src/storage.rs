@@ -8,12 +8,14 @@ use near_sdk::{
 pub enum StorageKey {
     Users,
     SlothsPerPeriod,
-    _Reserved,
-    PRs,
-    MergedPRs,
+    ReposNew,
+    _RESERVED1,
+    _RESERVED2,
     ExcludedPRs,
     Streaks,
     UserStreaks,
     AccountIds,
-    Repos,
+    _RESERVED3,
+    MergedPRs,
+    PRs,
 }

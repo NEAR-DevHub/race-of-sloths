@@ -1,80 +1,63 @@
+use self::storage::StorageKey;
+
 use super::*;
+
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
+#[borsh(crate = "near_sdk::borsh")]
+pub struct OldState {
+    sloth: AccountId,
+    account_ids: LookupMap<GithubHandle, UserId>,
+    users: Vector<VersionedAccount>,
+    sloths_per_period: LookupMap<(UserId, TimePeriodString), VersionedUserPeriodData>,
+    // We need to think about removing PRs that are stale for a long time
+    #[allow(deprecated)]
+    prs: UnorderedMap<PRId, VersionedPR>,
+    #[allow(deprecated)]
+    executed_prs: UnorderedMap<PRId, VersionedPR>,
+    excluded_prs: LookupSet<PRId>,
+
+    // Configured streaksd
+    streaks: Vector<VersionedStreak>,
+    user_streaks: LookupMap<(UserId, StreakId), VersionedStreakUserData>,
+
+    // Repo allowlist
+    #[allow(deprecated)]
+    repos: UnorderedMap<(GithubHandle, GithubHandle), VersionedRepository>,
+}
 
 #[near_bindgen]
 impl Contract {
     #[init(ignore_state)]
     #[private]
     pub fn migrate() -> Self {
-        let mut state: Contract = env::state_read().unwrap();
-        let current_timestamp = env::block_timestamp();
+        let mut state: OldState = env::state_read().unwrap();
+        let mut repos = IterableMap::new(StorageKey::ReposNew);
+        let mut prs = IterableMap::new(StorageKey::PRs);
+        let mut executed_prs = IterableMap::new(StorageKey::MergedPRs);
 
-        for user_id in 0..state.users.len() {
-            for streak_id in 0..2 {
-                let streak: Streak = state.streaks[streak_id].clone().into();
-                let Some(mut streak_data): Option<StreakUserData> = state
-                    .user_streaks
-                    .get(&(user_id, streak_id))
-                    .map(|streak| streak.clone().into())
-                else {
-                    continue;
-                };
-
-                let mut time = streak
-                    .time_period
-                    .previous_period(current_timestamp)
-                    .unwrap();
-                let mut i = 0;
-                let recalculated_streak = loop {
-                    let period = streak.time_period.time_string(time);
-                    let achieved = check_period_data(streak_id, user_id, period, &state);
-
-                    if achieved {
-                        i += 1;
-                        time = if let Some(time) = streak.time_period.previous_period(time) {
-                            time
-                        } else {
-                            break i;
-                        };
-                    } else {
-                        break i;
-                    }
-                };
-
-                let current_period = streak.time_period.time_string(current_timestamp);
-                let is_current_period_achieved =
-                    check_period_data(streak_id, user_id, current_period.clone(), &state);
-                let recalculated_streak = if is_current_period_achieved {
-                    recalculated_streak + 1
-                } else {
-                    recalculated_streak
-                };
-
-                if recalculated_streak > streak_data.amount {
-                    streak_data.amount = recalculated_streak;
-                    streak_data.best = recalculated_streak.max(streak_data.best);
-                    streak_data.latest_time_string = if is_current_period_achieved {
-                        current_period
-                    } else {
-                        streak_data.latest_time_string
-                    };
-                    state.user_streaks.insert(
-                        (user_id, streak_id),
-                        VersionedStreakUserData::V1(streak_data),
-                    );
-
-                    state.reward_streak(user_id, &streak, recalculated_streak);
-                }
-            }
+        for (key, value) in state.repos.drain() {
+            repos.insert(key, value);
         }
-        state
-    }
-}
 
-fn check_period_data(streak_id: u32, user_id: u32, period: String, state: &Contract) -> bool {
-    let period_data = state.sloths_per_period.get(&(user_id, period)).cloned();
-    if let Some(period_data) = period_data {
-        let streak: Streak = state.streaks[streak_id].clone().into();
-        return streak.is_streak_achieved(&period_data);
+        for (key, value) in state.prs.drain() {
+            prs.insert(key, value);
+        }
+
+        for (key, value) in state.executed_prs.drain() {
+            executed_prs.insert(key, value);
+        }
+
+        Self {
+            sloth: state.sloth,
+            account_ids: state.account_ids,
+            users: state.users,
+            sloths_per_period: state.sloths_per_period,
+            prs,
+            executed_prs,
+            excluded_prs: state.excluded_prs,
+            streaks: state.streaks,
+            user_streaks: state.user_streaks,
+            repos,
+        }
     }
-    false
 }
