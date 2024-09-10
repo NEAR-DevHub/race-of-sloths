@@ -366,13 +366,37 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
-    pub async fn repos(&self) -> anyhow::Result<Vec<AllowedRepos>> {
+    pub async fn repos_paged(
+        &self,
+        page: usize,
+        limit: usize,
+    ) -> anyhow::Result<Vec<AllowedRepos>> {
         let res = self
             .contract
             .view("repos")
+            .args_json(json!({
+                "page": page,
+                "limit": limit,
+            }))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call allowed_repos: {:?}", e))?;
         let res = res.json()?;
+        Ok(res)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn repos(&self) -> anyhow::Result<Vec<AllowedRepos>> {
+        let mut page = 0;
+        const LIMIT: usize = 100;
+        let mut res = vec![];
+        loop {
+            let prs = self.repos_paged(page, LIMIT).await?;
+            if prs.is_empty() {
+                break;
+            }
+            res.extend(prs);
+            page += 1;
+        }
         Ok(res)
     }
 }

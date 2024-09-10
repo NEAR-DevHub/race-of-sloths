@@ -127,10 +127,10 @@ impl Contract {
     }
 
     // TODO: remove this method after we would have enough data in the PRs
-    pub fn repos(&self) -> Vec<AllowedRepos> {
+    pub fn repos(&self, page: usize, limit: usize) -> Vec<AllowedRepos> {
         let mut repos = HashMap::new();
 
-        for ((org, repo), data) in self.repos.into_iter() {
+        for ((org, repo), data) in self.repos.into_iter().skip(page * limit).take(limit) {
             repos
                 .entry(org)
                 .or_insert_with(|| AllowedRepos {
