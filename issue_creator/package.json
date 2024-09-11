@@ -1,0 +1,27 @@
+{
+  "name": "github-issue-sender",
+  "version": "1.0.0",
+  "description": "A script to send customized issues to multiple GitHub repositories",
+  "main": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "send_issues": "node src/issue_creator.mjs",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "github",
+    "issues",
+    "automation"
+  ],
+  "author": "Artur-Yurii Korchynskyi",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^19.0.7",
+    "cli-progress": "^3.12.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.44.0"
+  }
+}
