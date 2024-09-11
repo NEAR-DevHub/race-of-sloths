@@ -140,11 +140,6 @@ async fn fetch_missing_user_organization_metadata(
 ) -> anyhow::Result<()> {
     let users = DB::get_users_for_update(tx).await.unwrap_or_default();
     for user in users {
-        if user.full_name.is_some() {
-            // TODO: add user entry to sync cache
-            continue;
-        }
-
         let profile = match github.get_user(&user.login).await {
             Ok(profile) => profile,
             Err(e) => {
@@ -166,10 +161,6 @@ async fn fetch_missing_user_organization_metadata(
         .await
         .unwrap_or_default();
     for org in orgs {
-        if org.full_name.is_some() {
-            continue;
-        }
-
         let profile = match github.get_user(&org.login).await {
             Ok(profile) => profile,
             Err(e) => {

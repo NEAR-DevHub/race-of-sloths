@@ -686,8 +686,9 @@ impl DB {
         let rec = sqlx::query_as!(
             User,
             r#"
-            SELECT login, full_name
+            SELECT login
             FROM users
+            WHERE full_name IS NULL
             FOR UPDATE"#
         )
         .fetch_all(tx.as_mut())
@@ -702,9 +703,14 @@ impl DB {
         let rec = sqlx::query_as!(
             User,
             r#"
-            SELECT login, full_name
-            FROM organizations
-            FOR UPDATE"#
+            SELECT DISTINCT login
+            FROM (
+              SELECT o.login
+              FROM organizations o
+              JOIN repos r ON r.organization_id = o.id
+              WHERE r.paused = false and o.full_name is null
+              FOR UPDATE OF o
+            ) subquery"#
         )
         .fetch_all(tx.as_mut())
         .await?;

@@ -44,7 +44,6 @@ pub struct StreakRecord {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub login: String,
-    pub full_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

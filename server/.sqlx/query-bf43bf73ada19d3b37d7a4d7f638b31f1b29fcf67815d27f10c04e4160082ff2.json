@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT DISTINCT login\n            FROM (\n              SELECT o.login\n              FROM organizations o\n              JOIN repos r ON r.organization_id = o.id\n              WHERE r.paused = false and o.full_name is null\n              FOR UPDATE OF o\n            ) subquery",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "login",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bf43bf73ada19d3b37d7a4d7f638b31f1b29fcf67815d27f10c04e4160082ff2"
+}
