@@ -238,6 +238,17 @@ impl Contract {
         self.repos.remove(&(organization, repo));
     }
 
+    pub fn bulk_remove_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
+        self.assert_sloth();
+
+        for allowed_org in allowed_orgs {
+            for repo in allowed_org.repos {
+                self.repos
+                    .remove(&(allowed_org.organization.to_string(), repo.login));
+            }
+        }
+    }
+
     pub fn bulk_include_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
         self.assert_sloth();
 
@@ -250,12 +261,11 @@ impl Contract {
         self.assert_sloth();
 
         for repo in allowed_org.repos {
-            self.repos.insert(
-                (allowed_org.organization.to_string(), repo.login),
-                VersionedRepository::V1(Repository {
+            self.repos
+                .entry((allowed_org.organization.to_string(), repo.login))
+                .or_insert(VersionedRepository::V1(Repository {
                     paused: repo.paused,
-                }),
-            );
+                }));
         }
     }
 
