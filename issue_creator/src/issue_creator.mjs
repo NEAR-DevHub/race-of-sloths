@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import cliProgress from 'cli-progress';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import _ from 'lodash';
 
 // Parse command-line arguments
 const argv = yargs(hideBin(process.argv))
@@ -28,6 +29,11 @@ const argv = yargs(hideBin(process.argv))
         description: "Path to progress JSON file",
         type: "string",
         default: "progress.json",
+    })
+    .option("limit", {
+        alias: "l",
+        description: "Limit the number of issues to create",
+        type: "number",
     })
     .help()
     .alias("help", "h")
@@ -127,7 +133,14 @@ async function main() {
         format: ' {bar} | {percentage}% | {value}/{total} | {task}',
     }, cliProgress.Presets.shades_classic);
 
-    const overallBar = multibar.create(repositories.length, 0, { task: "Overall Progress" });
+    let repositoriesToProcess = repositories;
+    if (argv.limit) {
+        const unprocessedRepos = repositories.filter(repo => !progress[repo] || progress[repo].error);
+        repositoriesToProcess = _.sampleSize(unprocessedRepos, argv.limit);
+        console.log(`Processing ${repositoriesToProcess.length} out of ${unprocessedRepos.length} unprocessed repositories.`);
+    }
+
+    const overallBar = multibar.create(repositoriesToProcess.length, 0, { task: "Overall Progress" });
     const minuteRateBar = multibar.create(config.rateLimit.perMinute, 0, { task: "Minute Rate Limit" });
     const hourRateBar = multibar.create(config.rateLimit.perHour, 0, { task: "Hour Rate Limit" });
 
@@ -138,7 +151,7 @@ async function main() {
 
     overallBar.update(Object.keys(progress).length);
 
-    for (const repoString of repositories) {
+    for (const repoString of repositoriesToProcess) {
         if (progress[repoString] && !progress[repoString].error) {
             console.log(`Skipping ${repoString}, already processed successfully.`);
             continue;

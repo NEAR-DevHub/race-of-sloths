@@ -1,0 +1,21 @@
+{
+  "https://github.com/alexcrichton/tar-rs": "https://github.com/alexcrichton/tar-rs/issues/378",
+  "https://github.com/PeculiarVentures/PKI.js": "https://github.com/PeculiarVentures/PKI.js/issues/420",
+  "https://github.com/nodejs/undici": "https://github.com/nodejs/undici/issues/3623",
+  "https://github.com/JelteF/derive_more": "https://github.com/JelteF/derive_more/issues/412",
+  "https://github.com/tokio-rs/axum": "https://github.com/tokio-rs/axum/issues/2915",
+  "https://github.com/SBoudrias/Inquirer.js": "https://github.com/SBoudrias/Inquirer.js/issues/1560",
+  "https://github.com/conventional-changelog/conventional-changelog": "https://github.com/conventional-changelog/conventional-changelog/issues/1302",
+  "https://github.com/follow-redirects/follow-redirects": "https://github.com/follow-redirects/follow-redirects/issues/269",
+  "https://github.com/fitzgen/is_executable": "https://github.com/fitzgen/is_executable/issues/15",
+  "https://github.com/serde-rs/serde": "https://github.com/serde-rs/serde/issues/2825",
+  "https://github.com/mgeisler/textwrap": "https://github.com/mgeisler/textwrap/issues/558",
+  "https://github.com/unjs/get-port-please": "https://github.com/unjs/get-port-please/issues/99",
+  "https://github.com/rustls/webpki-roots": "https://github.com/rustls/webpki-roots/issues/81",
+  "https://github.com/crossbeam-rs/crossbeam": "https://github.com/crossbeam-rs/crossbeam/issues/1136",
+  "https://github.com/nix-rust/nix": "https://github.com/nix-rust/nix/issues/2508",
+  "https://github.com/scroll-into-view/scroll-into-view-if-needed": "https://github.com/scroll-into-view/scroll-into-view-if-needed/issues/1204",
+  "https://github.com/react-component/dialog": "https://github.com/react-component/dialog/issues/460",
+  "https://github.com/expressjs/express": "https://github.com/expressjs/express/issues/5973",
+  "https://github.com/npm/proc-log": "https://github.com/npm/proc-log/issues/103"
+}
