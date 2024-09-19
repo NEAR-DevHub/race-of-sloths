@@ -18,7 +18,7 @@ impl Command {
         let (command, _args) = common::extract_command_with_args(bot_name, comment)?;
 
         Some(match command.as_str() {
-            "yes" | "approve" | "add" => Command::Unpause(BotUnpaused {
+            "yes" | "approve" | "add" | "accept" => Command::Unpause(BotUnpaused {
                 timestamp: comment.timestamp,
                 comment_id: comment.comment_id,
                 from_issue: true,
