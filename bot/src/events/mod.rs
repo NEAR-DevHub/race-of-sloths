@@ -237,14 +237,9 @@ impl Event {
             }
         };
 
-        match &self.event {
-            EventType::PRCommand { pr, .. } | EventType::Action { pr, .. } => {
-                context
-                    .prometheus
-                    .record_pr(&self.event, pr, &result, self.event_time);
-            }
-            _ => {}
-        }
+        context
+            .prometheus
+            .record_pr(&self.event, pr, &result, self.event_time);
 
         send_event_to_telegram(&context.telegram, self, &result);
 
