@@ -3,9 +3,7 @@ name: Send 50 invite issues and update progress file
 on:
   workflow_dispatch:
 
-permissions:
-  pull-requests: write
-  contents: write
+
 
 jobs:
   run-script-and-create-pr:
@@ -24,8 +22,9 @@ jobs:
       run: cd issue_creator && npm i && npm run send_issues -- --token ${{ secrets.ROS_GITHUB_TOKEN }} --limit 50 --repos repositories.json
 
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v3
+      uses: peter-evans/create-pull-request@v7
       with:
+        token: ${{ secrets.AKORCHYN_TOKEN }}
         commit-message: Update progress file
         title: Automated progress file update
         body: This is an automated pull request created by the GitHub Actions workflow.
