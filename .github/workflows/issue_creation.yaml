@@ -1,4 +1,4 @@
-name: Run Script and Create PR
+name: Send 50 invite issues and update progress file
 
 on:
   workflow_dispatch:
@@ -6,7 +6,9 @@ on:
 jobs:
   run-script-and-create-pr:
     runs-on: ubuntu-latest
-    timeout-minutes: 300  # 5 hours
+    timeout-minutes: 330  # 5.5hours, but should generally pass for 5 hours
+    permissions:
+      pull-requests: write
 
     steps:
     - name: Checkout repository
