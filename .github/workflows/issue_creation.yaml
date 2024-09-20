@@ -1,0 +1,30 @@
+name: Run Script and Create PR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-script-and-create-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300  # 5 hours
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'
+
+    - name: Run script
+      run: cd issue_creator && npm i && npm run send_issues -- --token ${{ secrets.ROS_GITHUB_TOKEN }} --limit 50 --repos repositories.json
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        commit-message: Update progress file
+        title: Automated progress file update
+        body: This is an automated pull request created by the GitHub Actions workflow.
+        branch: automated-file-update
+

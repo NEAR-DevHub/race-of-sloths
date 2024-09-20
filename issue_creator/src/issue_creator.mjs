@@ -46,8 +46,8 @@ const config = {
     issueContentFile: argv.issue,
     progressFile: argv.progress,
     rateLimit: {
-        perMinute: 30,
-        perHour: 250,
+        perMinute: 5,
+        perHour: 10,
     },
     maxRetries: 3,
     retryDelay: 5000,
