@@ -5,7 +5,7 @@ use prometheus_client::metrics::family::Family;
 use prometheus_client::metrics::gauge::Gauge;
 use prometheus_client::metrics::histogram::Histogram;
 use prometheus_client::registry::Registry;
-use shared::github::PrMetadata;
+use shared::github::{RepoInfo, User};
 
 use crate::events::EventResult;
 
@@ -137,7 +137,8 @@ impl PrometheusClient {
     pub fn record_pr(
         &self,
         event: &crate::events::EventType,
-        pr: &PrMetadata,
+        repo: &RepoInfo,
+        author: Option<&User>,
         result: &anyhow::Result<EventResult>,
         time: chrono::DateTime<chrono::Utc>,
     ) {
@@ -148,10 +149,13 @@ impl PrometheusClient {
         };
         let record = MetricRecord {
             event_type,
-            author: pr.author.login.clone(),
-            organization: pr.repo_info.owner.clone(),
-            repository: pr.repo_info.repo.clone(),
-            pr_number: pr.repo_info.number,
+            // TODO: We should separate issue and PRs
+            author: author
+                .map(|a| a.login.clone())
+                .unwrap_or("Issue".to_string()),
+            organization: repo.owner.clone(),
+            repository: repo.repo.clone(),
+            pr_number: repo.number,
             success: result.is_ok() as u32,
             result_text,
         };

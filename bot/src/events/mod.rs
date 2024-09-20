@@ -237,9 +237,26 @@ impl Event {
             }
         };
 
-        context
-            .prometheus
-            .record_pr(&self.event, pr, &result, self.event_time);
+        match &self.event {
+            EventType::PRCommand { pr, .. } | EventType::Action { pr, .. } => {
+                context.prometheus.record_pr(
+                    &self.event,
+                    &pr.repo_info,
+                    Some(&pr.author),
+                    &result,
+                    self.event_time,
+                );
+            }
+            EventType::IssueCommand { repo_info, .. } => {
+                context.prometheus.record_pr(
+                    &self.event,
+                    repo_info,
+                    None,
+                    &result,
+                    self.event_time,
+                );
+            }
+        }
 
         send_event_to_telegram(&context.telegram, self, &result);
 
