@@ -47,5 +47,20 @@
     "https://github.com/rustls/webpki-roots",
     "https://github.com/crossbeam-rs/crossbeam",
     "https://github.com/crossterm-rs/crossterm",
-    "https://github.com/nix-rust/nix"
+    "https://github.com/nix-rust/nix",
+    "https://github.com/rust-lang/backtrace-rs",
+    "https://github.com/rust-lang/cargo",
+    "https://github.com/rust-lang/cc-rs",
+    "https://github.com/rust-lang/futures-rs",
+    "https://github.com/rust-lang/hashbrown",
+    "https://github.com/rust-lang/jobserver-rs",
+    "https://github.com/rust-lang/libc",
+    "https://github.com/rust-lang/pkg-config-rs",
+    "https://github.com/rust-lang/regex",
+    "https://github.com/rust-lang/rust-bindgen",
+    "https://github.com/rust-lang/rustc-hash",
+    "https://github.com/rust-lang/socket2",
+    "https://github.com/actix/actix-extras",
+    "https://github.com/actix/actix-net",
+    "https://github.com/actix/actix-web"
 ]

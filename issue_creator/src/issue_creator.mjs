@@ -46,7 +46,6 @@ const config = {
     issueContentFile: argv.issue,
     progressFile: argv.progress,
     rateLimit: {
-        perMinute: 5,
         perHour: 10,
     },
     maxRetries: 3,
@@ -67,6 +66,11 @@ function parseRepositoryString(repoString) {
     }
 
     return { owner, repo };
+}
+
+function getOrgFromRepo(repoString) {
+    const { owner } = parseRepositoryString(repoString);
+    return owner;
 }
 
 async function loadRepositories() {
@@ -136,17 +140,30 @@ async function main() {
     let repositoriesToProcess = repositories;
     if (argv.limit) {
         const unprocessedRepos = repositories.filter(repo => !progress[repo] || progress[repo].error);
-        repositoriesToProcess = _.sampleSize(unprocessedRepos, argv.limit);
-        console.log(`Processing ${repositoriesToProcess.length} out of ${unprocessedRepos.length} unprocessed repositories.`);
+
+        // Group repositories by organization
+        const reposByOrg = _.groupBy(unprocessedRepos, getOrgFromRepo);
+
+        // Select one random repo from each org
+        const selectedRepos = Object.values(reposByOrg).map(orgRepos => _.sample(orgRepos));
+
+        // Shuffle the selected repos and limit to the specified number
+        repositoriesToProcess = _.sampleSize(selectedRepos, argv.limit);
+
+        console.log(`Processing ${repositoriesToProcess.length} repositories from unique organizations out of ${Object.keys(reposByOrg).length} unprocessed organizations.`);
+
+        // Pre-log repositories to be processed
+        console.log("\nRepositories to be processed:");
+        repositoriesToProcess.forEach(repo => {
+            console.log(`- ${repo}`);
+        });
+        console.log(); // Add an empty line for better readability
     }
 
     const overallBar = multibar.create(repositoriesToProcess.length, 0, { task: "Overall Progress" });
-    const minuteRateBar = multibar.create(config.rateLimit.perMinute, 0, { task: "Minute Rate Limit" });
     const hourRateBar = multibar.create(config.rateLimit.perHour, 0, { task: "Hour Rate Limit" });
 
-    let minuteCount = 0;
     let hourCount = 0;
-    let lastMinute = Math.floor(Date.now() / 60000);
     let lastHour = Math.floor(Date.now() / 3600000);
 
     overallBar.update(Object.keys(progress).length);
@@ -171,15 +188,8 @@ async function main() {
             overallBar.increment();
         }
 
-        // Update rate limit bars
-        const currentMinute = Math.floor(Date.now() / 60000);
+        // Update rate limit bar
         const currentHour = Math.floor(Date.now() / 3600000);
-
-        if (currentMinute !== lastMinute) {
-            minuteCount = 0;
-            minuteRateBar.update(0);
-            lastMinute = currentMinute;
-        }
 
         if (currentHour !== lastHour) {
             hourCount = 0;
@@ -187,13 +197,11 @@ async function main() {
             lastHour = currentHour;
         }
 
-        minuteCount++;
         hourCount++;
-        minuteRateBar.update(minuteCount);
         hourRateBar.update(hourCount);
 
-        // Respect rate limits
-        await new Promise(resolve => setTimeout(resolve, 60000 / config.rateLimit.perMinute));
+        // Respect rate limit
+        await new Promise(resolve => setTimeout(resolve, 3600000 / config.rateLimit.perHour));
     }
 
     multibar.stop();
