@@ -62,5 +62,11 @@
     "https://github.com/rust-lang/socket2",
     "https://github.com/actix/actix-extras",
     "https://github.com/actix/actix-net",
-    "https://github.com/actix/actix-web"
+    "https://github.com/actix/actix-web",
+    "https://github.com/expressjs/compression",
+    "https://github.com/expressjs/express",
+    "https://github.com/dtolnay/anyhow",
+    "https://github.com/dtolnay/cxx",
+    "https://github.com/dtolnay/thiserror",
+    "https://github.com/eyre-rs/eyre"
 ]

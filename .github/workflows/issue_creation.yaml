@@ -21,7 +21,7 @@ jobs:
         node-version: '18'
 
     - name: Run script
-      run: cd issue_creator && npm i && npm run send_issues -- --token ${{ secrets.ROS_GITHUB_TOKEN }} --limit 50 --repos repositories_to_send.json
+      run: cd issue_creator && npm i && npm run send_issues -- --token ${{ secrets.ROS_GITHUB_TOKEN }} --limit 50 --repos hand_selected.json
 
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v3
