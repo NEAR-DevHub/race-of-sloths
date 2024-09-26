@@ -210,6 +210,13 @@ impl GithubClient {
             }
         }
 
+        if results.is_empty() {
+            info!("No commands found in issue: {}", repo_info.number);
+            if let Err(e) = self.mark_notification_as_read(event.id).await {
+                error!("Failed to mark notification as read: {:?}", e);
+            }
+        }
+
         Some(results)
     }
 
