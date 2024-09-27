@@ -4,6 +4,7 @@ import cliProgress from 'cli-progress';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import _ from 'lodash';
+import path from 'path';
 
 // Parse command-line arguments
 const argv = yargs(hideBin(process.argv))
@@ -34,6 +35,17 @@ const argv = yargs(hideBin(process.argv))
         alias: "l",
         description: "Limit the number of issues to create",
         type: "number",
+    })
+    .option("generate", {
+        alias: "g",
+        description: "Generate hand-selected repositories list",
+        type: "boolean",
+    })
+    .option("output", {
+        alias: "o",
+        description: "Output file for hand-selected repositories",
+        type: "string",
+        default: "hand_selected.json",
     })
     .help()
     .alias("help", "h")
@@ -120,6 +132,30 @@ async function createIssueWithRetry(owner, repo, issueContent, retries = 0) {
     }
 }
 
+async function generateHandSelectedList(repositories, progress, limit) {
+    const processedOrgs = new Set(
+        Object.keys(progress)
+            .filter(repo => progress[repo] && !progress[repo].error)
+            .map(getOrgFromRepo)
+    );
+
+    const unprocessedRepos = repositories.filter(repo => {
+        const org = getOrgFromRepo(repo);
+        return !processedOrgs.has(org) && (!progress[repo] || progress[repo].error);
+    });
+
+    const reposByOrg = _.groupBy(unprocessedRepos, getOrgFromRepo);
+
+    // Select one random repo from each unprocessed org
+    const selectedRepos = Object.values(reposByOrg)
+        .map(orgRepos => _.sample(orgRepos));
+
+    // Shuffle the selected repos and limit to the specified number
+    const finalSelectedRepos = _.sampleSize(selectedRepos, limit || selectedRepos.length);
+
+    return finalSelectedRepos;
+}
+
 async function main() {
     if (!config.githubToken) {
         console.error("GitHub token is required. Set it using the --token option or GITHUB_TOKEN environment variable.");
@@ -137,18 +173,18 @@ async function main() {
         format: ' {bar} | {percentage}% | {value}/{total} | {task}',
     }, cliProgress.Presets.shades_classic);
 
+    if (argv.generate) {
+        const handSelectedRepos = await generateHandSelectedList(repositories, progress, argv.limit);
+        const outputPath = path.resolve(argv.output);
+        await fs.writeFile(outputPath, JSON.stringify(handSelectedRepos, null, 2));
+        console.log(`Generated hand-selected list with ${handSelectedRepos.length} repositories. Saved to ${outputPath}`);
+        return;
+    }
+
     let repositoriesToProcess = repositories;
     if (argv.limit) {
-        const unprocessedRepos = repositories.filter(repo => !progress[repo] || progress[repo].error);
-
-        // Group repositories by organization
-        const reposByOrg = _.groupBy(unprocessedRepos, getOrgFromRepo);
-
-        // Select one random repo from each org
-        const selectedRepos = Object.values(reposByOrg).map(orgRepos => _.sample(orgRepos));
-
         // Shuffle the selected repos and limit to the specified number
-        repositoriesToProcess = _.sampleSize(selectedRepos, argv.limit);
+        repositoriesToProcess = await generateHandSelectedList(repositories, progress, argv.limit);
 
         console.log(`Processing ${repositoriesToProcess.length} repositories from unique organizations out of ${Object.keys(reposByOrg).length} unprocessed organizations.`);
 
