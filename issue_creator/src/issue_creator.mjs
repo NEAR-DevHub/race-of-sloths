@@ -186,7 +186,7 @@ async function main() {
         // Shuffle the selected repos and limit to the specified number
         repositoriesToProcess = await generateHandSelectedList(repositories, progress, argv.limit);
 
-        console.log(`Processing ${repositoriesToProcess.length} repositories from unique organizations out of ${Object.keys(reposByOrg).length} unprocessed organizations.`);
+        console.log(`Processing ${repositoriesToProcess.length} repositories`);
 
         // Pre-log repositories to be processed
         console.log("\nRepositories to be processed:");
