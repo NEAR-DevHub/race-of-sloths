@@ -47,6 +47,11 @@ const argv = yargs(hideBin(process.argv))
         type: "string",
         default: "hand_selected.json",
     })
+    .option("stats", {
+        alias: "s",
+        description: "Calculate and display statistics",
+        type: "boolean",
+    })
     .help()
     .alias("help", "h")
     .parse();
@@ -156,6 +161,28 @@ async function generateHandSelectedList(repositories, progress, limit) {
     return finalSelectedRepos;
 }
 
+async function calculateStats(repositories, progress) {
+    const processedRepos = new Set(Object.keys(progress));
+    const processedOrgs = new Set(
+        Object.keys(progress).map(getOrgFromRepo)
+    );
+
+    const uniqueRepos = repositories.filter(repo => !processedRepos.has(repo));
+    const uniqueOrgs = new Set(
+        repositories
+            .filter(repo => !processedOrgs.has(getOrgFromRepo(repo)))
+            .map(getOrgFromRepo)
+    );
+
+    return {
+        uniqueRepos: uniqueRepos.length,
+        uniqueOrgs: uniqueOrgs.size,
+        totalRepos: repositories.length,
+        processedRepos: processedRepos.size,
+        processedOrgs: processedOrgs.size
+    };
+}
+
 async function main() {
     if (!config.githubToken) {
         console.error("GitHub token is required. Set it using the --token option or GITHUB_TOKEN environment variable.");
@@ -163,8 +190,20 @@ async function main() {
     }
 
     const repositories = await loadRepositories();
-    const issueContent = await loadIssueContent();
     let progress = await loadProgress();
+
+    if (argv.stats) {
+        const stats = await calculateStats(repositories, progress);
+        console.log("\nStatistics:");
+        console.log(`Total repositories: ${stats.totalRepos}`);
+        console.log(`Processed repositories: ${stats.processedRepos}`);
+        console.log(`Unique repositories left: ${stats.uniqueRepos}`);
+        console.log(`Processed organizations: ${stats.processedOrgs}`);
+        console.log(`Unique organizations left: ${stats.uniqueOrgs}`);
+        return;
+    }
+
+    const issueContent = await loadIssueContent();
 
     // Create a multi-bar progress display
     const multibar = new cliProgress.MultiBar({
