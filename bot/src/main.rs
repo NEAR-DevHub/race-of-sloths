@@ -111,8 +111,7 @@ async fn run(context: Context) {
     tracing::warn!("Starting bot...");
 
     let minute = tokio::time::Duration::from_secs(60);
-    let mut interval: tokio::time::Interval =
-        tokio::time::interval(tokio::time::Duration::from_secs(30));
+    let mut interval: tokio::time::Interval = tokio::time::interval(minute);
     let mut merge_time = std::time::SystemTime::now();
     let merge_interval = 60 * minute;
 
