@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use chrono::Utc;
-use octocrab::models::NotificationId;
 use tracing::{info, instrument, Level};
 
 use crate::{
@@ -26,6 +25,7 @@ pub mod pr_commands;
 #[derive(Clone)]
 pub struct Context {
     pub github: Arc<api::GithubClient>,
+    pub bot_name: String,
     pub near: Arc<NearClient>,
     pub messages: Arc<MessageLoader>,
     pub prometheus: Arc<api::prometheus::PrometheusClient>,
@@ -148,7 +148,7 @@ impl Context {
 
         Ok(self
             .messages
-            .include_message_text(&self.github.user_handle, info, pr, user, final_data))
+            .include_message_text(&self.bot_name, info, pr, user, final_data))
     }
 
     fn try_update_message(
@@ -160,7 +160,7 @@ impl Context {
     ) -> Option<String> {
         let status = self
             .messages
-            .status_message(&self.github.user_handle, info, pr, final_data)
+            .status_message(&self.bot_name, info, pr, final_data)
             .unwrap_or_else(|err| {
                 tracing::error!(
                     "Failed to get status message for {}: {err}",
@@ -189,7 +189,7 @@ impl Event {
             EventType::PRCommand {
                 command,
                 sender,
-                notification_id,
+                notification,
                 pr,
             } => {
                 let should_update = command
@@ -204,7 +204,7 @@ impl Event {
                 if should_update.is_ok() {
                     context
                         .github
-                        .mark_notification_as_read(notification_id.0)
+                        .mark_notification_as_read(*notification)
                         .await?;
                 }
                 should_update
@@ -216,7 +216,7 @@ impl Event {
                 command,
                 repo_info,
                 sender,
-                notification_id,
+                notification,
             } => {
                 let result = command
                     .execute(
@@ -230,7 +230,7 @@ impl Event {
                 if result.is_ok() {
                     context
                         .github
-                        .mark_notification_as_read(notification_id.0)
+                        .mark_notification_as_read(*notification)
                         .await?;
                 }
                 result
@@ -269,7 +269,7 @@ pub enum EventType {
     PRCommand {
         command: Command,
         sender: User,
-        notification_id: NotificationId,
+        notification: crate::api::Notification,
         pr: PrMetadata,
     },
     Action {
@@ -279,7 +279,7 @@ pub enum EventType {
     IssueCommand {
         command: issue_commands::Command,
         sender: User,
-        notification_id: NotificationId,
+        notification: crate::api::Notification,
         repo_info: RepoInfo,
     },
 }

@@ -36,7 +36,7 @@ impl PullRequestFinalize {
                 )
                 .await
                 .ok()
-                .map(|active| (active, context.github.user_handle.clone()))
+                .map(|active| (active, context.bot_name.clone()))
         };
         let events = context
             .near
@@ -91,7 +91,7 @@ impl PullRequestFinalize {
                 Event::Autoscored { score } => {
                     final_data.score = score;
                     info.votes.push(Score {
-                        user: context.github.user_handle.clone(),
+                        user: context.bot_name.clone(),
                         score,
                     });
                 }

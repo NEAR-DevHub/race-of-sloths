@@ -69,12 +69,15 @@ pub fn extract_command_with_args(
 
     for command in comment.text.lines() {
         let command = command.trim();
-        if !command.starts_with(&bot_name) {
-            continue;
+        let mut iter = command.split_whitespace();
+        let bot = iter.next();
+
+        if let Some(bot) = bot {
+            if bot != bot_name {
+                continue;
+            }
         }
 
-        let mut iter = command.split_whitespace();
-        let _bot = iter.next();
         let command = iter.next();
         let args = iter.collect::<Vec<&str>>().join(" ");
         trace!("Extracted command: {command:?}, args: {args}");

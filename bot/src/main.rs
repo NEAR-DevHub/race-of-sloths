@@ -18,6 +18,7 @@ use shared::telegram;
 
 #[derive(Deserialize)]
 struct Env {
+    read_github_tokens: String,
     github_token: String,
     contract: String,
     rpc_addr: Option<String>,
@@ -26,6 +27,7 @@ struct Env {
     message_file: PathBuf,
     telegram_token: String,
     telegram_chat_id: String,
+    desired_bot_name: Option<String>,
 }
 
 #[rocket::get("/metrics")]
@@ -63,12 +65,21 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     let prometheus: Arc<PrometheusClient> = Default::default();
-    let github_api = GithubClient::new(env.github_token, prometheus.clone()).await?;
-    let messages = MessageLoader::load_from_file(&env.message_file, &github_api.user_handle)?;
+    let read_tokens = env
+        .read_github_tokens
+        .split(',')
+        .map(|s| s.to_string())
+        .collect();
+    let github_api = GithubClient::new(env.github_token, read_tokens, prometheus.clone()).await?;
+    let bot_name = env
+        .desired_bot_name
+        .unwrap_or_else(|| github_api.write_user_handle().to_string());
+    let messages = MessageLoader::load_from_file(&env.message_file, &bot_name)?;
     let near_api =
         NearClient::new(env.contract, env.secret_key, env.is_mainnet, env.rpc_addr).await?;
     let context = Context {
         github: github_api.into(),
+        bot_name,
         near: near_api.into(),
         messages: messages.into(),
         prometheus,
@@ -97,7 +108,8 @@ async fn run(context: Context) {
     tracing::warn!("Starting bot...");
 
     let minute = tokio::time::Duration::from_secs(60);
-    let mut interval: tokio::time::Interval = tokio::time::interval(minute);
+    let mut interval: tokio::time::Interval =
+        tokio::time::interval(tokio::time::Duration::from_secs(30));
     let mut merge_time = std::time::SystemTime::now();
     let merge_interval = 60 * minute;
 

@@ -1,8 +1,14 @@
-use std::sync::Arc;
+use std::{
+    collections::BTreeSet,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 use futures::future::join_all;
 use octocrab::models::{
-    activity::Notification,
+    activity::Notification as GithubNotification,
     issues::{Comment, Issue},
     pulls::{PullRequest, Review, ReviewState},
     AuthorAssociation, CommentId, NotificationId, RateLimit,
@@ -16,11 +22,20 @@ pub use shared::github::*;
 
 pub mod prometheus;
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
+pub struct Notification {
+    pub id: NotificationId,
+    pub read_client_id: usize,
+}
+
 pub struct GithubClient {
-    octocrab: octocrab::Octocrab,
+    event_clients: Vec<octocrab::Octocrab>,
+    client: octocrab::Octocrab,
     prometheus: Arc<prometheus::PrometheusClient>,
-    pub user_handle: String,
+    write_client_handle: String,
+    user_handles: std::collections::BTreeSet<String>,
+
+    atomic_read_counter: AtomicUsize,
 }
 
 #[derive(Debug, Clone)]
@@ -68,25 +83,50 @@ impl TryFrom<Review> for CommentRepr {
 
 impl GithubClient {
     pub async fn new(
-        github_token: String,
+        write_token: String,
+        read_tokens: Vec<String>,
         prometheus: Arc<prometheus::PrometheusClient>,
     ) -> anyhow::Result<Self> {
-        let octocrab = octocrab::Octocrab::builder()
-            .personal_token(github_token)
+        let client = octocrab::Octocrab::builder()
+            .personal_token(write_token)
             .build()?;
-        let user_handle = octocrab.current().user().await?.login;
+        let mut event_clients = vec![];
+        for token in read_tokens {
+            let client = octocrab::Octocrab::builder()
+                .personal_token(token)
+                .build()?;
+            event_clients.push(client);
+        }
+
+        let mut user_handles = BTreeSet::new();
+        let write_client_handle = client.current().user().await?.login;
+        for client in event_clients.iter() {
+            let user = client.current().user().await?;
+            user_handles.insert(user.login);
+        }
+        user_handles.insert(write_client_handle.clone());
 
         Ok(Self {
-            octocrab,
-            user_handle,
+            client,
+            write_client_handle,
+            event_clients,
+            user_handles,
             prometheus,
+
+            atomic_read_counter: AtomicUsize::new(0),
         })
+    }
+
+    pub fn write_user_handle(&self) -> &str {
+        &self.write_client_handle
     }
 
     #[instrument(skip(self))]
     pub async fn get_events(&self) -> anyhow::Result<Vec<Event>> {
-        let page = self
-            .octocrab
+        let current_client_id =
+            self.atomic_read_counter.fetch_add(1, Ordering::SeqCst) % self.event_clients.len();
+        let client = &self.event_clients[current_client_id];
+        let page = client
             .activity()
             .notifications()
             .list()
@@ -97,7 +137,7 @@ impl GithubClient {
             .send()
             .await?;
 
-        let events = self.octocrab.all_pages(page).await?;
+        let events = client.all_pages(page).await?;
 
         let fetch_pr_futures = events.into_iter().map(|event| async move {
             if event.reason != "mention" && event.reason != "state_change" {
@@ -105,7 +145,13 @@ impl GithubClient {
                     "Skipping event: {} with reason {}",
                     event.subject.r#type, event.reason
                 );
-                if let Err(e) = self.mark_notification_as_read(event.id).await {
+                if let Err(e) = self
+                    .mark_notification_as_read(Notification {
+                        id: event.id,
+                        read_client_id: current_client_id,
+                    })
+                    .await
+                {
                     error!(
                         "Failed to mark notification as read for event: {:?}: {e:?}",
                         event.id
@@ -115,15 +161,21 @@ impl GithubClient {
             }
 
             if event.subject.r#type == "PullRequest" {
-                self.parse_pr_event(event).await
+                self.parse_pr_event(current_client_id, event).await
             } else if event.subject.r#type == "Issue" {
-                self.parse_issue_event(event).await
+                self.parse_issue_event(current_client_id, event).await
             } else {
                 info!(
                     "Skipping event: {} with reason {}",
                     event.subject.r#type, event.reason
                 );
-                if let Err(e) = self.mark_notification_as_read(event.id).await {
+                if let Err(e) = self
+                    .mark_notification_as_read(Notification {
+                        id: event.id,
+                        read_client_id: current_client_id,
+                    })
+                    .await
+                {
                     error!(
                         "Failed to mark notification as read for event: {:?}: {e:?}",
                         event.id
@@ -133,16 +185,24 @@ impl GithubClient {
             }
         });
 
-        let results = join_all(fetch_pr_futures)
+        Ok(join_all(fetch_pr_futures)
             .await
             .into_iter()
             .flatten()
             .flatten()
-            .collect();
-        Ok(results)
+            .collect())
     }
 
-    async fn parse_issue_event(&self, event: Notification) -> Option<Vec<Event>> {
+    async fn parse_issue_event(
+        &self,
+        client_id: usize,
+        event: GithubNotification,
+    ) -> Option<Vec<Event>> {
+        let notification = Notification {
+            id: event.id,
+            read_client_id: client_id,
+        };
+
         let issue = match self.get_issue_from_notification(&event).await {
             Ok(issue) => issue,
             Err(e) => {
@@ -157,7 +217,7 @@ impl GithubClient {
         };
 
         let comments = self
-            .octocrab
+            .client
             .issues(&repo_info.owner, &repo_info.repo)
             .list_comments(repo_info.number)
             .per_page(100)
@@ -172,7 +232,7 @@ impl GithubClient {
             }
         };
 
-        let comments = match self.octocrab.all_pages(comments).await {
+        let comments = match self.client.all_pages(comments).await {
             Ok(comments) => comments,
             Err(e) => {
                 error!("Failed to get all comments: {:?}", e);
@@ -182,7 +242,7 @@ impl GithubClient {
 
         let first_bot_comment = comments
             .iter()
-            .find(|c| c.user.login == self.user_handle)
+            .find(|c| c.user.login == self.write_client_handle)
             .cloned()
             .map(Into::into);
 
@@ -190,29 +250,30 @@ impl GithubClient {
 
         for comment in comments.into_iter().map(CommentRepr::from).rev() {
             // We have processed older messages
-            if comment.user.login == self.user_handle {
+            if self.user_handles.contains(&comment.user.login) {
                 break;
             }
 
-            if let Some(command) =
-                issue_commands::Command::parse_command(&self.user_handle, &comment)
-            {
-                results.push(Event {
-                    event: EventType::IssueCommand {
-                        command,
-                        notification_id: event.id,
-                        sender: comment.user.clone(),
-                        repo_info: repo_info.clone(),
-                    },
-                    comment: first_bot_comment.clone(),
-                    event_time: comment.timestamp,
-                });
+            for handle in self.user_handles.iter() {
+                if let Some(command) = issue_commands::Command::parse_command(handle, &comment) {
+                    results.push(Event {
+                        event: EventType::IssueCommand {
+                            command,
+                            notification,
+                            sender: comment.user.clone(),
+                            repo_info: repo_info.clone(),
+                        },
+                        comment: first_bot_comment.clone(),
+                        event_time: comment.timestamp,
+                    });
+                    break;
+                }
             }
         }
 
         if results.is_empty() {
             info!("No commands found in issue: {}", repo_info.number);
-            if let Err(e) = self.mark_notification_as_read(event.id).await {
+            if let Err(e) = self.mark_notification_as_read(notification).await {
                 error!("Failed to mark notification as read: {:?}", e);
             }
         }
@@ -220,7 +281,16 @@ impl GithubClient {
         Some(results)
     }
 
-    async fn parse_pr_event(&self, event: Notification) -> Option<Vec<Event>> {
+    async fn parse_pr_event(
+        &self,
+        client_id: usize,
+        event: GithubNotification,
+    ) -> Option<Vec<Event>> {
+        let notification = Notification {
+            id: event.id,
+            read_client_id: client_id,
+        };
+
         let pr = match self.get_pull_request_from_notification(&event).await {
             Ok(pr) => pr,
             Err(e) => {
@@ -240,7 +310,7 @@ impl GithubClient {
 
         if pr_metadata.merged.is_none() && pr_metadata.closed {
             info!("PR is closed: {}", pr_metadata.repo_info.number);
-            if let Err(e) = self.mark_notification_as_read(event.id).await {
+            if let Err(e) = self.mark_notification_as_read(notification).await {
                 error!(
                     "Failed to mark notification as read for event: {:?}: {e:?}",
                     event.id
@@ -258,7 +328,7 @@ impl GithubClient {
         }
 
         let comments = self
-            .octocrab
+            .client
             .issues(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
             .list_comments(pr_metadata.repo_info.number)
             .per_page(100)
@@ -273,7 +343,7 @@ impl GithubClient {
             }
         };
 
-        let comments = match self.octocrab.all_pages(comments).await {
+        let comments = match self.client.all_pages(comments).await {
             Ok(comments) => comments,
             Err(e) => {
                 error!("Failed to get all comments: {:?}", e);
@@ -282,12 +352,12 @@ impl GithubClient {
         };
         let first_bot_comment = comments
             .iter()
-            .find(|c| c.user.login == self.user_handle)
+            .find(|c| c.user.login == self.write_client_handle)
             .cloned()
             .map(Into::into);
 
         let reviews = self
-            .octocrab
+            .client
             .pulls(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
             .list_reviews(pr_metadata.repo_info.number)
             .per_page(100)
@@ -312,41 +382,46 @@ impl GithubClient {
 
         for comment in comments.into_iter().rev() {
             // We have processed older messages
-            if comment.user.login == self.user_handle {
+            if self.user_handles.contains(&comment.user.login) {
                 break;
             }
 
-            if let Some(command) = Command::parse_command(&self.user_handle, &pr_metadata, &comment)
-            {
-                results.push(Event {
-                    event: EventType::PRCommand {
-                        command,
-                        notification_id: event.id,
-                        sender: comment.user.clone(),
-                        pr: pr_metadata.clone(),
-                    },
-                    comment: first_bot_comment.clone(),
-                    event_time: comment.timestamp,
-                });
+            for handle in self.user_handles.iter() {
+                if let Some(command) = Command::parse_command(handle, &pr_metadata, &comment) {
+                    results.push(Event {
+                        event: EventType::PRCommand {
+                            command,
+                            notification,
+                            sender: comment.user.clone(),
+                            pr: pr_metadata.clone(),
+                        },
+                        comment: first_bot_comment.clone(),
+                        event_time: comment.timestamp,
+                    });
+                    break;
+                }
             }
         }
 
-        if let Some(command) = Command::parse_body(&self.user_handle, &pr_metadata) {
-            results.push(Event {
-                event: EventType::PRCommand {
-                    command,
-                    notification_id: event.id,
-                    sender: pr_metadata.author.clone(),
-                    pr: pr_metadata.clone(),
-                },
-                comment: first_bot_comment.clone(),
-                event_time: pr_metadata.created,
-            });
+        for handle in self.user_handles.iter() {
+            if let Some(command) = Command::parse_body(&handle, &pr_metadata) {
+                results.push(Event {
+                    event: EventType::PRCommand {
+                        command,
+                        notification,
+                        sender: pr_metadata.author.clone(),
+                        pr: pr_metadata.clone(),
+                    },
+                    comment: first_bot_comment.clone(),
+                    event_time: pr_metadata.created,
+                });
+                break;
+            }
         }
 
         if results.is_empty() {
             info!("No commands found in PR: {}", pr_metadata.repo_info.number);
-            if let Err(e) = self.mark_notification_as_read(event.id).await {
+            if let Err(e) = self.mark_notification_as_read(notification).await {
                 error!("Failed to mark notification as read: {:?}", e);
             }
         }
@@ -387,7 +462,7 @@ impl GithubClient {
         number: u64,
     ) -> anyhow::Result<Vec<GithubHandle>> {
         Ok(self
-            .octocrab
+            .client
             .pulls(owner, repo)
             .list_reviews(number)
             .per_page(10)
@@ -405,12 +480,12 @@ impl GithubClient {
     #[instrument(skip(self), fields(notification = notification.id.0))]
     async fn get_pull_request_from_notification(
         &self,
-        notification: &Notification,
+        notification: &GithubNotification,
     ) -> anyhow::Result<PullRequest> {
         assert_eq!(notification.subject.r#type, "PullRequest");
 
         let pull_request = self
-            .octocrab
+            .client
             .get(
                 notification
                     .subject
@@ -427,12 +502,12 @@ impl GithubClient {
     #[instrument(skip(self), fields(notification = notification.id.0))]
     async fn get_issue_from_notification(
         &self,
-        notification: &Notification,
+        notification: &GithubNotification,
     ) -> anyhow::Result<Issue> {
         assert_eq!(notification.subject.r#type, "Issue");
 
         let pull_request = self
-            .octocrab
+            .client
             .get(
                 notification
                     .subject
@@ -453,7 +528,7 @@ impl GithubClient {
         repo: &str,
         number: u64,
     ) -> anyhow::Result<PullRequest> {
-        let pull_request = self.octocrab.pulls(owner, repo).get(number).await?;
+        let pull_request = self.client.pulls(owner, repo).get(number).await?;
 
         Ok(pull_request)
     }
@@ -468,7 +543,7 @@ impl GithubClient {
     ) -> anyhow::Result<Comment> {
         self.prometheus.add_write_request();
         Ok(self
-            .octocrab
+            .client
             .issues(owner, repo)
             .create_comment(id, text)
             .await?)
@@ -482,7 +557,7 @@ impl GithubClient {
         comment_id: u64,
     ) -> anyhow::Result<()> {
         self.prometheus.add_write_request();
-        self.octocrab
+        self.client
             .issues(owner, repo)
             .create_comment_reaction(
                 comment_id,
@@ -495,13 +570,15 @@ impl GithubClient {
 
     pub async fn mark_notification_as_read(
         &self,
-        id: impl Into<NotificationId>,
+        notification: Notification,
     ) -> anyhow::Result<()> {
         self.prometheus.add_write_request();
-        self.octocrab
+        self.event_clients
+            .get(notification.read_client_id)
+            .ok_or_else(|| anyhow::anyhow!("No matching client to makr as read. THIS IS A BUG"))?
             .activity()
             .notifications()
-            .mark_as_read(id.into())
+            .mark_as_read(notification.id.into())
             .await?;
         Ok(())
     }
@@ -516,7 +593,7 @@ impl GithubClient {
     ) -> anyhow::Result<()> {
         self.prometheus.add_write_request();
 
-        self.octocrab
+        self.client
             .issues(owner, repo)
             .update_comment(CommentId(comment_id), text)
             .await?;
@@ -531,7 +608,7 @@ impl GithubClient {
         pr_number: u64,
     ) -> anyhow::Result<Option<CommentRepr>> {
         let mut page = self
-            .octocrab
+            .client
             .issues(owner, repo)
             .list_comments(pr_number)
             .per_page(100)
@@ -541,12 +618,12 @@ impl GithubClient {
         loop {
             let items = page.take_items();
             for comment in items {
-                if comment.user.login == self.user_handle {
+                if comment.user.login == self.write_client_handle {
                     return Ok(Some(comment.into()));
                 }
             }
 
-            if let Some(next) = self.octocrab.get_page(&page.next).await? {
+            if let Some(next) = self.client.get_page(&page.next).await? {
                 page = next;
             } else {
                 return Ok(None);
@@ -555,7 +632,7 @@ impl GithubClient {
     }
 
     pub async fn get_rate_limits(&self) -> anyhow::Result<RateLimit> {
-        Ok(self.octocrab.ratelimit().get().await?)
+        Ok(self.client.ratelimit().get().await?)
     }
 
     /// Active PR is the PR where there are >2 messages from other users (exculding us and the author)
@@ -567,16 +644,16 @@ impl GithubClient {
         number: u64,
     ) -> anyhow::Result<bool> {
         let comments = self
-            .octocrab
+            .client
             .issues(owner, repo)
             .list_comments(number)
             .per_page(100)
             .send()
             .await?;
-        let comments = self.octocrab.all_pages(comments).await?;
+        let comments = self.client.all_pages(comments).await?;
 
         let reviews = self
-            .octocrab
+            .client
             .pulls(owner, repo)
             .list_reviews(number)
             .per_page(100)
@@ -592,7 +669,7 @@ impl GithubClient {
 
         let active = comments
             .iter()
-            .filter(|c| c.user.login != self.user_handle && c.user.login != author)
+            .filter(|c| !self.user_handles.contains(&c.user.login) && c.user.login != author)
             .count();
 
         Ok(active >= 2)
