@@ -22,5 +22,6 @@ toml.workspace = true
 prometheus-client.workspace = true
 rocket = { workspace = true, features = ["json"] }
 reqwest.workspace = true
+rustls.workspace = true
 
 shared = { workspace = true, features = ["client"] }

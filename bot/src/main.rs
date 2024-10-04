@@ -53,6 +53,9 @@ pub async fn metrics(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install AWS LC provider");
     dotenv::dotenv().ok();
     let env = envy::from_env::<Env>()?;
     let telegram: telegram::TelegramSubscriber =

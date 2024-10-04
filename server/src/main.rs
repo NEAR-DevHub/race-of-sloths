@@ -50,6 +50,9 @@ const WEEK_IN_SECONDS: u64 = 7 * 24 * 60 * 60;
 
 #[launch]
 async fn rocket() -> _ {
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install AWS LC provider");
     dotenv::dotenv().ok();
 
     let env = envy::from_env::<Env>().expect("Failed to load environment variables");

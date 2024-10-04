@@ -27,5 +27,6 @@ rocket_cors.workspace = true
 num-format.workspace = true
 tracing.workspace = true
 itertools.workspace = true
+rustls.workspace = true
 
 shared = { workspace = true, features = ["client"] }
