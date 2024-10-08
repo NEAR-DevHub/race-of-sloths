@@ -1,4 +1,5 @@
-link = "https://race-of-sloths-website.vercel.app"
+# We don't have staging website anymore...
+link = "https://race-of-sloths.com"
 leaderboard_link = "https://race-of-sloths-website.vercel.app/leaderboard"
 form = "https://github.com/NEAR-DevHub/race-of-sloths/issues/new/choose"
 picture_api_link = "https://badge.staging.race-of-sloths.com/{pr_author_username}?type=bot&pr={pr_id}"
@@ -14,6 +15,12 @@ message = [
     """
 @{pr_author_username} Thank you for your contribution! Your pull request is now a part of the [Race of Sloths]({link})!
 {user_specific_message}
+
+[<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="{link}/images/bot-banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="{link}/images/bot-banner-light.svg">
+    <img alt="Shows inviting banner with latest news." src="{link}/images/bot-banner-light.svg">
+</picture>]({link}/latest-news)
 
 [<picture>
     <source media="(prefers-color-scheme: dark)" srcset="{picture_api_link}&theme=dark">
