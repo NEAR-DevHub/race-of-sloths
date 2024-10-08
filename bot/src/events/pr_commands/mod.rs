@@ -234,6 +234,23 @@ pub mod tests {
     }
 
     #[test]
+    pub fn bug_extract_command_with_args() {
+        let comment = generate_comment(r#"the following compile errors are triggered by `cargo build --target wasm32-unknown-unknown --release`  in `rustc 1.83.0-nightly (55a22d2a6 2024-10-06)` version , unlike 1.81.0
+
+```rust
+#[cfg(all(target_family = "wasm", target_feature = "reference-types"))]
+compile_error!("Compiler configuration is unsupported by <ENV NAME HERE>, because a Wasm target-feature is enabled that is not yet supported: reference-types. Use Rust 1.81 or older to get a compatible default configuration.");
+#[cfg(all(target_family = "wasm", target_feature = "multivalue"))]
+compile_error!("Compiler configuration is unsupported by <ENV NAME HERE>, because a Wasm target-feature is enabled that is not yet supported: multivalue. Use Rust 1.81 or older to get a compatible default configuration.");
+```
+        "#);
+
+        let command = Command::parse_command(NAME, &default_pr_metadata(), &comment);
+
+        assert!(command.is_none(), "Command should be none {:?}", command);
+    }
+
+    #[test]
     pub fn multi_line_comment_works() {
         let comment = generate_comment(&format!(
             "Hello buddy, i'm working here on super duper pr.\nAhey\n   @{NAME} score 8"

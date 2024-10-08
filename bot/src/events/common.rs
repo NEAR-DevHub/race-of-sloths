@@ -72,10 +72,9 @@ pub fn extract_command_with_args(
         let mut iter = command.split_whitespace();
         let bot = iter.next();
 
-        if let Some(bot) = bot {
-            if bot != bot_name {
-                continue;
-            }
+        match bot {
+            Some(bot) if bot == bot_name => (),
+            _ => continue,
         }
 
         let command = iter.next();
