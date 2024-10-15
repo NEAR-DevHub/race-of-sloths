@@ -40,7 +40,7 @@ impl BotIncluded {
         }
 
         match (pr.merged, pr.closed) {
-            (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(5) => {}
+            (Some(merged_at), _) if (chrono::Utc::now() - merged_at) < Duration::days(1) => {}
             (_, false) => {}
             _ => {
                 debug!("PR {} is already merged. Skipping", pr.repo_info.full_id,);
