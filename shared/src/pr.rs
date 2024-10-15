@@ -4,7 +4,7 @@ use super::*;
 
 pub type PRId = String;
 
-pub const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 5 * 24 * 60 * 60;
+pub const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
 pub const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
 
 #[derive(
