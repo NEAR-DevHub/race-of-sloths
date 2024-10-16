@@ -1,7 +1,8 @@
-use std::str::FromStr;
+use std::sync::Arc;
 
 use anyhow::bail;
-use near_workspaces::{result::ExecutionFinalResult, types::SecretKey, Contract};
+use near_api::{signer::Signer, types::Data, Contract, NetworkConfig};
+use near_primitives::views::{FinalExecutionOutcomeView, FinalExecutionStatus};
 use serde_json::json;
 use tracing::instrument;
 
@@ -9,8 +10,10 @@ use super::github::PrMetadata;
 
 use crate::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct NearClient {
+    network: NetworkConfig,
+    signer: Arc<Signer>,
     contract: Contract,
 }
 
@@ -21,21 +24,23 @@ impl NearClient {
         mainnet: bool,
         rpc_addr: Option<String>,
     ) -> anyhow::Result<Self> {
-        let sk = SecretKey::from_str(&sk)?;
-        if mainnet {
-            let mut mainnet = near_workspaces::mainnet();
-            if let Some(rpc_addr) = rpc_addr {
-                mainnet = mainnet.rpc_addr(&rpc_addr);
-            }
-            let contract = Contract::from_secret_key(contract.parse()?, sk, &mainnet.await?);
-            return Ok(Self { contract });
-        }
-        let mut testnet = near_workspaces::testnet();
+        let signer = Signer::new(Signer::secret_key(sk.parse()?))?;
+        let mut network = if mainnet {
+            NetworkConfig::mainnet()
+        } else {
+            NetworkConfig::testnet()
+        };
+
         if let Some(rpc_addr) = rpc_addr {
-            testnet = testnet.rpc_addr(&rpc_addr);
+            network.rpc_url = rpc_addr.parse()?;
         }
-        let contract = Contract::from_secret_key(contract.parse()?, sk, &testnet.await?);
-        Ok(Self { contract })
+
+        let contract = near_api::Contract(contract.parse()?);
+        Ok(Self {
+            network,
+            signer,
+            contract,
+        })
     }
 
     #[instrument(skip(self, pr), fields(pr = pr.repo_info.full_id))]
@@ -55,9 +60,10 @@ impl NearClient {
 
         let result = self
             .contract
-            .call("sloth_include")
-            .args_json(args)
-            .transact()
+            .call_function("sloth_include", args)?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_include: {:?}", e))?;
 
@@ -79,11 +85,13 @@ impl NearClient {
 
         let result = self
             .contract
-            .call("sloth_scored")
-            .args_json(args)
-            .transact()
+            .call_function("sloth_scored", args)?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_scored: {:?}", e))?;
+
         process_execution_final_result(result)
     }
 
@@ -100,11 +108,13 @@ impl NearClient {
 
         let result = self
             .contract
-            .call("sloth_merged")
-            .args_json(args)
-            .transact()
+            .call_function("sloth_merged", args)?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_merged: {:?}", e))?;
+
         process_execution_final_result(result)
     }
 
@@ -112,11 +122,16 @@ impl NearClient {
     pub async fn send_pause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
-            .call("pause_repo")
-            .args_json(json!({
-                "organization": organization,
-                "repo": repo,}))
-            .transact()
+            .call_function(
+                "pause_repo",
+                json!({
+                    "organization": organization,
+                    "repo": repo,
+                }),
+            )?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_paused: {:?}", e))?;
         process_execution_final_result(result)
@@ -126,11 +141,16 @@ impl NearClient {
     pub async fn send_unpause(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
-            .call("unpause_repo")
-            .args_json(json!({
-                "organization": organization,
-                "repo": repo,}))
-            .transact()
+            .call_function(
+                "unpause_repo",
+                json!({
+                    "organization": organization,
+                    "repo": repo,
+                }),
+            )?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_resumed: {:?}", e))?;
         process_execution_final_result(result)
@@ -149,15 +169,14 @@ impl NearClient {
             "issue_id": issue_id,
         });
 
-        let res = self
+        let res: Data<PRInfo> = self
             .contract
-            .view("check_info")
-            .args_json(args)
-            .finality(near_workspaces::types::Finality::Optimistic)
+            .call_function("check_info", args)?
+            .read_only()
+            .fetch_from(&self.network)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call is_organization_allowed: {:?}", e))?;
-        let res: PRInfo = res.json()?;
-        Ok(res)
+            .map_err(|e| anyhow::anyhow!("Failed to call check_info: {:?}", e))?;
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -167,15 +186,14 @@ impl NearClient {
             "limit": limit,
         });
 
-        let res = self
+        let res: Data<Vec<PRv2>> = self
             .contract
-            .view("unmerged_prs")
-            .args_json(args)
+            .call_function("unmerged_prs", args)?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call unmerged_prs: {:?}", e))?;
-        let res = res.json()?;
-
-        Ok(res)
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -201,15 +219,14 @@ impl NearClient {
             "limit": limit,
         });
 
-        let res = self
+        let res: Data<Vec<PRv2>> = self
             .contract
-            .view("unfinalized_prs")
-            .args_json(args)
+            .call_function("unfinalized_prs", args)?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call unfinalized_prs: {:?}", e))?;
-        let res = res.json()?;
-
-        Ok(res)
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -236,9 +253,10 @@ impl NearClient {
 
         let result = self
             .contract
-            .call("sloth_stale")
-            .args_json(args)
-            .transact()
+            .call_function("sloth_stale", args)?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_stale: {:?}", e))?;
         process_execution_final_result(result)
@@ -252,9 +270,10 @@ impl NearClient {
 
         let result = self
             .contract
-            .call("sloth_exclude")
-            .args_json(args)
-            .transact()
+            .call_function("sloth_exclude", args)?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call sloth_exclude: {:?}", e))?;
         process_execution_final_result(result)
@@ -268,14 +287,18 @@ impl NearClient {
     ) -> anyhow::Result<Vec<Event>> {
         let result = self
             .contract
-            .call("sloth_finalize")
-            .args_json(json!({
-                "pr_id": pr_id,
-                "active_pr": active_pr
-            }))
-            .transact()
+            .call_function(
+                "sloth_finalize",
+                json!({
+                    "pr_id": pr_id,
+                    "active_pr": active_pr
+                }),
+            )?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to call execute_prs: {:?}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to call sloth_finalize: {:?}", e))?;
         process_execution_final_result(result)
     }
 
@@ -285,17 +308,20 @@ impl NearClient {
         user: &str,
         periods: Vec<TimePeriodString>,
     ) -> anyhow::Result<Option<User>> {
-        let res = self
+        let res: Data<Option<User>> = self
             .contract
-            .view("user")
-            .args_json(json!({
-                "user": user,
-                "periods": periods
-            }))
+            .call_function(
+                "user",
+                json!({
+                    "user": user,
+                    "periods": periods
+                }),
+            )?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call user_info: {:?}", e))?;
-        let res: Option<User> = res.json()?;
-        Ok(res)
+        Ok(res.data)
     }
 
     pub async fn users_paged(
@@ -304,18 +330,21 @@ impl NearClient {
         limit: u64,
         periods: Vec<TimePeriodString>,
     ) -> anyhow::Result<Vec<User>> {
-        let res = self
+        let res: Data<Vec<User>> = self
             .contract
-            .view("users")
-            .args_json(json!({
-                "page": page,
-                "limit": limit,
-                "periods": periods,
-            }))
+            .call_function(
+                "users",
+                json!({
+                    "page": page,
+                    "limit": limit,
+                    "periods": periods,
+                }),
+            )?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call users: {:?}", e))?;
-        let res = res.json()?;
-        Ok(res)
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -336,17 +365,20 @@ impl NearClient {
 
     #[instrument(skip(self))]
     pub async fn prs_paged(&self, page: u64, limit: u64) -> anyhow::Result<Vec<(PRv2, bool)>> {
-        let res = self
+        let res: Data<Vec<(PRv2, bool)>> = self
             .contract
-            .view("prs")
-            .args_json(json!({
-                "page": page,
-                "limit": limit,
-            }))
+            .call_function(
+                "prs",
+                json!({
+                    "page": page,
+                    "limit": limit,
+                }),
+            )?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call prs: {:?}", e))?;
-        let res = res.json()?;
-        Ok(res)
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -373,15 +405,18 @@ impl NearClient {
     ) -> anyhow::Result<Vec<AllowedRepos>> {
         let res = self
             .contract
-            .view("repos")
-            .args_json(json!({
-                "page": page,
-                "limit": limit,
-            }))
+            .call_function(
+                "repos",
+                json!({
+                    "page": page,
+                    "limit": limit,
+                }),
+            )?
+            .read_only()
+            .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call allowed_repos: {:?}", e))?;
-        let res = res.json()?;
-        Ok(res)
+        Ok(res.data)
     }
 
     #[instrument(skip(self))]
@@ -401,23 +436,24 @@ impl NearClient {
     }
 }
 
-fn process_execution_final_result(result: ExecutionFinalResult) -> anyhow::Result<Vec<Event>> {
-    if !result.is_success() && !result.is_failure() {
-        tracing::error!(
-            "debugging: Result is not success and not failure. {:?}",
-            result
-        );
-        bail!("Execution is not final: {:?}", result);
-    }
-
-    if !result.is_success() {
+fn process_execution_final_result(result: FinalExecutionOutcomeView) -> anyhow::Result<Vec<Event>> {
+    if !matches!(result.status, FinalExecutionStatus::SuccessValue(_)) {
         bail!("Execution failure: {:?}", result);
     }
 
     let events = result
-        .logs()
+        .transaction_outcome
+        .outcome
+        .logs
         .into_iter()
-        .flat_map(|l| serde_json::from_str::<Event>(l).ok())
+        .chain(
+            result
+                .receipts_outcome
+                .into_iter()
+                .flat_map(|o| o.outcome.logs),
+        )
+        .flat_map(|l| serde_json::from_str::<Event>(&l).ok())
         .collect();
+
     Ok(events)
 }
