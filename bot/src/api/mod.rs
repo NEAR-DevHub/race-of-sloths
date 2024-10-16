@@ -404,7 +404,7 @@ impl GithubClient {
         }
 
         for handle in self.user_handles.iter() {
-            if let Some(command) = Command::parse_body(&handle, &pr_metadata) {
+            if let Some(command) = Command::parse_body(handle, &pr_metadata) {
                 results.push(Event {
                     event: EventType::PRCommand {
                         command,
@@ -578,7 +578,7 @@ impl GithubClient {
             .ok_or_else(|| anyhow::anyhow!("No matching client to makr as read. THIS IS A BUG"))?
             .activity()
             .notifications()
-            .mark_as_read(notification.id.into())
+            .mark_as_read(notification.id)
             .await?;
         Ok(())
     }
