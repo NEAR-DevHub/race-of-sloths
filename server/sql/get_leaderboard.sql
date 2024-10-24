@@ -28,6 +28,7 @@ FROM
     AND monthly_streak.streak_id = 1
 WHERE
     period_type = $1
+    and total_rating > 0
 ORDER BY
     place,
     total_rating DESC
