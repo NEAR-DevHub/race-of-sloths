@@ -7,12 +7,13 @@ SELECT
     largest_score,
     prs_opened,
     prs_merged,
-    best as streak_best,
-    amount as streak_amount,
+    weekly_streak.best as weekly_streak_best,
+    weekly_streak.amount as weekly_streak_amount,
+    weekly_streak.latest_time_string as weekly_streak_latest_time_string,
+    monthly_streak.best as monthly_streak_best,
+    monthly_streak.amount as monthly_streak_amount,
+    monthly_streak.latest_time_string as monthly_streak_latest_time_string,
     user_period_data.total_rating as total_rating,
-    period as streak_type,
-    streak.name as streak_name,
-    latest_time_string as streak_latest_time_string,
     RANK() OVER (
         ORDER BY
             total_rating DESC
@@ -21,13 +22,14 @@ SELECT
 FROM
     user_period_data
     JOIN users ON users.id = user_period_data.user_id
-    JOIN streak_user_data ON streak_user_data.user_id = users.id
-    JOIN streak ON streak.id = streak_user_data.streak_id
+    JOIN streak_user_data AS weekly_streak ON weekly_streak.user_id = users.id
+    AND weekly_streak.streak_id = 0
+    JOIN streak_user_data AS monthly_streak ON monthly_streak.user_id = users.id
+    AND monthly_streak.streak_id = 1
 WHERE
     period_type = $1
-    AND streak_user_data.streak_id = $2
 ORDER BY
     place,
     total_rating DESC
 LIMIT
-    $3 OFFSET $4
+    $2 OFFSET $3

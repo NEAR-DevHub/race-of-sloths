@@ -86,6 +86,8 @@ pub struct LeaderboardResponse {
     pub rating: u32,
     pub contributions: u32,
     pub streak: Streak,
+    pub weekly_streak: Streak,
+    pub monthly_streak: Streak,
     pub merged_prs: u32,
     pub score: u32,
     pub place: u32,
@@ -103,17 +105,29 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
         }
         .to_string();
 
+        let streak = Streak::new(
+            "Weekly".to_string(),
+            record.weekly_streak_amount as u32,
+            record.weekly_streak_best as u32,
+            record.weekly_streak_latest_time_string,
+            "weekly".to_string(),
+        );
+
         Self {
             user: GithubMeta::new(record.login, record.full_name),
             rating: record.total_rating as u32,
             contributions: record.prs_opened as u32,
-            streak: Streak::new(
-                record.streak_name,
-                record.streak_amount as u32,
-                record.streak_best as u32,
-                record.streak_latest_time_string,
-                record.streak_type,
+            weekly_streak: streak.clone(),
+            monthly_streak: Streak::new(
+                "Monthly".to_string(),
+                record.monthly_streak_amount as u32,
+                record.monthly_streak_best as u32,
+                record.monthly_streak_latest_time_string,
+                "monthly".to_string(),
             ),
+            // TODO: remove this after release. For
+            streak,
+
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
             place: record.place as u32,

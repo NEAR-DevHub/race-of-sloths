@@ -9,23 +9,18 @@ use super::types::{LeaderboardResponse, PaginatedResponse, RepoResponse};
 #[utoipa::path(context_path = "/leaderboard", responses(
     (status = 200, description = "Get user leaderboard", body = PaginatedLeaderboardResponse)
 ))]
-#[get("/users/<period>?<page>&<limit>&<streak_id>")]
+#[get("/users/<period>?<page>&<limit>")]
 async fn get_leaderboard(
     db: &State<DB>,
     telegram: &State<Arc<telegram::TelegramSubscriber>>,
     period: Option<String>,
     page: Option<u64>,
     limit: Option<u64>,
-    streak_id: Option<i32>,
 ) -> Option<Json<PaginatedResponse<LeaderboardResponse>>> {
     let period = period.unwrap_or(TimePeriod::AllTime.time_string(0));
-    let streak_id = streak_id.unwrap_or(0);
     let page = page.unwrap_or(0);
     let limit = limit.unwrap_or(50);
-    let (records, total) = match db
-        .get_leaderboard(&period, streak_id, page as i64, limit as i64)
-        .await
-    {
+    let (records, total) = match db.get_leaderboard(&period, page as i64, limit as i64).await {
         Err(e) => {
             race_of_sloths_server::error(
                 telegram,

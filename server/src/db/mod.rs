@@ -496,7 +496,6 @@ impl DB {
     pub async fn get_leaderboard(
         &self,
         period: &str,
-        streak_id: i32,
         page: i64,
         limit: i64,
     ) -> anyhow::Result<(Vec<LeaderboardRecord>, i64)> {
@@ -505,7 +504,6 @@ impl DB {
             LeaderboardRecord,
             "sql/get_leaderboard.sql",
             period,
-            streak_id,
             limit,
             page * limit
         )

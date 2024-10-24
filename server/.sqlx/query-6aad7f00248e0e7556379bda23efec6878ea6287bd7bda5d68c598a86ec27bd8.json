@@ -1,0 +1,120 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    users.login,\n    users.full_name,\n    period_type,\n    total_score,\n    executed_prs,\n    largest_score,\n    prs_opened,\n    prs_merged,\n    weekly_streak.best as weekly_streak_best,\n    weekly_streak.amount as weekly_streak_amount,\n    weekly_streak.latest_time_string as weekly_streak_latest_time_string,\n    monthly_streak.best as monthly_streak_best,\n    monthly_streak.amount as monthly_streak_amount,\n    monthly_streak.latest_time_string as monthly_streak_latest_time_string,\n    user_period_data.total_rating as total_rating,\n    RANK() OVER (\n        ORDER BY\n            total_rating DESC\n    ) as place,\n    users.permanent_bonus as permanent_bonus\nFROM\n    user_period_data\n    JOIN users ON users.id = user_period_data.user_id\n    JOIN streak_user_data AS weekly_streak ON weekly_streak.user_id = users.id\n    AND weekly_streak.streak_id = 0\n    JOIN streak_user_data AS monthly_streak ON monthly_streak.user_id = users.id\n    AND monthly_streak.streak_id = 1\nWHERE\n    period_type = $1\nORDER BY\n    place,\n    total_rating DESC\nLIMIT\n    $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "period_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "executed_prs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "largest_score",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "prs_opened",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "prs_merged",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "weekly_streak_best",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "weekly_streak_amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "weekly_streak_latest_time_string",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "monthly_streak_best",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "monthly_streak_amount",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 13,
+        "name": "monthly_streak_latest_time_string",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "total_rating",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "place",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 16,
+        "name": "permanent_bonus",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "6aad7f00248e0e7556379bda23efec6878ea6287bd7bda5d68c598a86ec27bd8"
+}
