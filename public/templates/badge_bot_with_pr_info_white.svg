@@ -224,11 +224,11 @@
         fill="url(#paint18_linear_2820_1183)" />
     <text fill="#2C2D2E" xml:space="preserve" style="white-space: pre" font-family="Aeonik Fono" font-size="16"
         letter-spacing="0em">
-        <tspan x="53" y="393.34">{max-month-streak}</tspan>
+        <tspan x="53" y="393.34">{month-streak} / {max-month-streak}</tspan>
     </text>
     <text fill="#555555" xml:space="preserve" style="white-space: pre" font-family="Aeonik Fono" font-size="12"
         letter-spacing="0em">
-        <tspan x="53" y="410.38">Max. month streak</tspan>
+        <tspan x="53" y="410.38">Monthly streak</tspan>
     </text>
     <rect x="270.333" y="370" width="261.333" height="52" rx="8" fill="#F3F3F3" />
     <rect x="270.333" y="370" width="261.333" height="52" rx="8" stroke="#919399" />
@@ -240,11 +240,11 @@
         fill="url(#paint20_linear_2820_1183)" />
     <text fill="#2C2D2E" xml:space="preserve" style="white-space: pre" font-family="Aeonik Fono" font-size="16"
         letter-spacing="0em">
-        <tspan x="322.333" y="393.34">{max-week-streak}</tspan>
+        <tspan x="322.333" y="393.34">{week-streak} / {max-week-streak}</tspan>
     </text>
     <text fill="#555555" xml:space="preserve" style="white-space: pre" font-family="Aeonik Fono" font-size="12"
         letter-spacing="0em">
-        <tspan x="322.333" y="410.38">Max. week streak</tspan>
+        <tspan x="322.333" y="410.38">Weekly streak</tspan>
     </text>
     <rect x="539.667" y="370" width="261.333" height="52" rx="8" fill="#F3F3F3" />
     <rect x="539.667" y="370" width="261.333" height="52" rx="8" stroke="#919399" />
@@ -408,13 +408,13 @@
         </linearGradient>
         <linearGradient id="paint17_linear_2820_1183" x1="26.55" y1="381.6" x2="26.55" y2="412.2"
             gradientUnits="userSpaceOnUse">
-            <stop stop-color="#FF6C59" />
-            <stop offset="1" stop-color="#E11E0F" />
+            <stop stop-color="#2943EE" />
+            <stop offset="1" stop-color="#182686" />
         </linearGradient>
         <linearGradient id="paint18_linear_2820_1183" x1="26.55" y1="394.2" x2="26.55" y2="412.2"
             gradientUnits="userSpaceOnUse">
-            <stop stop-color="#FFE12E" />
-            <stop offset="1" stop-color="#F36A07" />
+            <stop stop-color="#4F83F2" />
+            <stop offset="1" stop-color="#113E9E" />
         </linearGradient>
         <linearGradient id="paint19_linear_2820_1183" x1="295.883" y1="381.6" x2="295.883" y2="412.2"
             gradientUnits="userSpaceOnUse">
