@@ -85,7 +85,9 @@ pub async fn generate_svg_badge(
             "{total-contributions}",
             &total_period.prs_opened.to_string(),
         )
+        .replace("{week-streak}", &week_streak.amount.to_string())
         .replace("{max-week-streak}", &week_streak.best.to_string())
+        .replace("{month-streak}", &month_streak.amount.to_string())
         .replace("{max-month-streak}", &month_streak.best.to_string())
         .replace("{place}", &place)
         .replace("{place-type}", &place_type)
@@ -165,7 +167,9 @@ pub async fn generate_png_meta_badge(
             "{total-rating}",
             &total_period.total_rating.to_formatted_string(&Locale::en),
         )
+        .replace("{week-streak}", &week_streak.amount.to_string())
         .replace("{max-week-streak}", &week_streak.best.to_string())
+        .replace("{month-streak}", &month_streak.amount.to_string())
         .replace("{max-month-streak}", &month_streak.best.to_string())
         .replace("{place}", &place)
         .replace("{place-type}", &place_type)
