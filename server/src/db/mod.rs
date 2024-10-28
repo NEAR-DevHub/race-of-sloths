@@ -3,7 +3,7 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{PRv2, Repo, StreakUserData, TimePeriod, TimePeriodString, UserPeriodData};
+use shared::{PRv2, Repo, StreakUserData, TimePeriod, TimePeriodString, UserPeriodDataV2};
 use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Database, Clone, Debug)]
@@ -306,14 +306,14 @@ impl DB {
     pub async fn upsert_user_period_data(
         tx: &mut Transaction<'static, Postgres>,
         period: TimePeriodString,
-        data: &UserPeriodData,
+        data: &UserPeriodDataV2,
         user_id: i32,
     ) -> anyhow::Result<()> {
         // First try to update the user period data
         let rec = sqlx::query!(
             r#"
             UPDATE user_period_data
-            SET total_score = $3, executed_prs = $4, largest_score = $5, prs_opened = $6, prs_merged = $7, total_rating = $8, largest_rating_per_pr = $9
+            SET total_score = $3, executed_prs = $4, largest_score = $5, prs_opened = $6, prs_merged = $7, total_rating = $8, largest_rating_per_pr = $9, prs_scored = $10
             WHERE user_id = $1 AND period_type = $2
             RETURNING user_id
             "#,
@@ -325,7 +325,8 @@ impl DB {
             data.prs_opened as i32,
             data.prs_merged as i32,
             data.total_rating as i32,
-            data.largest_rating_per_pr as i32
+            data.largest_rating_per_pr as i32,
+            data.prs_scored as i32
         )
         .fetch_optional(tx.as_mut())
         .await?;
@@ -441,7 +442,7 @@ impl DB {
         let period_data_recs: Vec<UserPeriodRecord> = sqlx::query_as!(
             UserPeriodRecord,
             r#"
-                SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged, total_rating
+                SELECT period_type, total_score, executed_prs, largest_score, prs_opened, prs_merged, total_rating, prs_scored
                 FROM user_period_data
                 WHERE user_id = $1
                 "#,

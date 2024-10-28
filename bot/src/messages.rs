@@ -295,7 +295,7 @@ impl MessageLoader {
                 percentage_bonus: 0,
                 period_data: vec![(
                     "all-time".to_string(),
-                    shared::UserPeriodData {
+                    shared::UserPeriodDataV2 {
                         prs_opened: 1,
                         ..Default::default()
                     },
@@ -623,8 +623,8 @@ mod tests {
         assert_eq!(updated_text, expected);
     }
 
-    fn period_data(amount_prs: u32) -> shared::UserPeriodData {
-        shared::UserPeriodData {
+    fn period_data(amount_prs: u32) -> shared::UserPeriodDataV2 {
+        shared::UserPeriodDataV2 {
             total_score: 0,
             executed_prs: 0,
             largest_score: 0,
@@ -632,6 +632,7 @@ mod tests {
             prs_merged: 0,
             total_rating: 0,
             largest_rating_per_pr: 0,
+            prs_scored: 0,
         }
     }
 

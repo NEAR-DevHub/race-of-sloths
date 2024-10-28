@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::near_bindgen;
-use shared::{PRInfo, User, UserId, UserPeriodData};
+use shared::{PRInfo, User, UserId, UserPeriodDataV2};
 
 use super::*;
 
@@ -76,7 +76,7 @@ impl Contract {
             .collect()
     }
 
-    pub fn period_data(&self, user_id: UserId, period_string: &String) -> Option<UserPeriodData> {
+    pub fn period_data(&self, user_id: UserId, period_string: &String) -> Option<UserPeriodDataV2> {
         self.sloths_per_period
             .get(&(user_id, period_string.to_string()))
             .cloned()
