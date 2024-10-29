@@ -422,7 +422,7 @@ impl MessageLoader {
             if scorer.user != bot_name {
                 message.push_str(&format!(
                     "\n@{} received 25 Sloth Points for reviewing and scoring this pull request.",
-                    bot_name
+                    scorer.user
                 ));
             }
         }
