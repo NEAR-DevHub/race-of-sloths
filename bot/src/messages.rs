@@ -2,7 +2,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use shared::github::PrMetadata;
-use shared::{PRInfo, TimePeriod, User};
+use shared::{PRInfo, Score, TimePeriod, User};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::ops::Add;
@@ -295,7 +295,7 @@ impl MessageLoader {
                 percentage_bonus: 0,
                 period_data: vec![(
                     "all-time".to_string(),
-                    shared::UserPeriodData {
+                    shared::UserPeriodDataV2 {
                         prs_opened: 1,
                         ..Default::default()
                     },
@@ -387,21 +387,45 @@ impl MessageLoader {
                 anyhow::anyhow!("Constraint violation: final_data is None for executed PR")
             })?;
             message.push_str("\n\n");
-            message.push_str(&self.final_message(final_data)?)
+            message.push_str(&self.final_message(final_data, bot_name, check_info.votes.clone())?)
         } else if !check_info.votes.is_empty() {
             let score = check_info.average_score();
             message.push_str("\n\n");
             let rating = rating_breakthrough(score * 10, score, 0, 0, 0);
-            let final_common = self.get_message(MsgCategory::RatingMessagesCommon).format(
-                [("score", score.to_string()), ("rating", rating)]
-                    .into_iter()
-                    .collect(),
+            let rating_message = self.rating_message(
+                score.to_string(),
+                rating,
+                check_info.votes.clone(),
+                bot_name,
             )?;
             message.push_str("\n\n");
-            message.push_str(&final_common);
+            message.push_str(&rating_message);
         }
 
         message.push_str("\n</details>");
+
+        Ok(message)
+    }
+
+    fn rating_message(
+        &self,
+        score: String,
+        rating: String,
+        scorers: Vec<Score>,
+        bot_name: &str,
+    ) -> anyhow::Result<String> {
+        let mut message = self
+            .get_message(MsgCategory::RatingMessagesCommon)
+            .format([("score", score), ("rating", rating)].into_iter().collect())?;
+
+        for scorer in scorers {
+            if scorer.user != bot_name {
+                message.push_str(&format!(
+                    "\n@{} received 25 Sloth Points for reviewing and scoring this pull request.",
+                    bot_name
+                ));
+            }
+        }
 
         Ok(message)
     }
@@ -484,6 +508,8 @@ impl MessageLoader {
             total_lifetime_percent,
             pr_number_this_week,
         }: FinalMessageData,
+        bot_name: &str,
+        scorers: Vec<Score>,
     ) -> anyhow::Result<String> {
         let rating = rating_breakthrough(
             total_rating,
@@ -492,11 +518,7 @@ impl MessageLoader {
             monthly_streak_bonus,
             total_lifetime_percent,
         );
-        let final_common = self.get_message(MsgCategory::RatingMessagesCommon).format(
-            [("score", score.to_string()), ("rating", rating)]
-                .into_iter()
-                .collect(),
-        )?;
+        let final_common = self.rating_message(score.to_string(), rating, scorers, bot_name)?;
 
         let optional_message = if lifetime_percent_reward > 0 && total_lifetime_percent > 5 {
             let rank: &str = match total_lifetime_percent {
@@ -623,8 +645,8 @@ mod tests {
         assert_eq!(updated_text, expected);
     }
 
-    fn period_data(amount_prs: u32) -> shared::UserPeriodData {
-        shared::UserPeriodData {
+    fn period_data(amount_prs: u32) -> shared::UserPeriodDataV2 {
+        shared::UserPeriodDataV2 {
             total_score: 0,
             executed_prs: 0,
             largest_score: 0,
@@ -632,6 +654,7 @@ mod tests {
             prs_merged: 0,
             total_rating: 0,
             largest_rating_per_pr: 0,
+            prs_scored: 0,
         }
     }
 

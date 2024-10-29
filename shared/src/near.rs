@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use near_api::{signer::Signer, types::Data, Contract, NetworkConfig};
-use near_primitives::views::{FinalExecutionOutcomeView, FinalExecutionStatus};
+use near_primitives::{
+    types::BlockReference,
+    views::{FinalExecutionOutcomeView, FinalExecutionStatus},
+};
 use serde_json::json;
 use tracing::instrument;
 
@@ -173,6 +176,7 @@ impl NearClient {
             .contract
             .call_function("check_info", args)?
             .read_only()
+            .at(BlockReference::latest())
             .fetch_from(&self.network)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to call check_info: {:?}", e))?;

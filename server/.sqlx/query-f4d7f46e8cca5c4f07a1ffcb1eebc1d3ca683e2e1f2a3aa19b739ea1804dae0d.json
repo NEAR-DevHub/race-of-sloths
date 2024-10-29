@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE user_period_data\n            SET total_score = $3, executed_prs = $4, largest_score = $5, prs_opened = $6, prs_merged = $7, total_rating = $8, largest_rating_per_pr = $9, prs_scored = $10\n            WHERE user_id = $1 AND period_type = $2\n            RETURNING user_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f4d7f46e8cca5c4f07a1ffcb1eebc1d3ca683e2e1f2a3aa19b739ea1804dae0d"
+}

@@ -30,6 +30,7 @@ pub struct UserPeriodRecord {
     pub prs_opened: i32,
     pub prs_merged: i32,
     pub total_rating: i64,
+    pub prs_scored: i32,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow, Serialize, Deserialize, Default)]

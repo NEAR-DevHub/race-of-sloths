@@ -8,7 +8,7 @@ use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault};
 use shared::{
     AccountWithPermanentPercentageBonus, AllowedRepos, Event, GithubHandle, IntoEnumIterator, PRId,
     PRv2, Repo, Streak, StreakId, StreakReward, StreakType, StreakUserData, TimePeriod,
-    TimePeriodString, UserId, UserPeriodData, VersionedAccount, VersionedPR, VersionedStreak,
+    TimePeriodString, UserId, UserPeriodDataV2, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
 use types::{Repository, VersionedRepository};
@@ -189,7 +189,13 @@ impl Contract {
         };
         let (user_id, _) = self.get_or_create_account(&pr.author);
         let old_score = pr.score().unwrap_or_default();
-        pr.add_score(user, score);
+        if pr.add_score(user.clone(), score).is_none() {
+            // Reward user for scoring the PR.
+            let (scorer_id, _) = self.get_or_create_account(&user);
+            self.apply_to_periods(pr.included_at, scorer_id, |data| {
+                data.reward_for_scoring();
+            })
+        }
         let new_score = pr.score().unwrap();
 
         self.apply_to_periods(pr.included_at, user_id, |data| {
@@ -227,6 +233,13 @@ impl Contract {
         self.apply_to_periods(pr.included_at, user_id, |data| {
             data.pr_closed(pr.score().unwrap_or_default());
         });
+
+        for score in pr.score {
+            let (scorer_id, _) = self.get_or_create_account(&score.user);
+            self.apply_to_periods(pr.included_at, scorer_id, |data| {
+                data.remove_reward_for_scoring();
+            });
+        }
 
         self.prs.remove(&pr_id);
         self.excluded_prs.insert(pr_id);
@@ -322,6 +335,13 @@ impl Contract {
         self.apply_to_periods(pr.included_at, user_id, |data| {
             data.pr_closed(pr.score().unwrap_or_default())
         });
+
+        for score in pr.score {
+            let (scorer_id, _) = self.get_or_create_account(&score.user);
+            self.apply_to_periods(pr.included_at, scorer_id, |data| {
+                data.remove_reward_for_scoring();
+            });
+        }
         self.prs.remove(&pr_id);
     }
 
@@ -401,7 +421,7 @@ impl Contract {
             .sloths_per_period
             .get(&(user_id, TimePeriod::Week.time_string(timestamp)))
             .map(|s| {
-                let s: UserPeriodData = s.clone().into();
+                let s: UserPeriodDataV2 = s.clone().into();
                 s.executed_prs
             })
             .unwrap_or_default();

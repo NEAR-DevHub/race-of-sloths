@@ -151,13 +151,15 @@ pub struct Streak {
 pub struct Period {
     pub contributions: u32,
     pub rating: u32,
+    pub scored: u32,
 }
 
 impl Period {
-    pub fn new(contributions: u32, rating: u32) -> Self {
+    pub fn new(period: crate::db::types::UserPeriodRecord) -> Self {
         Self {
-            contributions,
-            rating,
+            contributions: period.prs_opened as u32,
+            rating: period.total_rating as u32,
+            scored: period.prs_scored as u32,
         }
     }
 }
@@ -227,14 +229,8 @@ impl From<UserRecord> for UserProfile {
         Self {
             user_id: record.id as u32,
             user: GithubMeta::new(record.login, record.name),
-            monthly: Period::new(
-                monthly_period.prs_opened as u32,
-                monthly_period.total_rating as u32,
-            ),
-            global: Period::new(
-                total_period.prs_opened as u32,
-                total_period.total_rating as u32,
-            ),
+            monthly: Period::new(monthly_period),
+            global: Period::new(total_period),
             lifetime_bonus: record.lifetime_percent as u32,
             streaks: record
                 .streaks

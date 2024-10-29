@@ -141,11 +141,15 @@ impl PRv2 {
         }
     }
 
-    pub fn add_score(&mut self, user: GithubHandle, score: u32) {
+    // Returns the old score if the user already had already scored
+    pub fn add_score(&mut self, user: GithubHandle, score: u32) -> Option<u32> {
         if let Some(user) = self.score.iter_mut().find(|s| s.user == user) {
+            let old_score = user.score;
             user.score = score;
+            Some(old_score)
         } else {
             self.score.push(Score { user, score });
+            None
         }
     }
 

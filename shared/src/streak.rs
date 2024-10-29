@@ -32,7 +32,7 @@ impl StreakType {
         Self::PRsMerged(value)
     }
 
-    pub fn is_streak_achieved(&self, user_period_data: &UserPeriodData) -> bool {
+    pub fn is_streak_achieved(&self, user_period_data: &UserPeriodDataV2) -> bool {
         match self {
             Self::PRsOpened(value) => user_period_data.prs_opened >= *value,
             Self::PRsMerged(value) => user_period_data.prs_merged >= *value,
