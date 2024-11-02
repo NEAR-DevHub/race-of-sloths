@@ -7,6 +7,7 @@ SELECT
     largest_score,
     prs_opened,
     prs_merged,
+    prs_scored,
     weekly_streak.best as weekly_streak_best,
     weekly_streak.amount as weekly_streak_amount,
     weekly_streak.latest_time_string as weekly_streak_latest_time_string,

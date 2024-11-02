@@ -11,6 +11,7 @@ pub struct LeaderboardRecord {
     pub largest_score: i32,
     pub prs_opened: i32,
     pub prs_merged: i32,
+    pub prs_scored: i32,
     pub weekly_streak_best: i32,
     pub monthly_streak_best: i32,
     pub weekly_streak_latest_time_string: String,

@@ -91,6 +91,7 @@ pub struct LeaderboardResponse {
     pub merged_prs: u32,
     pub score: u32,
     pub place: u32,
+    pub scored_prs: u32,
 }
 
 impl From<LeaderboardRecord> for LeaderboardResponse {
@@ -132,6 +133,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
             score: record.total_score as u32,
             place: record.place as u32,
             rank,
+            scored_prs: record.prs_scored as u32,
         }
     }
 }
