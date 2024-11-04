@@ -22,6 +22,7 @@ async fn fetch_and_store_users(
     let periods = [TimePeriod::Month, TimePeriod::Quarter, TimePeriod::AllTime]
         .into_iter()
         .map(|e| e.time_string(timestamp as u64))
+        .chain(std::iter::once(String::from("rosctober2024")))
         .collect();
     let users = near_client
         .users(periods)
