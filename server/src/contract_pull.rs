@@ -19,9 +19,15 @@ async fn fetch_and_store_users(
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
         .as_nanos();
-    let periods = [TimePeriod::Month, TimePeriod::Quarter, TimePeriod::AllTime]
+    let previous_month = TimePeriod::Month
+        .previous_period(timestamp as u64)
+        .unwrap_or_default();
+    let periods = [TimePeriod::Month, TimePeriod::AllTime]
         .into_iter()
         .map(|e| e.time_string(timestamp as u64))
+        .chain(std::iter::once(
+            TimePeriod::Month.time_string(previous_month),
+        ))
         .chain(std::iter::once(String::from("rosctober2024")))
         .collect();
     let users = near_client
