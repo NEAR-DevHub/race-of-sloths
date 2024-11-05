@@ -112,12 +112,7 @@ async fn sender_task(
 impl TelegramSubscriber {
     pub async fn new(bot_token: String, chat_id: String) -> Self {
         let (sender, receiver) = mpsc::unbounded_channel();
-        tokio::spawn(sender_task(
-            receiver,
-            Client::new(),
-            bot_token.clone(),
-            chat_id.clone(),
-        ));
+        tokio::spawn(sender_task(receiver, Client::new(), bot_token, chat_id));
         Self { sender }
     }
 

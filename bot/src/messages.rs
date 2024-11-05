@@ -36,7 +36,7 @@ pub enum MsgCategory {
     ErrorPausedMessage,
     ErrorLateScoringMessage,
     ErrorSelfScore,
-    ErrorOrgNotInAllowedListMessage,
+    ErrorRepoIsBanned,
 
     FirstTimeContribution,
     FirstWeekContribution,
@@ -257,9 +257,7 @@ impl MessageLoader {
             MsgCategory::ErrorLateIncludeMessage => &self.error_late_include_messages,
             MsgCategory::ErrorLateScoringMessage => &self.error_late_scoring_messages,
             MsgCategory::ErrorSelfScore => &self.error_selfscore_messages,
-            MsgCategory::ErrorOrgNotInAllowedListMessage => {
-                &self.error_org_not_in_allowed_list_messages
-            }
+            MsgCategory::ErrorRepoIsBanned => &self.error_org_not_in_allowed_list_messages,
             MsgCategory::ErrorPausePausedMessage => &self.error_pause_paused_messages,
             MsgCategory::ErrorUnpauseUnpausedMessage => &self.error_unpause_unpaused_messages,
             MsgCategory::ErrorPausedMessage => &self.error_paused_messages,
@@ -672,8 +670,9 @@ mod tests {
 
         let mut pr_info = shared::PRInfo {
             votes: vec![],
-            allowed_repo: true,
-            paused: false,
+            new_repo: false,
+            paused_repo: false,
+            blocked_repo: false,
             merged: false,
             executed: false,
             excluded: false,

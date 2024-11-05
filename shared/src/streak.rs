@@ -24,15 +24,15 @@ pub enum StreakType {
 }
 
 impl StreakType {
-    pub fn from_prs_opened(value: u32) -> Self {
+    pub const fn from_prs_opened(value: u32) -> Self {
         Self::PRsOpened(value)
     }
 
-    pub fn from_prs_merged(value: u32) -> Self {
+    pub const fn from_prs_merged(value: u32) -> Self {
         Self::PRsMerged(value)
     }
 
-    pub fn is_streak_achieved(&self, user_period_data: &UserPeriodDataV2) -> bool {
+    pub const fn is_streak_achieved(&self, user_period_data: &UserPeriodDataV2) -> bool {
         match self {
             Self::PRsOpened(value) => user_period_data.prs_opened >= *value,
             Self::PRsMerged(value) => user_period_data.prs_merged >= *value,
@@ -55,15 +55,15 @@ pub enum VersionedStreak {
 }
 
 impl VersionedStreak {
-    pub fn is_active(&self) -> bool {
+    pub const fn is_active(&self) -> bool {
         match self {
-            VersionedStreak::V1(streak) => streak.is_active,
+            Self::V1(streak) => streak.is_active,
         }
     }
 
-    pub fn id(&self) -> StreakId {
+    pub const fn id(&self) -> StreakId {
         match self {
-            VersionedStreak::V1(streak) => streak.id,
+            Self::V1(streak) => streak.id,
         }
     }
 }

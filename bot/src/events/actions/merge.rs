@@ -27,7 +27,7 @@ impl PullRequestMerge {
         context.near.send_merge(pr).await?;
         info.merged = true;
 
-        if !info.allowed_repo || info.paused {
+        if info.paused_repo || info.blocked_repo {
             return Ok(EventResult::success(false));
         }
 

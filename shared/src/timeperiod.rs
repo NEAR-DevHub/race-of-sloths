@@ -16,6 +16,7 @@ pub type TimePeriodString = String;
     NearSchema,
     Debug,
     PartialEq,
+    Eq,
     Clone,
     Copy,
     EnumIter,
@@ -46,36 +47,36 @@ impl TimePeriod {
 
     pub fn time_string(&self, timestamp: Timestamp) -> TimePeriodString {
         match self {
-            TimePeriod::Day => timestamp_to_day_string(timestamp),
-            TimePeriod::Week => timestamp_to_week_string(timestamp),
-            TimePeriod::Month => timestamp_to_month_string(timestamp),
-            TimePeriod::Quarter => timestamp_to_quarter_string(timestamp),
-            TimePeriod::Year => DateTime::from_timestamp_nanos(timestamp as i64)
+            Self::Day => timestamp_to_day_string(timestamp),
+            Self::Week => timestamp_to_week_string(timestamp),
+            Self::Month => timestamp_to_month_string(timestamp),
+            Self::Quarter => timestamp_to_quarter_string(timestamp),
+            Self::Year => DateTime::from_timestamp_nanos(timestamp as i64)
                 .year()
                 .to_string(),
-            TimePeriod::AllTime => "all-time".to_string(),
+            Self::AllTime => "all-time".to_string(),
         }
     }
 
     pub fn previous_period(&self, timestamp: Timestamp) -> Option<Timestamp> {
         let timestamp = DateTime::from_timestamp_nanos(timestamp as i64);
         let result = match self {
-            TimePeriod::Day => timestamp
+            Self::Day => timestamp
                 .checked_sub_days(Days::new(1))?
                 .timestamp_nanos_opt()? as Timestamp,
-            TimePeriod::Week => timestamp
+            Self::Week => timestamp
                 .checked_sub_days(Days::new(7))?
                 .timestamp_nanos_opt()? as Timestamp,
-            TimePeriod::Month => timestamp
+            Self::Month => timestamp
                 .checked_sub_months(Months::new(1))?
                 .timestamp_nanos_opt()? as Timestamp,
-            TimePeriod::Quarter => timestamp
+            Self::Quarter => timestamp
                 .checked_sub_months(Months::new(3))?
                 .timestamp_nanos_opt()? as Timestamp,
-            TimePeriod::Year => timestamp
+            Self::Year => timestamp
                 .checked_sub_months(Months::new(12))?
                 .timestamp_nanos_opt()? as Timestamp,
-            TimePeriod::AllTime => return None,
+            Self::AllTime => return None,
         };
 
         Some(result)
@@ -85,10 +86,10 @@ impl TimePeriod {
         let date_time = DateTime::<Utc>::from_timestamp_nanos(timestamp as i64).date_naive();
 
         match self {
-            TimePeriod::Day => (date_time + chrono::Duration::days(1))
+            Self::Day => (date_time + chrono::Duration::days(1))
                 .and_hms_opt(0, 0, 0)
                 .map(|d| d.and_utc()),
-            TimePeriod::Week => {
+            Self::Week => {
                 let iso_week = date_time.iso_week();
                 NaiveDate::from_isoywd_opt(
                     iso_week.year(),
@@ -97,13 +98,13 @@ impl TimePeriod {
                 )
                 .and_then(|d| d.and_hms_opt(0, 0, 0).map(|d| d.and_utc()))
             }
-            TimePeriod::Month => if date_time.month() == 12 {
+            Self::Month => if date_time.month() == 12 {
                 Utc.with_ymd_and_hms(date_time.year() + 1, 1, 1, 0, 0, 0)
             } else {
                 Utc.with_ymd_and_hms(date_time.year(), date_time.month() + 1, 1, 0, 0, 0)
             }
             .earliest(),
-            TimePeriod::Quarter => {
+            Self::Quarter => {
                 let current_quarter = (date_time.month() - 1) / 3 + 1;
                 if current_quarter == 4 {
                     Utc.with_ymd_and_hms(date_time.year() + 1, 1, 1, 0, 0, 0)
@@ -112,10 +113,10 @@ impl TimePeriod {
                 }
                 .earliest()
             }
-            TimePeriod::Year => Utc
+            Self::Year => Utc
                 .with_ymd_and_hms(date_time.year() + 1, 1, 1, 0, 0, 0)
                 .earliest(),
-            TimePeriod::AllTime => None,
+            Self::AllTime => None,
         }
     }
 
@@ -123,24 +124,24 @@ impl TimePeriod {
         let date_time = DateTime::<Utc>::from_timestamp_nanos(timestamp as i64).date_naive();
 
         match self {
-            TimePeriod::Day => date_time.and_hms_opt(0, 0, 0).map(|d| d.and_utc()),
-            TimePeriod::Week => {
+            Self::Day => date_time.and_hms_opt(0, 0, 0).map(|d| d.and_utc()),
+            Self::Week => {
                 let iso_week = date_time.iso_week();
                 NaiveDate::from_isoywd_opt(iso_week.year(), iso_week.week(), chrono::Weekday::Mon)
                     .and_then(|d| d.and_hms_opt(0, 0, 0).map(|d| d.and_utc()))
             }
-            TimePeriod::Month => Utc
+            Self::Month => Utc
                 .with_ymd_and_hms(date_time.year(), date_time.month(), 1, 0, 0, 0)
                 .earliest(),
-            TimePeriod::Quarter => {
+            Self::Quarter => {
                 let current_quarter = (date_time.month() - 1) / 3 + 1;
                 Utc.with_ymd_and_hms(date_time.year(), current_quarter * 3 - 2, 1, 0, 0, 0)
                     .earliest()
             }
-            TimePeriod::Year => Utc
+            Self::Year => Utc
                 .with_ymd_and_hms(date_time.year(), 1, 1, 0, 0, 0)
                 .earliest(),
-            TimePeriod::AllTime => None,
+            Self::AllTime => None,
         }
     }
 }

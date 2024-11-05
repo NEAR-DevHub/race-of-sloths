@@ -8,7 +8,15 @@ pub const SCORE_TIMEOUT_IN_SECONDS: Timestamp = 24 * 60 * 60;
 pub const SCORE_TIMEOUT_IN_NANOSECONDS: Timestamp = SCORE_TIMEOUT_IN_SECONDS * 1_000_000_000;
 
 #[derive(
-    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+    Debug,
+    Clone,
+    BorshDeserialize,
+    BorshSerialize,
+    Serialize,
+    Deserialize,
+    NearSchema,
+    Eq,
+    PartialEq,
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
@@ -21,8 +29,9 @@ pub struct Score {
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
     pub votes: Vec<Score>,
-    pub allowed_repo: bool,
-    pub paused: bool,
+    pub new_repo: bool,
+    pub paused_repo: bool,
+    pub blocked_repo: bool,
     pub exist: bool,
     pub merged: bool,
     pub executed: bool,
@@ -41,7 +50,15 @@ impl PRInfo {
 }
 
 #[derive(
-    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+    Debug,
+    Clone,
+    BorshDeserialize,
+    BorshSerialize,
+    Serialize,
+    Deserialize,
+    NearSchema,
+    Eq,
+    PartialEq,
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
@@ -83,7 +100,7 @@ impl VersionedPR {
 impl From<VersionedPR> for PRv2 {
     fn from(message: VersionedPR) -> Self {
         match message {
-            VersionedPR::V1(x) => PRv2 {
+            VersionedPR::V1(x) => Self {
                 organization: x.organization,
                 repo: x.repo,
                 number: x.number,
@@ -101,7 +118,15 @@ impl From<VersionedPR> for PRv2 {
 }
 
 #[derive(
-    Debug, Clone, BorshDeserialize, BorshSerialize, Serialize, Deserialize, NearSchema, PartialEq,
+    Debug,
+    Clone,
+    BorshDeserialize,
+    BorshSerialize,
+    Serialize,
+    Deserialize,
+    NearSchema,
+    Eq,
+    PartialEq,
 )]
 #[serde(crate = "near_sdk::serde")]
 #[borsh(crate = "near_sdk::borsh")]
@@ -118,7 +143,7 @@ pub struct PRWithRating {
 }
 
 impl PRv2 {
-    pub fn new(
+    pub const fn new(
         organization: String,
         repo: String,
         number: u64,

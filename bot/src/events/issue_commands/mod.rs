@@ -43,9 +43,9 @@ impl Command {
         first_reply: bool,
         sender: &User,
     ) -> anyhow::Result<EventResult> {
-        if !check_info.allowed_repo {
+        if check_info.blocked_repo {
             info!(
-                "Sloth called for a PR from not allowed org: {}. Skipping",
+                "Sloth called for a PR from blocked repo: {}. Skipping",
                 repo_info.full_id
             );
             if first_reply {
@@ -53,7 +53,7 @@ impl Command {
                     .reply_with_error(
                         repo_info,
                         None,
-                        MsgCategory::ErrorOrgNotInAllowedListMessage,
+                        MsgCategory::ErrorRepoIsBanned,
                         vec![("pr_author_username", sender.login.clone())],
                     )
                     .await?;

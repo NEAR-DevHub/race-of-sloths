@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE repos\n            SET name = $2, paused = $3\n            WHERE organization_id = $1 AND name = $2\n            RETURNING id\n            ",
+  "query": "\n            UPDATE repos\n            SET name = $2, paused = $3, banned = $4\n            WHERE organization_id = $1 AND name = $2\n            RETURNING id\n            ",
   "describe": {
     "columns": [
       {
@@ -13,6 +13,7 @@
       "Left": [
         "Int4",
         "Text",
+        "Bool",
         "Bool"
       ]
     },
@@ -20,5 +21,5 @@
       false
     ]
   },
-  "hash": "c4e0304c9ad167c4163358a5ecc9155ce08c075a4befe670334169368d653280"
+  "hash": "fe6cdc0fa89e21b90cb5c4227e4bbca8d3c0c92b3030a9a43bd8a6995c7e4f63"
 }

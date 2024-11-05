@@ -79,7 +79,7 @@ pub struct AccountWithPermanentPercentageBonus {
 }
 
 impl AccountWithPermanentPercentageBonus {
-    pub fn new(github_handle: GithubHandle) -> Self {
+    pub const fn new(github_handle: GithubHandle) -> Self {
         Self {
             github_handle,
             permanent_percentage_bonus: Vec::new(),
@@ -173,27 +173,27 @@ impl VersionedUserPeriodData {
     pub fn pr_opened(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
         data.prs_opened += 1;
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn reward_for_scoring(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
         data.prs_scored += 1;
         data.total_rating += 25;
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn remove_reward_for_scoring(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
         data.prs_scored -= 1;
         data.total_rating -= 25;
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn pr_merged(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
         data.prs_merged += 1;
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn pr_scored(&mut self, old_score: u32, new_score: u32) {
@@ -213,14 +213,14 @@ impl VersionedUserPeriodData {
             data.largest_rating_per_pr = rating;
         }
 
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn pr_executed(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
         data.executed_prs += 1;
 
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn pr_bonus_rating(&mut self, total_rating: u32, old_rating: u32) {
@@ -232,7 +232,7 @@ impl VersionedUserPeriodData {
             data.largest_rating_per_pr = total_rating;
         }
 
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 
     pub fn pr_closed(&mut self, score: u32) {
@@ -240,14 +240,14 @@ impl VersionedUserPeriodData {
         data.prs_opened -= 1;
         data.total_score -= score;
         data.total_rating -= score * 10;
-        *self = VersionedUserPeriodData::V2(data);
+        *self = Self::V2(data);
     }
 }
 
 impl From<VersionedUserPeriodData> for UserPeriodDataV2 {
     fn from(message: VersionedUserPeriodData) -> Self {
         match message {
-            VersionedUserPeriodData::V1(x) => UserPeriodDataV2 {
+            VersionedUserPeriodData::V1(x) => Self {
                 total_score: x.total_score,
                 executed_prs: x.executed_prs,
                 largest_score: x.largest_score,
@@ -270,6 +270,7 @@ impl From<VersionedUserPeriodData> for UserPeriodDataV2 {
     Serialize,
     Deserialize,
     NearSchema,
+    Eq,
     PartialEq,
     Default,
 )]
@@ -293,6 +294,7 @@ pub struct UserPeriodData {
     Serialize,
     Deserialize,
     NearSchema,
+    Eq,
     PartialEq,
     Default,
 )]
@@ -335,6 +337,7 @@ impl User {
 pub struct Repo {
     pub login: String,
     pub paused: bool,
+    pub blocked: bool,
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]

@@ -35,6 +35,7 @@ impl ContractExt {
                 repos: vec![Repo {
                     login: "devbot".to_owned(),
                     paused: false,
+                    blocked: false,
                 }],
             }],
         );

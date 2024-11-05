@@ -119,6 +119,7 @@ async fn fetch_and_store_repos(
     tx: &mut Transaction<'static, Postgres>,
 ) -> anyhow::Result<()> {
     let organizations = near_client.repos().await?;
+    DB::remove_non_existent_repos(tx, &organizations).await?;
     for org in organizations {
         let organization_id = DB::upsert_organization(tx, &org.organization)
             .await

@@ -3,7 +3,9 @@ use rocket::{
     Build, Rocket,
 };
 use rocket_db_pools::Database;
-use shared::{PRv2, Repo, StreakUserData, TimePeriod, TimePeriodString, UserPeriodDataV2};
+use shared::{
+    AllowedRepos, PRv2, Repo, StreakUserData, TimePeriod, TimePeriodString, UserPeriodDataV2,
+};
 use sqlx::{PgPool, Postgres, Transaction};
 
 #[derive(Database, Clone, Debug)]
@@ -166,13 +168,14 @@ impl DB {
         let rec = sqlx::query!(
             r#"
             UPDATE repos
-            SET name = $2, paused = $3
+            SET name = $2, paused = $3, banned = $4
             WHERE organization_id = $1 AND name = $2
             RETURNING id
             "#,
             organization_id,
             repo.login,
-            repo.paused
+            repo.paused,
+            repo.blocked
         )
         .fetch_optional(tx.as_mut())
         .await?;
@@ -234,6 +237,44 @@ impl DB {
         .execute(tx.as_mut())
         .await?;
 
+        Ok(())
+    }
+
+    pub async fn remove_non_existent_repos(
+        tx: &mut Transaction<'static, Postgres>,
+        repos: &[AllowedRepos],
+    ) -> anyhow::Result<()> {
+        let repo_keys: Vec<(String, String)> = repos
+            .iter()
+            .flat_map(|allowed_repos| {
+                allowed_repos
+                    .repos
+                    .iter()
+                    .map(|repo| (allowed_repos.organization.clone(), repo.login.clone()))
+            })
+            .collect();
+
+        sqlx::query!(
+            r#"
+            DELETE FROM repos
+            WHERE (organization_id, name) NOT IN (
+                SELECT o.id, r.name
+                FROM unnest($1::text[], $2::text[]) AS p(org, repo)
+                JOIN organizations o ON o.login = p.org
+                JOIN repos r ON r.organization_id = o.id AND r.name = p.repo
+            )
+        "#,
+            &repo_keys
+                .iter()
+                .map(|(org, _)| org.clone())
+                .collect::<Vec<_>>(),
+            &repo_keys
+                .iter()
+                .map(|(_, repo)| repo.clone())
+                .collect::<Vec<_>>(),
+        )
+        .execute(tx.as_mut())
+        .await?;
         Ok(())
     }
 

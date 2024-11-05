@@ -11,7 +11,7 @@ use shared::{
     TimePeriodString, UserId, UserPeriodDataV2, VersionedAccount, VersionedPR, VersionedStreak,
     VersionedStreakUserData, VersionedUserPeriodData,
 };
-use types::{Repository, VersionedRepository};
+use types::{Repository, RepositoryStatus, RepositoryV2, VersionedRepository};
 
 pub mod events;
 pub mod migrate;
@@ -155,7 +155,7 @@ impl Contract {
         override_exclude: bool,
     ) {
         self.assert_sloth();
-        self.assert_repo_allowed(&organization, &repo);
+        self.assert_repo_active(&organization, &repo);
         let (user_id, _) = self.get_or_create_account(&user);
 
         let pr_id = format!("{organization}/{repo}/{pr_number}");
@@ -245,23 +245,6 @@ impl Contract {
         self.excluded_prs.insert(pr_id);
     }
 
-    pub fn exclude_repo(&mut self, organization: String, repo: String) {
-        self.assert_sloth();
-
-        self.repos.remove(&(organization, repo));
-    }
-
-    pub fn bulk_remove_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
-        self.assert_sloth();
-
-        for allowed_org in allowed_orgs {
-            for repo in allowed_org.repos {
-                self.repos
-                    .remove(&(allowed_org.organization.to_string(), repo.login));
-            }
-        }
-    }
-
     pub fn bulk_include_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
         self.assert_sloth();
 
@@ -282,45 +265,79 @@ impl Contract {
         }
     }
 
+    pub fn ban_repo(&mut self, organization: String, repo: String) {
+        self.assert_sloth();
+
+        self.repos.insert(
+            (organization, repo),
+            VersionedRepository::V2(RepositoryV2 {
+                status: RepositoryStatus::Blocked,
+            }),
+        );
+    }
+
+    pub fn unban_repo(&mut self, organization: String, repo: String) {
+        self.assert_sloth();
+
+        self.repos.insert(
+            (organization, repo),
+            VersionedRepository::V2(RepositoryV2 {
+                status: RepositoryStatus::Active,
+            }),
+        );
+    }
+
     pub fn include_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
         self.repos.insert(
             (organization, repo),
-            VersionedRepository::V1(Repository { paused: false }),
+            VersionedRepository::V2(RepositoryV2 {
+                status: RepositoryStatus::Active,
+            }),
         );
     }
 
     pub fn pause_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        let repo = self.repos.get_mut(&(organization, repo));
-        if repo.is_none() {
-            env::panic_str("Repository is not allowlisted")
-        }
-
-        let repo = repo.unwrap();
-        match repo {
-            VersionedRepository::V1(repo) => {
-                repo.paused = true;
+        let repository = self.repos.get(&(organization.clone(), repo.clone()));
+        let repository = repository.map(|r| {
+            let repository: RepositoryV2 = r.into();
+            repository
+        });
+        if let Some(repository) = repository {
+            if repository.status == RepositoryStatus::Blocked {
+                env::panic_str("Repository is blocked")
             }
         }
+        self.repos.insert(
+            (organization, repo),
+            VersionedRepository::V2(RepositoryV2 {
+                status: RepositoryStatus::Paused,
+            }),
+        );
     }
 
     pub fn unpause_repo(&mut self, organization: String, repo: String) {
         self.assert_sloth();
 
-        let repo = self.repos.get_mut(&(organization, repo));
-        if repo.is_none() {
-            env::panic_str("Repository is not allowlisted")
-        }
-
-        let repo = repo.unwrap();
-        match repo {
-            VersionedRepository::V1(repo) => {
-                repo.paused = false;
+        let repository = self.repos.get(&(organization.clone(), repo.clone()));
+        let repository = repository.map(|r| {
+            let repository: RepositoryV2 = r.into();
+            repository
+        });
+        if let Some(repository) = repository {
+            if repository.status == RepositoryStatus::Blocked {
+                env::panic_str("Repository is blocked")
             }
         }
+        self.repos.insert(
+            (organization, repo),
+            VersionedRepository::V2(RepositoryV2 {
+                status: RepositoryStatus::Active,
+            }),
+        );
     }
 
     pub fn sloth_stale(&mut self, pr_id: String) {
@@ -575,14 +592,14 @@ impl Contract {
         }
     }
 
-    pub fn assert_repo_allowed(&self, organization: &str, repo: &str) {
+    pub fn assert_repo_active(&self, organization: &str, repo: &str) {
         let repo: Option<_> = self.repos.get(&(organization.to_owned(), repo.to_owned()));
         if let Some(repo) = repo {
-            if repo.is_paused() {
-                env::panic_str("Repo is paused")
+            if !repo.is_active() {
+                env::panic_str("Repo is not active")
             }
         } else {
-            env::panic_str("Repo is not allowlisted")
+            env::panic_str("Repo is not supported")
         }
     }
 }
