@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM organizations WHERE id NOT IN (SELECT DISTINCT organization_id FROM repos)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "2e7cbaee4000581fb5c34e4ef5738f5e1522bc5aff1e946b3bf0d4d19ea37267"
+}

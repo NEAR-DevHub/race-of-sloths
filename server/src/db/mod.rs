@@ -278,6 +278,17 @@ impl DB {
         Ok(())
     }
 
+    pub async fn remove_empty_organizations(
+        tx: &mut Transaction<'static, Postgres>,
+    ) -> anyhow::Result<()> {
+        sqlx::query!(
+            r#"DELETE FROM organizations WHERE id NOT IN (SELECT DISTINCT organization_id FROM repos)"#
+        )
+        .execute(tx.as_mut())
+        .await?;
+        Ok(())
+    }
+
     pub async fn upsert_pull_request(
         tx: &mut Transaction<'static, Postgres>,
         repo_id: i32,

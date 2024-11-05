@@ -120,6 +120,7 @@ async fn fetch_and_store_repos(
 ) -> anyhow::Result<()> {
     let organizations = near_client.repos().await?;
     DB::remove_non_existent_repos(tx, &organizations).await?;
+    DB::remove_empty_organizations(tx).await?;
     for org in organizations {
         let organization_id = DB::upsert_organization(tx, &org.organization)
             .await
