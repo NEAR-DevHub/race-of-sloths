@@ -307,6 +307,22 @@ impl NearClient {
     }
 
     #[instrument(skip(self))]
+    pub async fn add_repo(&self, organization: &str, repo: &str) -> anyhow::Result<Vec<Event>> {
+        let result = self
+            .contract
+            .call_function(
+                "include_repo",
+                json!({ "organization": organization, "repo": repo }),
+            )?
+            .transaction()
+            .with_signer(self.contract.0.clone(), self.signer.clone())
+            .send_to(&self.network)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to call add_repo: {:?}", e))?;
+        process_execution_final_result(result)
+    }
+
+    #[instrument(skip(self))]
     pub async fn user_info(
         &self,
         user: &str,

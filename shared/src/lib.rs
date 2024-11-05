@@ -335,6 +335,7 @@ impl User {
 pub struct Repo {
     pub login: String,
     pub paused: bool,
+    pub blocked: bool,
 }
 
 #[derive(Serialize, Deserialize, BorshDeserialize, BorshSerialize, NearSchema)]

@@ -31,7 +31,7 @@ impl PullRequestStale {
             ..*check_info
         };
 
-        if !check_info.allowed_repo || check_info.paused {
+        if check_info.paused_repo || check_info.blocked_repo {
             return Ok(EventResult::success(false));
         }
 

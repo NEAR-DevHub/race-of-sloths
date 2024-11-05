@@ -15,6 +15,22 @@ impl Context {
             .await
     }
 
+    pub async fn add_repo(&self, repo_info: &RepoInfo) -> anyhow::Result<()> {
+        let result = self.near.add_repo(&repo_info.owner, &repo_info.repo).await;
+        info!("Added repo {repo_info:?} to near");
+        let message = format!(
+            "New repo in the [{}](https://github.com/{}/{}/pull/{}) was {}",
+            repo_info.full_id,
+            repo_info.owner,
+            repo_info.repo,
+            repo_info.number,
+            result.as_ref().map(|_| "added").unwrap_or("failed")
+        );
+        self.telegram.send_to_telegram(&message, &Level::INFO);
+
+        result.map(|_| ())
+    }
+
     pub async fn reply_with_text(
         &self,
         repo_info: &RepoInfo,

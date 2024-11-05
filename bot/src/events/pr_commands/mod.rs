@@ -79,9 +79,13 @@ impl Command {
         sender: &User,
         first_reply: bool,
     ) -> anyhow::Result<EventResult> {
-        if !check_info.allowed_repo {
+        if check_info.new_repo {
+            context.add_repo(&pr.repo_info).await?;
+        }
+
+        if check_info.blocked_repo {
             info!(
-                "Sloth called for a PR from not allowed org: {}. Skipping",
+                "Sloth called for a PR from blocked repo: {}. Skipping",
                 pr.repo_info.full_id
             );
             if first_reply {
@@ -89,7 +93,7 @@ impl Command {
                     .reply_with_error(
                         &pr.repo_info,
                         None,
-                        MsgCategory::ErrorOrgNotInAllowedListMessage,
+                        MsgCategory::ErrorRepoIsBanned,
                         vec![("pr_author_username", pr.author.login.clone())],
                     )
                     .await?;
@@ -99,7 +103,7 @@ impl Command {
             return Ok(EventResult::Skipped);
         }
 
-        if check_info.paused && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
+        if check_info.paused_repo && !matches!(self, Command::Unpause(_) | Command::Pause(_)) {
             info!(
                 "Sloth called for a PR from paused repo: {}. Skipping",
                 pr.repo_info.full_id

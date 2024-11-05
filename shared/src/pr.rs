@@ -21,8 +21,9 @@ pub struct Score {
 #[serde(crate = "near_sdk::serde")]
 pub struct PRInfo {
     pub votes: Vec<Score>,
-    pub allowed_repo: bool,
-    pub paused: bool,
+    pub new_repo: bool,
+    pub paused_repo: bool,
+    pub blocked_repo: bool,
     pub exist: bool,
     pub merged: bool,
     pub executed: bool,

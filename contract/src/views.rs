@@ -15,9 +15,12 @@ impl Contract {
         let repo_allowed = self.repos.get(&(organization, repo));
 
         PRInfo {
-            allowed_repo: repo_allowed.is_some(),
-            paused: repo_allowed
+            new_repo: repo_allowed.is_none(),
+            paused_repo: repo_allowed
                 .map(|repo| repo.is_paused())
+                .unwrap_or_default(),
+            blocked_repo: repo_allowed
+                .map(|repo| repo.is_blocked())
                 .unwrap_or_default(),
             exist: pr.is_some(),
             merged: pr
@@ -140,6 +143,7 @@ impl Contract {
                 .push(Repo {
                     login: repo.clone(),
                     paused: data.is_paused(),
+                    blocked: data.is_blocked(),
                 });
         }
 
