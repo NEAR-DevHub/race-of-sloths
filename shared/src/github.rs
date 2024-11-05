@@ -8,7 +8,7 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(login: String, contributor_type: AuthorAssociation) -> Self {
+    pub const fn new(login: String, contributor_type: AuthorAssociation) -> Self {
         Self {
             login,
             contributor_type,
