@@ -38,6 +38,7 @@ FROM
     AND tc.rank = 1
 WHERE
     r.paused = false
+    AND r.banned = false
 GROUP BY
     o.login,
     o.full_name,

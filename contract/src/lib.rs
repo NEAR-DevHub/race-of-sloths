@@ -245,23 +245,6 @@ impl Contract {
         self.excluded_prs.insert(pr_id);
     }
 
-    pub fn exclude_repo(&mut self, organization: String, repo: String) {
-        self.assert_sloth();
-
-        self.repos.remove(&(organization, repo));
-    }
-
-    pub fn bulk_remove_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
-        self.assert_sloth();
-
-        for allowed_org in allowed_orgs {
-            for repo in allowed_org.repos {
-                self.repos
-                    .remove(&(allowed_org.organization.to_string(), repo.login));
-            }
-        }
-    }
-
     pub fn bulk_include_orgs(&mut self, allowed_orgs: Vec<AllowedRepos>) {
         self.assert_sloth();
 
