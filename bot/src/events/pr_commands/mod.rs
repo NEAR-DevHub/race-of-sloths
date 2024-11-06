@@ -81,6 +81,7 @@ impl Command {
     ) -> anyhow::Result<EventResult> {
         if check_info.new_repo {
             context.add_repo(&pr.repo_info).await?;
+            check_info.new_repo = false;
         }
 
         if check_info.blocked_repo {

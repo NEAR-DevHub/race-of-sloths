@@ -229,7 +229,7 @@ message = [
 [error_selfscore_messages]
 variables = []
 message = ["""### ❌ Self-scoring is not permitted. 
-Let's keep it fair! 👍"""]
+Ask your peers to review and score your contributions!"""]
 
 [error_org_not_in_allowed_list_messages]
 variables = ["form", "link", "leaderboard_link", "pr_author_username"]
