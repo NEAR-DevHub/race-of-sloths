@@ -14,7 +14,7 @@ pub struct DB(PgPool);
 
 pub mod types;
 
-use types::{LeaderboardRecord, Statistics};
+use types::{HallOfFameRecord, LeaderboardRecord, Statistics};
 
 use self::types::{
     RepoLeaderboardRecord, RepoRecord, StreakRecord, User, UserCachedMetadata,
@@ -892,6 +892,34 @@ impl DB {
             .await?;
 
         Ok(rec)
+    }
+
+    pub async fn get_hall_of_fame(
+        &self,
+        period: &str,
+        page: i64,
+        limit: i64,
+    ) -> anyhow::Result<(Vec<HallOfFameRecord>, u64)> {
+        let rec: Vec<HallOfFameRecord> = sqlx::query_file_as!(
+            HallOfFameRecord,
+            "./sql/get_hall_of_fame.sql",
+            period,
+            limit,
+            page * limit
+        )
+        .fetch_all(&self.0)
+        .await?;
+
+        let total = sqlx::query!(
+            r#"SELECT COUNT(DISTINCT(login)) as id
+            FROM users
+            WHERE permanent_bonus > 0
+            "#,
+        )
+        .fetch_one(&self.0)
+        .await?;
+
+        Ok((rec, total.id.unwrap_or_default() as u64))
     }
 }
 

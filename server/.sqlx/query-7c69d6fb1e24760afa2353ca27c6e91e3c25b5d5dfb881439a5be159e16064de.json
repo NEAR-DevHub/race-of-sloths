@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n    u.id,\n    u.login,\n    u.full_name,\n    u.permanent_bonus,\n    upd.total_rating\nFROM\n    users AS u\n    JOIN user_period_data upd ON upd.user_id = u.id\n    AND upd.period_type = $1\nWHERE\n    u.permanent_bonus > 0\nORDER BY\n    u.permanent_bonus desc,\n    upd.total_rating desc\nLIMIT\n    $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "login",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "full_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "permanent_bonus",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_rating",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "7c69d6fb1e24760afa2353ca27c6e91e3c25b5d5dfb881439a5be159e16064de"
+}
