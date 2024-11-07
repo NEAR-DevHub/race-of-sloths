@@ -160,3 +160,12 @@ pub struct Statistics {
     // CSV
     pub hall_of_fame: Option<String>,
 }
+
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct HallOfFameRecord {
+    pub id: i32,
+    pub login: String,
+    pub full_name: Option<String>,
+    pub permanent_bonus: i32,
+    pub total_rating: i32,
+}

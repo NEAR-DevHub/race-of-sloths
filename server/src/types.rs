@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::db::types::{
-    LeaderboardRecord, RepoLeaderboardRecord, UserContributionRecord, UserRecord,
+    HallOfFameRecord, LeaderboardRecord, RepoLeaderboardRecord, UserContributionRecord, UserRecord,
 };
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
@@ -9,7 +9,12 @@ use shared::TimePeriod;
 use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, ToSchema)]
-#[aliases(PaginatedLeaderboardResponse = PaginatedResponse<LeaderboardResponse>, PaginatedRepoResponse = PaginatedResponse<RepoResponse>, PaginatedUserContributionResponse = PaginatedResponse<UserContributionResponse>)]
+#[aliases(
+    PaginatedLeaderboardResponse = PaginatedResponse<LeaderboardResponse>,
+    PaginatedHallOfFameResponse = PaginatedResponse<HallOfFameResponse>,
+    PaginatedRepoResponse = PaginatedResponse<RepoResponse>,
+    PaginatedUserContributionResponse = PaginatedResponse<UserContributionResponse>
+)]
 pub struct PaginatedResponse<T: Serialize> {
     pub records: Vec<T>,
     pub page: u64,
@@ -94,18 +99,20 @@ pub struct LeaderboardResponse {
     pub scored_prs: u32,
 }
 
+fn get_rank(permanent_bonus: u32) -> String {
+    match permanent_bonus {
+        a if a >= 25 => "Rust",
+        a if a >= 20 => "Platinum",
+        a if a >= 15 => "Gold",
+        a if a >= 10 => "Silver",
+        a if a >= 5 => "Bronze",
+        _ => "Unranked",
+    }
+    .to_string()
+}
+
 impl From<LeaderboardRecord> for LeaderboardResponse {
     fn from(record: LeaderboardRecord) -> Self {
-        let rank = match record.permanent_bonus {
-            a if a >= 25 => "Rust",
-            a if a >= 20 => "Platinum",
-            a if a >= 15 => "Gold",
-            a if a >= 10 => "Silver",
-            a if a >= 5 => "Bronze",
-            _ => "Unranked",
-        }
-        .to_string();
-
         let streak = Streak::new(
             "Weekly".to_string(),
             record.weekly_streak_amount as u32,
@@ -132,7 +139,7 @@ impl From<LeaderboardRecord> for LeaderboardResponse {
             merged_prs: record.prs_merged as u32,
             score: record.total_score as u32,
             place: record.place as u32,
-            rank,
+            rank: get_rank(record.permanent_bonus as u32),
             scored_prs: record.prs_scored as u32,
         }
     }
@@ -352,6 +359,27 @@ impl From<crate::db::types::Statistics> for Statistics {
             ),
             number_of_famed_sloths: hall_of_fame.len() as u32,
             hall_of_fame,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct HallOfFameResponse {
+    pub user_id: u32,
+    pub user: GithubMeta,
+    pub sloths_points: u32,
+    pub permanent_bonus: u32,
+    pub rank: String,
+}
+
+impl From<HallOfFameRecord> for HallOfFameResponse {
+    fn from(record: HallOfFameRecord) -> Self {
+        Self {
+            user_id: record.id as u32,
+            user: GithubMeta::new(record.login, record.full_name),
+            sloths_points: record.total_rating as u32,
+            permanent_bonus: record.permanent_bonus as u32,
+            rank: get_rank(record.permanent_bonus as u32),
         }
     }
 }
