@@ -81,6 +81,7 @@ async fn rocket() -> _ {
         "https://race-of-sloths.io",
         "https://race-of-sloths.com",
         "https://race-of-sloths-website.vercel.app",
+        "https://race-of-sloths-website-three.vercel.app",
     ]);
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
