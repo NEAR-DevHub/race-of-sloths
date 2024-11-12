@@ -185,8 +185,10 @@ impl VersionedUserPeriodData {
 
     pub fn remove_reward_for_scoring(&mut self) {
         let mut data: UserPeriodDataV2 = self.clone().into();
-        data.prs_scored -= 1;
-        data.total_rating -= 25;
+        if data.prs_scored > 0 {
+            data.prs_scored -= 1;
+            data.total_rating -= 25;
+        }
         *self = Self::V2(data);
     }
 
