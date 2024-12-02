@@ -47,6 +47,8 @@ GROUP BY
     r.open_issues,
     r.stars,
     r.forks
+HAVING
+    COUNT(pr.id) > 0
 ORDER BY
     total_prs DESC,
     open_issues DESC,
