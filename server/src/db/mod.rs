@@ -289,6 +289,7 @@ impl DB {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn upsert_pull_request(
         tx: &mut Transaction<'static, Postgres>,
         repo_id: i32,

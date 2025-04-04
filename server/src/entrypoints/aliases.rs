@@ -10,7 +10,8 @@ use crate::entrypoints::user::Badge;
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
 #[get("/<username>?<type>&<theme>&<pr>", rank = 2)]
-async fn get_badge<'a>(
+#[allow(clippy::too_many_arguments)]
+async fn get_badge(
     telegram: &State<Arc<TelegramSubscriber>>,
     username: &str,
     db: &State<DB>,

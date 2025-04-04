@@ -113,7 +113,8 @@ async fn fetch_user_metadata_lazily(
     (status = 200, description = "Get dynamically generated user image", content_type = "image/svg+xml")
 ))]
 #[get("/<username>/badge?<type>&<theme>&<pr>")]
-pub async fn get_badge<'a>(
+#[allow(clippy::too_many_arguments)]
+pub async fn get_badge(
     telegram: &State<Arc<telegram::TelegramSubscriber>>,
     username: &str,
     db: &State<DB>,

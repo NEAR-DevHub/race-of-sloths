@@ -62,7 +62,7 @@ impl GithubClient {
             .send()
             .await?;
         let mut ret = page.take_items();
-        while ret.last().map_or(false, |pr| {
+        while ret.last().is_some_and(|pr| {
             pr.updated_at
                 .or(pr.created_at)
                 .unwrap_or_default()

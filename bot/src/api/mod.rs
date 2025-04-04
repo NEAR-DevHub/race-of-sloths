@@ -674,7 +674,7 @@ impl GithubClient {
         for comment in comments.iter() {
             for handle in self.user_handles.iter() {
                 if let Some(Command::Score(score)) =
-                    Command::parse_command(handle, &pr_metadata, comment)
+                    Command::parse_command(handle, pr_metadata, comment)
                 {
                     scores.push((score, comment.user.clone()));
                 }

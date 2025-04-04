@@ -37,7 +37,7 @@ impl PullRequestMerge {
 
         let (scores, is_active) = context
             .github
-            .get_scores_and_active_pr_status(&pr)
+            .get_scores_and_active_pr_status(pr)
             .await
             .unwrap_or_default();
 
