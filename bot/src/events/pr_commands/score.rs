@@ -11,6 +11,7 @@ pub struct BotScored {
     score: String,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub comment_id: Option<u64>,
+    pub muted: bool,
 }
 
 impl BotScored {
@@ -23,6 +24,7 @@ impl BotScored {
             score,
             timestamp,
             comment_id,
+            muted: false,
         }
     }
 
@@ -87,14 +89,16 @@ impl BotScored {
                 "Author tried to score their own PR {}. Skipping.",
                 pr.repo_info.full_id,
             );
-            context
-                .reply_with_error(
-                    &pr.repo_info,
-                    self.comment_id,
-                    MsgCategory::ErrorSelfScore,
-                    vec![],
-                )
-                .await?;
+            if !self.muted {
+                context
+                    .reply_with_error(
+                        &pr.repo_info,
+                        self.comment_id,
+                        MsgCategory::ErrorSelfScore,
+                        vec![],
+                    )
+                    .await?;
+            }
             return Ok(EventResult::RepliedWithError);
         }
 
@@ -112,7 +116,7 @@ impl BotScored {
             });
         }
 
-        if edited {
+        if !self.muted && edited {
             context
                 .reply(
                     &pr.repo_info,
@@ -133,6 +137,15 @@ impl BotScored {
         }
 
         Ok(EventResult::success(true))
+    }
+
+    pub fn muted(self) -> BotScored {
+        BotScored {
+            score: self.score,
+            timestamp: self.timestamp,
+            comment_id: self.comment_id,
+            muted: true,
+        }
     }
 
     pub fn construct(comment: &CommentRepr, input: String) -> Command {
