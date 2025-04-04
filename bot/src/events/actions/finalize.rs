@@ -28,15 +28,10 @@ impl PullRequestFinalize {
         } else {
             context
                 .github
-                .is_active_pr(
-                    &pr.repo_info.owner,
-                    &pr.repo_info.repo,
-                    &pr.author.login,
-                    pr.repo_info.number,
-                )
+                .get_scores_and_active_pr_status(pr)
                 .await
                 .ok()
-                .map(|active| (active, context.bot_name.clone()))
+                .map(|(_, active)| (active, context.bot_name.clone()))
         };
         let events = context
             .near

@@ -1,4 +1,4 @@
-use tracing::instrument;
+use tracing::{error, instrument};
 
 use shared::{github::PrMetadata, GithubHandle, PRInfo};
 
@@ -35,19 +35,29 @@ impl PullRequestMerge {
             return Ok(EventResult::success(true));
         }
 
-        let is_active = context
+        let (scores, is_active) = context
             .github
-            .is_active_pr(
-                &pr.repo_info.owner,
-                &pr.repo_info.repo,
-                &pr.author.login,
-                pr.repo_info.number,
-            )
+            .get_scores_and_active_pr_status(pr)
             .await
             .unwrap_or_default();
+
         let autoscore = if is_active { 2 } else { 1 }.to_string();
 
-        if self.merger != pr.author.login {
+        if !scores.is_empty() {
+            let scores_len = scores.len();
+            for (index, (command, user)) in scores.into_iter().enumerate() {
+                let result = command
+                    .muted()
+                    .execute(pr, context.clone(), info, &user)
+                    .await;
+                if let Err(e) = result {
+                    error!(
+                        "Failed to apply previously applied score {}/{}: {}",
+                        index, scores_len, e
+                    );
+                }
+            }
+        } else if self.merger != pr.author.login {
             context
                 .reply(
                     &pr.repo_info,

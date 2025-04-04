@@ -16,7 +16,12 @@ use octocrab::models::{
 use shared::GithubHandle;
 use tracing::{error, info, instrument};
 
-use crate::events::{actions::Action, issue_commands, pr_commands::Command, Event, EventType};
+use crate::events::{
+    actions::Action,
+    issue_commands,
+    pr_commands::{BotScored, Command},
+    Event, EventType,
+};
 
 pub use shared::github::*;
 
@@ -636,42 +641,55 @@ impl GithubClient {
     }
 
     /// Active PR is the PR where there are >2 messages from other users (exculding us and the author)
-    pub async fn is_active_pr(
+    pub async fn get_scores_and_active_pr_status(
         &self,
-        owner: &str,
-        repo: &str,
-        author: &str,
-        number: u64,
-    ) -> anyhow::Result<bool> {
+        pr_metadata: &PrMetadata,
+    ) -> anyhow::Result<(Vec<(BotScored, User)>, bool)> {
         let comments = self
             .client
-            .issues(owner, repo)
-            .list_comments(number)
+            .issues(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
+            .list_comments(pr_metadata.repo_info.number)
             .per_page(100)
             .send()
             .await?;
+
         let comments = self.client.all_pages(comments).await?;
 
         let reviews = self
             .client
-            .pulls(owner, repo)
-            .list_reviews(number)
+            .pulls(&pr_metadata.repo_info.owner, &pr_metadata.repo_info.repo)
+            .list_reviews(pr_metadata.repo_info.number)
             .per_page(100)
             .send()
-            .await?
-            .take_items();
+            .await?;
 
-        let comments = comments
+        let mut comments = comments
             .into_iter()
             .map(CommentRepr::from)
             .chain(reviews.into_iter().flat_map(CommentRepr::try_from))
             .collect::<Vec<_>>();
+        comments.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+        let mut scores = Vec::new();
+        for comment in comments.iter() {
+            for handle in self.user_handles.iter() {
+                if let Some(Command::Score(score)) =
+                    Command::parse_command(handle, pr_metadata, comment)
+                {
+                    scores.push((score, comment.user.clone()));
+                }
+            }
+        }
 
         let active = comments
             .iter()
-            .filter(|c| !self.user_handles.contains(&c.user.login) && c.user.login != author)
-            .count();
+            .filter(|c| {
+                !self.user_handles.contains(&c.user.login)
+                    && c.user.login != pr_metadata.author.login
+            })
+            .count()
+            >= 2;
 
-        Ok(active >= 2)
+        Ok((scores, active))
     }
 }
