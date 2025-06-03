@@ -92,7 +92,7 @@ async fn rocket() -> _ {
     .to_cors()
     .expect("Failed to create cors config");
 
-    let health_monitor = HealthMonitor::new(telegram.clone());
+    let health_monitor = Arc::new(HealthMonitor::new(telegram.clone()));
 
     // TODO: after 0.6.0 release, we should use tracing for redirecting warns and errors to the telegram
 
