@@ -45,4 +45,4 @@ jobs:
           run: cargo build --release
         - name: build contract
           if: steps.git-diff.outputs.diff
-          run: cd contract && cargo near build
+          run: cd contract && cargo near build non-reproducible-wasm
