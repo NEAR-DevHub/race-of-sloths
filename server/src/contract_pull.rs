@@ -185,7 +185,7 @@ pub fn stage(client: NearClient, sleep_duration: Duration, atomic_bool: Arc<Atom
                 while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                     interval.tick().await;
 
-                    let _ = health_monitor.im_alive("Contract Updater");
+                    health_monitor.im_alive("Contract Updater");
 
                     // Execute a query of some kind
                     if let Err(e) = fetch_and_store_all_data(&telegram, &near_client, &db).await {

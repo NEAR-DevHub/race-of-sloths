@@ -241,7 +241,7 @@ pub fn stage(
                             while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                                 interval.tick().await;
 
-                                let _ = health_monitor.im_alive("GitHub Updater");
+                                health_monitor.im_alive("GitHub Updater");
 
                                 if let Err(e) =
                                     fetch_github_data(&telegram, &github_client, &db).await
