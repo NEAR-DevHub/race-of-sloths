@@ -11,7 +11,7 @@ use shared::telegram::TelegramSubscriber;
 use sqlx::{Postgres, Transaction};
 use tracing::instrument;
 
-use crate::{db::DB, error};
+use crate::{db::DB, error, health_monitor::HealthMonitor};
 
 struct RepoMetadata {
     stars: u32,
@@ -229,16 +229,24 @@ pub fn stage(
                             .state()
                             .cloned()
                             .expect("failed to get telegram client");
+
+                        let health_monitor: Arc<HealthMonitor> = rocket
+                            .state()
+                            .cloned()
+                            .expect("Failed to get health monitor");
+
                         rocket::tokio::spawn(async move {
                             let mut interval: rocket::tokio::time::Interval =
                                 rocket::tokio::time::interval(sleep_duration);
                             while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                                 interval.tick().await;
 
+                                let _ = health_monitor.im_alive("GitHub Updater");
+
                                 if let Err(e) =
                                     fetch_github_data(&telegram, &github_client, &db).await
                                 {
-                                    error(&telegram, &format!("{e:#}"));
+                                    error(&telegram, &format!("GitHub updater error: {e:#}"));
                                 }
                             }
                         });

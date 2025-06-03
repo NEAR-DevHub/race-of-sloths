@@ -10,7 +10,7 @@ use rocket_db_pools::Database;
 use shared::{near::NearClient, telegram::TelegramSubscriber, TimePeriod};
 use sqlx::{Postgres, Transaction};
 
-use crate::db::DB;
+use crate::{db::DB, health_monitor::HealthMonitor};
 
 async fn fetch_and_store_users(
     near_client: &NearClient,
@@ -174,15 +174,22 @@ pub fn stage(client: NearClient, sleep_duration: Duration, atomic_bool: Arc<Atom
                 .cloned()
                 .expect("Failed to get telegram client");
 
+            let health_monitor: Arc<HealthMonitor> = rocket
+                .state()
+                .cloned()
+                .expect("Failed to get health monitor");
+
             rocket::tokio::spawn(async move {
                 let mut interval = rocket::tokio::time::interval(sleep_duration);
                 let near_client = client;
                 while atomic_bool.load(std::sync::atomic::Ordering::Relaxed) {
                     interval.tick().await;
 
+                    let _ = health_monitor.im_alive("Contract Updater");
+
                     // Execute a query of some kind
                     if let Err(e) = fetch_and_store_all_data(&telegram, &near_client, &db).await {
-                        crate::error(&telegram, &format!("{e:#}"));
+                        crate::error(&telegram, &format!("Contract updater error: {e:#}"));
                     }
                 }
             });

@@ -11,7 +11,9 @@ use rocket::{fairing::AdHoc, fs::NamedFile, State};
 use rocket_cors::AllowedOrigins;
 use shared::{near::NearClient, telegram};
 
-use race_of_sloths_server::{contract_pull, db, github_pull, weekly_stats};
+use race_of_sloths_server::{
+    contract_pull, db, github_pull, health_monitor::HealthMonitor, weekly_stats,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -62,8 +64,8 @@ async fn rocket() -> _ {
     let atomic_bool = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let prometheus = rocket_prometheus::PrometheusMetrics::new();
 
-    let telegram: telegram::TelegramSubscriber =
-        telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await;
+    let telegram =
+        Arc::new(telegram::TelegramSubscriber::new(env.telegram_token, env.telegram_chat_id).await);
 
     let near_client = NearClient::new(
         env.contract.clone(),
@@ -89,6 +91,8 @@ async fn rocket() -> _ {
     }
     .to_cors()
     .expect("Failed to create cors config");
+
+    let health_monitor = HealthMonitor::new(telegram.clone());
 
     // TODO: after 0.6.0 release, we should use tracing for redirecting warns and errors to the telegram
 
@@ -123,7 +127,8 @@ async fn rocket() -> _ {
         .attach(prometheus.clone())
         .attach(entrypoints::stage(env.font))
         .mount("/metrics", prometheus)
-        .manage(Arc::new(telegram))
+        .manage(telegram)
+        .manage(health_monitor)
         .attach(AdHoc::on_response(
             "Telegram notification about failed resposnes",
             |req, resp: &mut rocket::Response<'_>| {
