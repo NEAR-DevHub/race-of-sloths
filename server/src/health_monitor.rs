@@ -19,8 +19,8 @@ impl HealthMonitor {
                 rocket::tokio::select! {
                     _ = interval.tick() => {
                         for (task_name, last_heartbeat) in &map {
-                            if last_heartbeat.elapsed() > Duration::from_secs(600) { // 10 minutes
-                                crate::error(&telegram, &format!("🚨 No health reports for {} for 10 minutes - shutting down application", task_name));
+                            if last_heartbeat.elapsed() > Duration::from_secs(120 * 60) { // 2 hours
+                                crate::error(&telegram, &format!("🚨 No health reports for {} for 2 hours - shutting down application", task_name));
                                 // Probably, it should be a more elegant way to do this, but we will crash the app for now to restart it
                                 std::process::exit(1);
                             }
